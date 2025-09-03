@@ -32,82 +32,80 @@ struct ContentView: View {
                 .ignoresSafeArea()
             
             NavigationView {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        if !username.isEmpty {
-                            HStack(spacing: 6) {
-                                Image(systemName: "person.circle")
-                                    .foregroundColor(.secondary)
-                                Text("Signed in as @\(username)")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                            .padding(.horizontal)
+                Group {
+                    if isLoading && books.isEmpty {
+                        VStack(spacing: 20) {
+                            ProgressView()
+                                .scaleEffect(1.5)
+                            Text("Loading your books...")
+                                .font(.headline)
+                                .foregroundColor(.secondary)
                         }
-                        
-                        // NEW: Success banner
-                        if showFinishBanner {
-                            HStack(spacing: 8) {
-                                Image(systemName: "checkmark.seal.fill")
-                                    .foregroundColor(.green)
-                                Text("Marked as finished")
-                                    .font(.subheadline)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.primary)
-                                Spacer()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding(.top, 100)
+                    } else if let error = errorMessage {
+                        VStack(spacing: 20) {
+                            Image(systemName: "exclamationmark.triangle")
+                                .font(.system(size: 50))
+                                .foregroundColor(.orange)
+                            Text("Failed to load books")
+                                .font(.headline)
+                            Text(error)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
+                            Button("Try Again") {
+                                Task { await loadBooks() }
                             }
-                            .padding(10)
-                            .background(Color.green.opacity(0.15))
-                            .cornerRadius(10)
-                            .padding(.horizontal)
-                            .transition(.move(edge: .top).combined(with: .opacity))
+                            .buttonStyle(.borderedProminent)
                         }
-                        
-                        if isLoading && books.isEmpty {
-                            VStack(spacing: 20) {
-                                ProgressView()
-                                    .scaleEffect(1.5)
-                                Text("Loading your books...")
-                                    .font(.headline)
-                                    .foregroundColor(.secondary)
-                            }
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .padding(.top, 100)
-                        } else if let error = errorMessage {
-                            VStack(spacing: 20) {
-                                Image(systemName: "exclamationmark.triangle")
-                                    .font(.system(size: 50))
-                                    .foregroundColor(.orange)
-                                Text("Failed to load books")
-                                    .font(.headline)
-                                Text(error)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                    .multilineTextAlignment(.center)
-                                Button("Try Again") {
-                                    Task { await loadBooks() }
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 100)
+                        .padding(.horizontal)
+                    } else if books.isEmpty {
+                        VStack(spacing: 20) {
+                            Image(systemName: "books.vertical")
+                                .font(.system(size: 50))
+                                .foregroundColor(.secondary)
+                            Text("No books currently reading")
+                                .font(.headline)
+                            Text("Start reading a book on Hardcover to see it here")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 100)
+                        .padding(.horizontal)
+                    } else {
+                        List {
+                            if !username.isEmpty {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "person.circle")
+                                        .foregroundColor(.secondary)
+                                    Text("Signed in as @\(username)")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
                                 }
-                                .buttonStyle(.borderedProminent)
+                                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 0, trailing: 16))
                             }
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, 100)
-                            .padding(.horizontal)
-                        } else if books.isEmpty {
-                            VStack(spacing: 20) {
-                                Image(systemName: "books.vertical")
-                                    .font(.system(size: 50))
-                                    .foregroundColor(.secondary)
-                                Text("No books currently reading")
-                                    .font(.headline)
-                                Text("Start reading a book on Hardcover to see it here")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                    .multilineTextAlignment(.center)
+                            
+                            if showFinishBanner {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "checkmark.seal.fill")
+                                        .foregroundColor(.green)
+                                    Text("Marked as finished")
+                                        .font(.subheadline)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.primary)
+                                    Spacer()
+                                }
+                                .padding(10)
+                                .background(Color.green.opacity(0.15))
+                                .cornerRadius(10)
+                                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                             }
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, 100)
-                            .padding(.horizontal)
-                        } else {
+                            
                             ForEach(books) { book in
                                 BookCardView(book: book, onEditionTap: {
                                     selectedBookForEdition = book
@@ -122,22 +120,23 @@ struct ContentView: View {
                                     // Show banner and confetti when a book is marked as finished
                                     showFinishFeedback()
                                 })
+                                .listRowSeparator(.hidden)
+                                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                             }
-                        }
-                        
-                        if !books.isEmpty && !isLoading {
+                            
+                            // Footer: last updated
                             HStack {
                                 Image(systemName: "clock.arrow.circlepath")
                                     .font(.caption)
                                 Text("Updated \(lastUpdated, style: .relative) ago")
                                     .font(.caption)
+                                Spacer()
                             }
                             .foregroundColor(.secondary)
-                            .padding(.horizontal)
-                            .padding(.top, 8)
+                            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 12, trailing: 16))
                         }
+                        .listStyle(.plain)
                     }
-                    .padding()
                 }
                 .background(Color(UIColor.systemBackground))
                 .navigationTitle("Currently Reading")
@@ -346,29 +345,12 @@ struct BookCardView: View {
                         .foregroundColor(.secondary)
                         .lineLimit(1)
                     
-                    if book.bookId != nil && book.userBookId != nil {
-                        Button(action: {
-                            print("🔘 Change Edition tapped - BookId: \(book.bookId!), UserBookId: \(book.userBookId!), Current EditionId: \(book.editionId ?? -1)")
-                            onEditionTap()
-                        }) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "books.vertical.fill").font(.caption)
-                                Text("Change Edition").font(.caption)
-                            }
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.accentColor.opacity(0.1))
-                            .foregroundColor(.accentColor)
-                            .cornerRadius(6)
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                    }
-                    
                     Spacer()
                     
                     if book.totalPages > 0 || book.currentPage > 0 {
                         VStack(alignment: .leading, spacing: 6) {
-                            HStack {
+                            HStack(spacing: 8) {
+                                // Left: page info
                                 if book.currentPage > 0 && book.totalPages > 0 {
                                     Text("Page \(book.currentPage) of \(book.totalPages) pages")
                                         .font(.caption)
@@ -381,15 +363,54 @@ struct BookCardView: View {
                                     Text("\(book.totalPages) pages")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
+                                } else {
+                                    Text("No progress information")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
                                 }
+                                
                                 Spacer()
+                                
+                                // Optional percent
                                 if book.progress > 0 {
                                     Text("\(Int(book.progress * 100))%")
                                         .font(.caption)
                                         .fontWeight(.semibold)
                                         .foregroundColor(.accentColor)
                                 }
+                                
+                                // Right: compact icon actions (if we have a userBookId)
+                                if let userBookId = book.userBookId {
+                                    HStack(spacing: 10) {
+                                        // Mark as finished
+                                        Button {
+                                            pendingFinishUserBookId = userBookId
+                                            selectedRating = 5.0
+                                            showRatingSheet = true
+                                        } label: {
+                                            Image(systemName: "checkmark.circle.fill")
+                                                .foregroundColor(.green)
+                                                .imageScale(.medium)
+                                        }
+                                        .buttonStyle(.plain)
+                                        .disabled(isActionWorking)
+                                        .accessibilityLabel("Mark as finished")
+                                        
+                                        // Change edition
+                                        Button {
+                                            onEditionTap()
+                                        } label: {
+                                            Image(systemName: "books.vertical.fill")
+                                                .foregroundColor(.accentColor)
+                                                .imageScale(.medium)
+                                        }
+                                        .buttonStyle(.plain)
+                                        .disabled(isActionWorking)
+                                        .accessibilityLabel("Change edition")
+                                    }
+                                }
                             }
+                            
                             GeometryReader { geometry in
                                 ZStack(alignment: .leading) {
                                     RoundedRectangle(cornerRadius: 4).fill(Color("BorderColor").opacity(0.3))
@@ -401,9 +422,38 @@ struct BookCardView: View {
                             .frame(height: 8)
                         }
                     } else {
-                        Text("No progress information")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        // Ingen känd progress – behåll layouten kompakt men visa actions till höger om en spacer
+                        HStack {
+                            Text("No progress information")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            if let userBookId = book.userBookId {
+                                HStack(spacing: 10) {
+                                    Button {
+                                        pendingFinishUserBookId = userBookId
+                                        selectedRating = 5.0
+                                        showRatingSheet = true
+                                    } label: {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundColor(.green)
+                                            .imageScale(.medium)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .disabled(isActionWorking)
+                                    .accessibilityLabel("Mark as finished")
+                                    
+                                    Button { onEditionTap() } label: {
+                                        Image(systemName: "books.vertical.fill")
+                                            .foregroundColor(.accentColor)
+                                            .imageScale(.medium)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .disabled(isActionWorking)
+                                    .accessibilityLabel("Change edition")
+                                }
+                            }
+                        }
                     }
                     
                     if book.userBookId != nil {
@@ -492,6 +542,7 @@ struct BookCardView: View {
                 isExpanded.toggle()
             }
         }
+        // Long-press menu: behåll “Mark as finished” men flytta “Remove” till swipe
         .contextMenu {
             if let userBookId = book.userBookId {
                 Button {
@@ -501,10 +552,15 @@ struct BookCardView: View {
                 } label: {
                     Label("Mark as finished", systemImage: "checkmark.circle")
                 }
+            }
+        }
+        // Swipe to delete
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            if book.userBookId != nil {
                 Button(role: .destructive) {
                     showRemoveConfirm = true
                 } label: {
-                    Label("Remove from Currently Reading", systemImage: "trash")
+                    Label("Remove", systemImage: "trash")
                 }
             }
         }
@@ -977,4 +1033,3 @@ private struct StarCell: View {
         .frame(width: 34, height: 34) // touch-friendly
     }
 }
-
