@@ -1,0 +1,796 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		CB00BAAF2E5B98B40086B374 /* AppIntents.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CB00BAAE2E5B98B40086B374 /* AppIntents.framework */; };
+		CB73FB7B2E583D6B00B36269 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CB73FB7A2E583D6B00B36269 /* WidgetKit.framework */; };
+		CB73FB7D2E583D6B00B36269 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CB73FB7C2E583D6B00B36269 /* SwiftUI.framework */; };
+		CB73FB8C2E583D6D00B36269 /* ReadingProgressWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = CB73FB782E583D6B00B36269 /* ReadingProgressWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		CBE946E02E5EE5AB0018EEA1 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = CBE946DF2E5EE5AB0018EEA1 /* Localizable.xcstrings */; };
+		CBE946E12E5EE5AB0018EEA1 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = CBE946DF2E5EE5AB0018EEA1 /* Localizable.xcstrings */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		CB73FB582E583D0500B36269 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CB73FB422E583D0300B36269 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CB73FB492E583D0300B36269;
+			remoteInfo = "Hardcover Reading Widget";
+		};
+		CB73FB622E583D0500B36269 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CB73FB422E583D0300B36269 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CB73FB492E583D0300B36269;
+			remoteInfo = "Hardcover Reading Widget";
+		};
+		CB73FB8A2E583D6D00B36269 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CB73FB422E583D0300B36269 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CB73FB772E583D6B00B36269;
+			remoteInfo = ReadingProgressWidgetExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		CB73FB912E583D6D00B36269 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				CB73FB8C2E583D6D00B36269 /* ReadingProgressWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		CB00BAAE2E5B98B40086B374 /* AppIntents.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppIntents.framework; path = System/Library/Frameworks/AppIntents.framework; sourceTree = SDKROOT; };
+		CB73FB4A2E583D0300B36269 /* Softcover.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Softcover.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CB73FB572E583D0500B36269 /* SoftcoverTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SoftcoverTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		CB73FB612E583D0500B36269 /* SoftcoverUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SoftcoverUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		CB73FB782E583D6B00B36269 /* ReadingProgressWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ReadingProgressWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		CB73FB7A2E583D6B00B36269 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		CB73FB7C2E583D6B00B36269 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		CBE946DF2E5EE5AB0018EEA1 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		CBFA1D7F2E633D3A002E60A5 /* Softcover.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Softcover.entitlements; sourceTree = "<group>"; };
+		CBFA1D802E633D67002E60A5 /* ReadingProgressWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ReadingProgressWidgetExtension.entitlements; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		CB61E9822E58923100C42D11 /* Exceptions for "ReadingProgressWidget" folder in "ReadingProgressWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = CB73FB772E583D6B00B36269 /* ReadingProgressWidgetExtension */;
+		};
+		CB6860152E5C4130005B3AE6 /* Exceptions for "Hardcover Reading Widget" folder in "ReadingProgressWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AppGroup.swift,
+				FinishedBookEntry.swift,
+			);
+			target = CB73FB772E583D6B00B36269 /* ReadingProgressWidgetExtension */;
+		};
+		CB73D33B2E5A74F200A71301 /* Exceptions for "ReadingProgressWidget" folder in "Softcover" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				BookProgress.swift,
+				Config.plist,
+				HardcoverService.swift,
+			);
+			target = CB73FB492E583D0300B36269 /* Softcover */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		CB73FB4C2E583D0300B36269 /* Hardcover Reading Widget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				CB6860152E5C4130005B3AE6 /* Exceptions for "Hardcover Reading Widget" folder in "ReadingProgressWidgetExtension" target */,
+			);
+			path = "Hardcover Reading Widget";
+			sourceTree = "<group>";
+		};
+		CB73FB5A2E583D0500B36269 /* Hardcover Reading WidgetTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "Hardcover Reading WidgetTests";
+			sourceTree = "<group>";
+		};
+		CB73FB642E583D0500B36269 /* Hardcover Reading WidgetUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "Hardcover Reading WidgetUITests";
+			sourceTree = "<group>";
+		};
+		CB73FB7E2E583D6B00B36269 /* ReadingProgressWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				CB73D33B2E5A74F200A71301 /* Exceptions for "ReadingProgressWidget" folder in "Softcover" target */,
+				CB61E9822E58923100C42D11 /* Exceptions for "ReadingProgressWidget" folder in "ReadingProgressWidgetExtension" target */,
+			);
+			path = ReadingProgressWidget;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		CB73FB472E583D0300B36269 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CB00BAAF2E5B98B40086B374 /* AppIntents.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CB73FB542E583D0500B36269 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CB73FB5E2E583D0500B36269 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CB73FB752E583D6B00B36269 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CB73FB7D2E583D6B00B36269 /* SwiftUI.framework in Frameworks */,
+				CB73FB7B2E583D6B00B36269 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		CB73FB412E583D0300B36269 = {
+			isa = PBXGroup;
+			children = (
+				CBFA1D802E633D67002E60A5 /* ReadingProgressWidgetExtension.entitlements */,
+				CBFA1D7F2E633D3A002E60A5 /* Softcover.entitlements */,
+				CBE946DF2E5EE5AB0018EEA1 /* Localizable.xcstrings */,
+				CB73FB4C2E583D0300B36269 /* Hardcover Reading Widget */,
+				CB73FB5A2E583D0500B36269 /* Hardcover Reading WidgetTests */,
+				CB73FB642E583D0500B36269 /* Hardcover Reading WidgetUITests */,
+				CB73FB7E2E583D6B00B36269 /* ReadingProgressWidget */,
+				CB73FB792E583D6B00B36269 /* Frameworks */,
+				CB73FB4B2E583D0300B36269 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		CB73FB4B2E583D0300B36269 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				CB73FB4A2E583D0300B36269 /* Softcover.app */,
+				CB73FB572E583D0500B36269 /* SoftcoverTests.xctest */,
+				CB73FB612E583D0500B36269 /* SoftcoverUITests.xctest */,
+				CB73FB782E583D6B00B36269 /* ReadingProgressWidgetExtension.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		CB73FB792E583D6B00B36269 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				CB00BAAE2E5B98B40086B374 /* AppIntents.framework */,
+				CB73FB7A2E583D6B00B36269 /* WidgetKit.framework */,
+				CB73FB7C2E583D6B00B36269 /* SwiftUI.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		CB73FB492E583D0300B36269 /* Softcover */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CB73FB6B2E583D0500B36269 /* Build configuration list for PBXNativeTarget "Softcover" */;
+			buildPhases = (
+				CB73FB462E583D0300B36269 /* Sources */,
+				CB73FB472E583D0300B36269 /* Frameworks */,
+				CB73FB482E583D0300B36269 /* Resources */,
+				CB73FB912E583D6D00B36269 /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				CB73FB8B2E583D6D00B36269 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				CB73FB4C2E583D0300B36269 /* Hardcover Reading Widget */,
+			);
+			name = Softcover;
+			packageProductDependencies = (
+			);
+			productName = "Hardcover Reading Widget";
+			productReference = CB73FB4A2E583D0300B36269 /* Softcover.app */;
+			productType = "com.apple.product-type.application";
+		};
+		CB73FB562E583D0500B36269 /* SoftcoverTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CB73FB6E2E583D0500B36269 /* Build configuration list for PBXNativeTarget "SoftcoverTests" */;
+			buildPhases = (
+				CB73FB532E583D0500B36269 /* Sources */,
+				CB73FB542E583D0500B36269 /* Frameworks */,
+				CB73FB552E583D0500B36269 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				CB73FB592E583D0500B36269 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				CB73FB5A2E583D0500B36269 /* Hardcover Reading WidgetTests */,
+			);
+			name = SoftcoverTests;
+			packageProductDependencies = (
+			);
+			productName = "Hardcover Reading WidgetTests";
+			productReference = CB73FB572E583D0500B36269 /* SoftcoverTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		CB73FB602E583D0500B36269 /* SoftcoverUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CB73FB712E583D0500B36269 /* Build configuration list for PBXNativeTarget "SoftcoverUITests" */;
+			buildPhases = (
+				CB73FB5D2E583D0500B36269 /* Sources */,
+				CB73FB5E2E583D0500B36269 /* Frameworks */,
+				CB73FB5F2E583D0500B36269 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				CB73FB632E583D0500B36269 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				CB73FB642E583D0500B36269 /* Hardcover Reading WidgetUITests */,
+			);
+			name = SoftcoverUITests;
+			packageProductDependencies = (
+			);
+			productName = "Hardcover Reading WidgetUITests";
+			productReference = CB73FB612E583D0500B36269 /* SoftcoverUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		CB73FB772E583D6B00B36269 /* ReadingProgressWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CB73FB8E2E583D6D00B36269 /* Build configuration list for PBXNativeTarget "ReadingProgressWidgetExtension" */;
+			buildPhases = (
+				CB73FB742E583D6B00B36269 /* Sources */,
+				CB73FB752E583D6B00B36269 /* Frameworks */,
+				CB73FB762E583D6B00B36269 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				CB73FB7E2E583D6B00B36269 /* ReadingProgressWidget */,
+			);
+			name = ReadingProgressWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = ReadingProgressWidgetExtension;
+			productReference = CB73FB782E583D6B00B36269 /* ReadingProgressWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		CB73FB422E583D0300B36269 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1640;
+				LastUpgradeCheck = 1640;
+				TargetAttributes = {
+					CB73FB492E583D0300B36269 = {
+						CreatedOnToolsVersion = 16.4;
+					};
+					CB73FB562E583D0500B36269 = {
+						CreatedOnToolsVersion = 16.4;
+						TestTargetID = CB73FB492E583D0300B36269;
+					};
+					CB73FB602E583D0500B36269 = {
+						CreatedOnToolsVersion = 16.4;
+						TestTargetID = CB73FB492E583D0300B36269;
+					};
+					CB73FB772E583D6B00B36269 = {
+						CreatedOnToolsVersion = 16.4;
+					};
+				};
+			};
+			buildConfigurationList = CB73FB452E583D0300B36269 /* Build configuration list for PBXProject "Softcover" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+				sv,
+			);
+			mainGroup = CB73FB412E583D0300B36269;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = CB73FB4B2E583D0300B36269 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				CB73FB492E583D0300B36269 /* Softcover */,
+				CB73FB562E583D0500B36269 /* SoftcoverTests */,
+				CB73FB602E583D0500B36269 /* SoftcoverUITests */,
+				CB73FB772E583D6B00B36269 /* ReadingProgressWidgetExtension */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		CB73FB482E583D0300B36269 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CBE946E12E5EE5AB0018EEA1 /* Localizable.xcstrings in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CB73FB552E583D0500B36269 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CB73FB5F2E583D0500B36269 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CB73FB762E583D6B00B36269 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CBE946E02E5EE5AB0018EEA1 /* Localizable.xcstrings in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		CB73FB462E583D0300B36269 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CB73FB532E583D0500B36269 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CB73FB5D2E583D0500B36269 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CB73FB742E583D6B00B36269 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		CB73FB592E583D0500B36269 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CB73FB492E583D0300B36269 /* Softcover */;
+			targetProxy = CB73FB582E583D0500B36269 /* PBXContainerItemProxy */;
+		};
+		CB73FB632E583D0500B36269 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CB73FB492E583D0300B36269 /* Softcover */;
+			targetProxy = CB73FB622E583D0500B36269 /* PBXContainerItemProxy */;
+		};
+		CB73FB8B2E583D6D00B36269 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CB73FB772E583D6B00B36269 /* ReadingProgressWidgetExtension */;
+			targetProxy = CB73FB8A2E583D6D00B36269 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		CB73FB692E583D0500B36269 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 7G6FEZ22K2;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		CB73FB6A2E583D0500B36269 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 7G6FEZ22K2;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		CB73FB6C2E583D0500B36269 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Softcover.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7G6FEZ22K2;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Softcover;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "komadori.Hardcover-Reading-Widget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		CB73FB6D2E583D0500B36269 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Softcover.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7G6FEZ22K2;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Softcover;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "komadori.Hardcover-Reading-Widget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		CB73FB6F2E583D0500B36269 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7G6FEZ22K2;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "komadori.Hardcover-Reading-WidgetTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Softcover.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Softcover";
+			};
+			name = Debug;
+		};
+		CB73FB702E583D0500B36269 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7G6FEZ22K2;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "komadori.Hardcover-Reading-WidgetTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Softcover.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Softcover";
+			};
+			name = Release;
+		};
+		CB73FB722E583D0500B36269 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7G6FEZ22K2;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "komadori.Hardcover-Reading-WidgetUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = "Hardcover Reading Widget";
+			};
+			name = Debug;
+		};
+		CB73FB732E583D0500B36269 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7G6FEZ22K2;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "komadori.Hardcover-Reading-WidgetUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = "Hardcover Reading Widget";
+			};
+			name = Release;
+		};
+		CB73FB8F2E583D6D00B36269 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = ReadingProgressWidgetExtension.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7G6FEZ22K2;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ReadingProgressWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Softcover;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "komadori.Hardcover-Reading-Widget.ReadingProgressWidget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SKIP_INSTALL = YES;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		CB73FB902E583D6D00B36269 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = ReadingProgressWidgetExtension.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7G6FEZ22K2;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ReadingProgressWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Softcover;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "komadori.Hardcover-Reading-Widget.ReadingProgressWidget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SKIP_INSTALL = YES;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		CB73FB452E583D0300B36269 /* Build configuration list for PBXProject "Softcover" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CB73FB692E583D0500B36269 /* Debug */,
+				CB73FB6A2E583D0500B36269 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CB73FB6B2E583D0500B36269 /* Build configuration list for PBXNativeTarget "Softcover" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CB73FB6C2E583D0500B36269 /* Debug */,
+				CB73FB6D2E583D0500B36269 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CB73FB6E2E583D0500B36269 /* Build configuration list for PBXNativeTarget "SoftcoverTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CB73FB6F2E583D0500B36269 /* Debug */,
+				CB73FB702E583D0500B36269 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CB73FB712E583D0500B36269 /* Build configuration list for PBXNativeTarget "SoftcoverUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CB73FB722E583D0500B36269 /* Debug */,
+				CB73FB732E583D0500B36269 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CB73FB8E2E583D6D00B36269 /* Build configuration list for PBXNativeTarget "ReadingProgressWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CB73FB8F2E583D6D00B36269 /* Debug */,
+				CB73FB902E583D6D00B36269 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = CB73FB422E583D0300B36269 /* Project object */;
+}

@@ -1,0 +1,1322 @@
+import Foundation
+import UIKit
+
+// MARK: - GraphQL Models
+struct GraphQLMeResponse: Codable {
+    let data: MeData?
+    let errors: [GraphQLError]?
+    
+    enum CodingKeys: String, CodingKey { case data, errors }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.data = try c.decodeIfPresent(MeData.self, forKey: .data)
+        self.errors = try c.decodeIfPresent([GraphQLError].self, forKey: .errors)
+    }
+}
+
+struct GraphQLUserBooksResponse: Codable {
+    let data: UserBooksData?
+    let errors: [GraphQLError]?
+}
+
+struct GraphQLEditionsResponse: Codable {
+    let data: EditionsData?
+    let errors: [GraphQLError]?
+}
+
+struct GraphQLUpdateEditionResponse: Codable {
+    let data: UpdateEditionData?
+    let errors: [GraphQLError]?
+}
+
+struct GraphQLError: Codable {
+    let message: String
+}
+
+struct MeData: Codable {
+    let me: [MeUser]?
+}
+
+struct MeUser: Codable {
+    let id: Int
+    let username: String
+}
+
+struct UserBooksData: Codable {
+    let user_books: [UserBook]?
+}
+
+struct EditionsData: Codable {
+    let editions: [Edition]?
+}
+
+struct UpdateEditionData: Codable {
+    let update_user_books: UpdateUserBooksResult?
+}
+
+struct UpdateUserBooksResult: Codable {
+    let affected_rows: Int
+}
+
+struct UserBook: Codable {
+    let id: Int?
+    let bookId: Int?
+    let statusId: Int?
+    let editionId: Int?
+    let privacySettingId: Int?
+    let rating: Double?
+    let userBookReads: [UserBookRead]?
+    let book: UserBookBook?
+    let edition: Edition?
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case bookId = "book_id"
+        case statusId = "status_id"
+        case editionId = "edition_id"
+        case privacySettingId = "privacy_setting_id"
+        case rating
+        case userBookReads = "user_book_reads"
+        case book
+        case edition
+    }
+}
+
+struct UserBookRead: Codable {
+    let id: Int?
+    let startedAt: String?
+    let finishedAt: String?
+    let progressPages: Int?
+    let editionId: Int?
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case startedAt = "started_at"
+        case finishedAt = "finished_at"
+        case progressPages = "progress_pages"
+        case editionId = "edition_id"
+    }
+}
+
+struct UserBookBook: Codable {
+    let id: Int?
+    let title: String
+    let contributions: [BookContribution]?
+    let image: BookImage?
+}
+
+struct BookImage: Codable {
+    let url: String?
+}
+
+struct BookContribution: Codable {
+    let author: BookAuthor?
+}
+
+struct BookAuthor: Codable {
+    let name: String?
+}
+
+struct Edition: Codable, Identifiable {
+    let id: Int
+    let title: String?
+    let isbn10: String?
+    let isbn13: String?
+    let pages: Int?
+    let publisher: Publisher?
+    let image: EditionImage?
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case title
+        case isbn10 = "isbn_10"
+        case isbn13 = "isbn_13"
+        case pages
+        case publisher
+        case image
+    }
+    
+    var displayTitle: String {
+        return title ?? "Unknown Edition"
+    }
+    
+    var displayInfo: String {
+        var info: [String] = []
+        if let pub = publisher?.name {
+            info.append(pub)
+        }
+        if let pageCount = pages {
+            info.append("\(pageCount) pages")
+        }
+        return info.joined(separator: " • ")
+    }
+}
+
+struct Publisher: Codable {
+    let id: Int?
+    let name: String?
+}
+
+struct EditionImage: Codable {
+    let url: String?
+}
+
+// MARK: - Goal Activity GraphQL Models
+struct GraphQLActivitiesResponse: Codable {
+    let data: ActivitiesData?
+    let errors: [GraphQLError]?
+}
+
+struct ActivitiesData: Codable {
+    let activities: [Activity]?
+}
+
+struct Activity: Codable {
+    let id: Int?
+    let event: String
+    let data: ActivityData?
+    let created_at: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case id, event, data
+        case created_at = "created_at"
+    }
+}
+
+struct ActivityData: Codable {
+    let goal: ReadingGoal?
+}
+
+struct ReadingGoal: Codable {
+    let id: Int
+    let goal: Int
+    let metric: String
+    let endDate: String
+    let progress: Int
+    let startDate: String
+    let conditions: [String: String]?
+    let description: String?
+    let percentComplete: Double
+    let privacySettingId: Int
+    
+    enum CodingKeys: String, CodingKey {
+        case id, goal, metric, progress, conditions, description
+        case endDate = "endDate"
+        case startDate = "startDate"
+        case percentComplete = "percentComplete"
+        case privacySettingId = "privacySettingId"
+    }
+}
+
+// MARK: - Search GraphQL Models
+struct GraphQLSearchResponse: Codable {
+    let data: SearchData?
+    let errors: [GraphQLError]?
+}
+
+struct SearchData: Codable {
+    let search: SearchResult?
+}
+
+struct SearchResult: Codable {
+    let ids: [String]?
+}
+
+struct GraphQLBooksHydrateResponse: Codable {
+    let data: BooksHydrateData?
+    let errors: [GraphQLError]?
+}
+
+struct BooksHydrateData: Codable {
+    let books: [HydratedBook]?
+}
+
+struct HydratedBook: Codable, Identifiable {
+    let id: Int
+    let title: String
+    let contributions: [BookContribution]?
+    let image: BookImage?
+}
+
+// MARK: - Image Cache
+class ImageCache {
+    static let shared = ImageCache()
+    private let cache = NSCache<NSString, NSData>()
+    
+    private init() {
+        // Conservative cache limits for widget extension
+        cache.countLimit = 5 // Increased limit for multiple books
+        cache.totalCostLimit = 5 * 1024 * 1024 // Max 5MB
+    }
+    
+    func setImageData(_ data: Data, forKey key: String) {
+        cache.setObject(data as NSData, forKey: key as NSString)
+    }
+    
+    func imageData(forKey key: String) -> Data? {
+        return cache.object(forKey: key as NSString) as Data?
+    }
+}
+
+// Extension to clear cache
+extension ImageCache {
+    func clearCache() {
+        cache.removeAllObjects()
+    }
+}
+
+// MARK: - Configuration
+struct HardcoverConfig {
+    // Rå nyckel (kan innehålla "Bearer " eller t.o.m. "Authorization: Bearer ...")
+    private static var rawApiKey: String {
+        // 1) Delade UserDefaults (App Group)
+        if let key = AppGroup.defaults.string(forKey: "HardcoverAPIKey"), !key.isEmpty {
+            return key
+        }
+        // 2) Fallback Info.plist
+        if let infoKey = Bundle.main.object(forInfoDictionaryKey: "HardcoverAPIKey") as? String, !infoKey.isEmpty {
+            return infoKey
+        }
+        // 3) Fallback Config.plist
+        if let path = Bundle.main.path(forResource: "Config", ofType: "plist"),
+           let config = NSDictionary(contentsOfFile: path),
+           let legacyKey = config["HardcoverAPIKey"] as? String, !legacyKey.isEmpty {
+            return legacyKey
+        }
+        return ""
+    }
+    
+    // Normaliserad token utan "Bearer"
+    static var apiKey: String {
+        normalize(rawApiKey)
+    }
+    
+    // Authorization-headerns värde, garanterat korrekt formaterad
+    static var authorizationHeaderValue: String {
+        headerValue(for: rawApiKey)
+    }
+    
+    // Normaliserar en inmatad sträng till endast token
+    static func normalize(_ key: String) -> String {
+        var k = key.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Ta bort "Authorization:" om det följde med
+        let lower = k.lowercased()
+        if lower.hasPrefix("authorization:") {
+            k = String(k.dropFirst("authorization:".count)).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        
+        // Ta bort inledande "Bearer " (case-insensitive)
+        if k.lowercased().hasPrefix("bearer ") {
+            k = String(k.dropFirst(7)).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        
+        // Ta bort omgivande citattecken om någon råkat få med dem
+        if k.hasPrefix("\""), k.hasSuffix("\""), k.count >= 2 {
+            k = String(k.dropFirst().dropLast())
+        }
+        
+        return k
+    }
+    
+    // Bygger en korrekt Authorization-header för en given nyckel
+    static func headerValue(for key: String) -> String {
+        let normalized = normalize(key)
+        guard !normalized.isEmpty else { return "" }
+        return "Bearer \(normalized)"
+    }
+    
+    // NYTT: Användarnamn (utan inledande "@") från delade inställningar med fallbacks
+    static var username: String {
+        // 1) Delade UserDefaults (App Group)
+        if let u = AppGroup.defaults.string(forKey: "HardcoverUsername"), !u.isEmpty {
+            return normalizeUsername(u)
+        }
+        // 2) Fallback Info.plist
+        if let infoU = Bundle.main.object(forInfoDictionaryKey: "HardcoverUsername") as? String, !infoU.isEmpty {
+            return normalizeUsername(infoU)
+        }
+        // 3) Fallback Config.plist
+        if let path = Bundle.main.path(forResource: "Config", ofType: "plist"),
+           let config = NSDictionary(contentsOfFile: path),
+           let legacyU = config["HardcoverUsername"] as? String, !legacyU.isEmpty {
+            return normalizeUsername(legacyU)
+        }
+        return ""
+    }
+    
+    // Normaliserar användarnamn genom att trimma och ta bort inledande "@"
+    static func normalizeUsername(_ username: String) -> String {
+        var u = username.trimmingCharacters(in: .whitespacesAndNewlines)
+        if u.hasPrefix("@") {
+            u = String(u.dropFirst())
+        }
+        return u
+    }
+}
+
+// MARK: - Service
+class HardcoverService {
+  
+  static func fetchCurrentlyReading() async -> [BookProgress] {
+      // If we don't have API key, return empty
+      guard !HardcoverConfig.apiKey.isEmpty else {
+          print("❌ No API key configured")
+          return []
+      }
+      
+      // Fetch directly from GraphQL API
+      let books = await fetchBooksFromGraphQL(apiKey: HardcoverConfig.apiKey)
+      
+      // Clear cache to reduce memory footprint
+      ImageCache.shared.clearCache()
+      
+      return books
+  }
+  
+  /// Fetches the current user's username using the API key and stores it in shared defaults.
+  static func refreshUsernameFromAPI() async {
+      guard !HardcoverConfig.apiKey.isEmpty else {
+          AppGroup.defaults.set("", forKey: "HardcoverUsername")
+          return
+      }
+      guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return }
+      var request = URLRequest(url: url)
+      request.httpMethod = "POST"
+      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+      request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
+      let query = """
+      { "query": "{ me { id username } }" }
+      """
+      request.httpBody = query.data(using: .utf8)
+      do {
+          let (data, _) = try await URLSession.shared.data(for: request)
+          let gqlResponse = try JSONDecoder().decode(GraphQLMeResponse.self, from: data)
+          if let errors = gqlResponse.errors, !errors.isEmpty {
+              AppGroup.defaults.set("", forKey: "HardcoverUsername")
+              return
+          }
+          if let meUsers = gqlResponse.data?.me, let currentUser = meUsers.first {
+              let normalized = HardcoverConfig.normalizeUsername(currentUser.username)
+              AppGroup.defaults.set(normalized, forKey: "HardcoverUsername")
+          } else {
+              AppGroup.defaults.set("", forKey: "HardcoverUsername")
+          }
+      } catch {
+          AppGroup.defaults.set("", forKey: "HardcoverUsername")
+      }
+  }
+  
+  // Fetch user ID using the correct GraphQL structure
+  private static func fetchUserId(apiKey: String) async -> Int? {
+      guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return nil }
+      var request = URLRequest(url: url)
+      request.httpMethod = "POST"
+      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+      request.setValue(HardcoverConfig.headerValue(for: apiKey), forHTTPHeaderField: "Authorization")
+      let query = """
+      { "query": "{ me { id username } }" }
+      """
+      request.httpBody = query.data(using: .utf8)
+      do {
+          let (data, _) = try await URLSession.shared.data(for: request)
+          let gqlResponse = try JSONDecoder().decode(GraphQLMeResponse.self, from: data)
+          if let errors = gqlResponse.errors, !errors.isEmpty {
+              errors.forEach { print("❌ GraphQL User API Error: \($0.message)") }
+              return nil
+          }
+          guard let meUsers = gqlResponse.data?.me, let currentUser = meUsers.first else { return nil }
+          return currentUser.id
+      } catch {
+          print("❌ GraphQL User API Error: \(error)")
+          return nil
+      }
+  }
+  
+  // Helper function to fetch and resize image in one step
+  private static func fetchAndResizeImage(from urlString: String) async -> Data? {
+      guard let url = URL(string: urlString) else { return nil }
+      if let cached = ImageCache.shared.imageData(forKey: urlString) { return cached }
+      do {
+          let (data, _) = try await URLSession.shared.data(from: url)
+          if let resized = resizeImageToFitWidget(data) {
+              ImageCache.shared.setImageData(resized, forKey: urlString)
+              return resized
+          }
+          return nil
+      } catch {
+          print("❌ Image download error: \(error)")
+          return nil
+      }
+  }
+  
+  // Resize image to fit widget constraints
+  private static func resizeImageToFitWidget(_ imageData: Data) -> Data? {
+      guard let image = UIImage(data: imageData) else { return nil }
+      let maxWidth: CGFloat = 400
+      if image.size.width <= maxWidth { return image.jpegData(compressionQuality: 0.8) }
+      let scale = maxWidth / image.size.width
+      let newSize = CGSize(width: maxWidth, height: image.size.height * scale)
+      UIGraphicsBeginImageContextWithOptions(newSize, false, 1.0)
+      defer { UIGraphicsEndImageContext() }
+      image.draw(in: CGRect(origin: .zero, size: newSize))
+      return UIGraphicsGetImageFromCurrentImageContext()?.jpegData(compressionQuality: 0.8)
+  }
+  
+  // Fetch books directly from GraphQL API with all information
+  private static func fetchBooksFromGraphQL(apiKey: String) async -> [BookProgress] {
+      // First get user ID
+      guard let userId = await fetchUserId(apiKey: apiKey) else {
+          print("❌ Could not get user ID")
+          return []
+      }
+      
+      guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return [] }
+      var request = URLRequest(url: url)
+      request.httpMethod = "POST"
+      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+      request.setValue(HardcoverConfig.headerValue(for: apiKey), forHTTPHeaderField: "Authorization")
+      
+      // Build a comprehensive query to get all currently reading books with all needed information
+      // Order by newest first so updates via insert_user_book are reflected immediately
+      let booksQuery = """
+      { "query": "{ user_books(where: {user_id: {_eq: \(userId)}, status_id: {_eq: 2}}, order_by: {id: desc}, limit: 10) { id book_id status_id edition_id privacy_setting_id rating user_book_reads(order_by: {id: asc}) { id started_at finished_at progress_pages edition_id } book { id title contributions { author { name } } image { url } } edition { id title isbn_10 isbn_13 pages publisher { name } image { url } } } }" }
+      """
+      request.httpBody = booksQuery.data(using: .utf8)
+      
+      do {
+          let (data, _) = try await URLSession.shared.data(for: request)
+          let gqlResponse = try JSONDecoder().decode(GraphQLUserBooksResponse.self, from: data)
+          
+          // Handle errors
+          if let errors = gqlResponse.errors {
+              for error in errors {
+                  print("❌ GraphQL Books API Error: \(error.message)")
+              }
+              return []
+          }
+          
+          // Check if we have data
+          guard let userBooks = gqlResponse.data?.user_books else {
+              print("❌ GraphQL API: No user books data returned")
+              return []
+          }
+          
+          print("✅ Successfully fetched \(userBooks.count) books from GraphQL")
+          
+          // Convert to BookProgress objects
+          var books: [BookProgress] = []
+          
+          for userBook in userBooks {
+              guard let bookData = userBook.book else { continue }
+              
+              // Determine which title to use (edition title takes precedence)
+              let displayTitle: String
+              if let editionTitle = userBook.edition?.title, !editionTitle.isEmpty {
+                  displayTitle = editionTitle
+                  print("✅ Using edition title: \(editionTitle)")
+              } else {
+                  displayTitle = bookData.title
+                  print("✅ Using book title: \(displayTitle)")
+              }
+              
+              // Get author name
+              let author = bookData.contributions?.first?.author?.name ?? "Unknown Author"
+              
+              // Get total pages (from edition if available)
+              let totalPages = userBook.edition?.pages ?? 0
+              
+              // Get current page from latest read
+              var currentPage = 0
+              var progress = 0.0
+              if let userBookReads = userBook.userBookReads, !userBookReads.isEmpty,
+                 let latestRead = userBookReads.last,
+                 let progressPages = latestRead.progressPages {
+                  currentPage = progressPages
+                  if totalPages > 0 {
+                      progress = Double(progressPages) / Double(totalPages)
+                  }
+              }
+              
+              // Choose the best image URL (edition image takes precedence)
+              let imageUrl: String?
+              if let editionImageUrl = userBook.edition?.image?.url, !editionImageUrl.isEmpty {
+                  imageUrl = editionImageUrl
+                  print("✅ Using edition cover for: \(displayTitle)")
+              } else if let bookImageUrl = bookData.image?.url, !bookImageUrl.isEmpty {
+                  imageUrl = bookImageUrl
+                  print("✅ Using book cover for: \(displayTitle)")
+              } else {
+                  imageUrl = nil
+                  print("⚠️ No cover image for: \(displayTitle)")
+              }
+              
+              // Load and resize image if available
+              var coverImageData: Data? = nil
+              if let imageUrl = imageUrl {
+                  coverImageData = await fetchAndResizeImage(from: imageUrl)
+              }
+              
+              // Create BookProgress object
+              let book = BookProgress(
+                  id: "\(userBook.id ?? 0)",
+                  title: displayTitle,
+                  author: author,
+                  coverImageData: coverImageData,
+                  progress: progress,
+                  totalPages: totalPages,
+                  currentPage: currentPage,
+                  bookId: bookData.id,
+                  userBookId: userBook.id,
+                  editionId: userBook.editionId,
+                  originalTitle: bookData.title
+              )
+              
+              print("📚 Created book - Title: \(displayTitle), UserBookId: \(userBook.id ?? -1), BookId: \(bookData.id ?? -1), EditionId: \(userBook.editionId ?? -1)")
+              
+              books.append(book)
+          }
+          
+          return books
+          
+      } catch {
+          print("❌ GraphQL Books API Error: \(error)")
+          return []
+      }
+  }
+  
+  // Fetch available editions for a book
+  static func fetchEditions(for bookId: Int) async -> [Edition] {
+      guard !HardcoverConfig.apiKey.isEmpty else { return [] }
+      
+      guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return [] }
+      var request = URLRequest(url: url)
+      request.httpMethod = "POST"
+      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+      request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
+      
+      // Mirror KOReader plugin: exclude audiobook-only (reading_format_id == 2), allow nulls, and sort by popularity
+      let query = """
+      { "query": "{ editions(where: {book_id: {_eq: \(bookId)}, _or: [{reading_format_id: {_is_null: true}}, {reading_format_id: {_neq: 2}}]}, order_by: { users_count: desc_nulls_last }) { id title isbn_10 isbn_13 pages publisher { name } image { url } } }" }
+      """
+      request.httpBody = query.data(using: .utf8)
+      
+      do {
+          let (data, _) = try await URLSession.shared.data(for: request)
+          let gqlResponse = try JSONDecoder().decode(GraphQLEditionsResponse.self, from: data)
+          
+          if let errors = gqlResponse.errors {
+              for error in errors {
+                  print("❌ GraphQL Editions API Error: \(error.message)")
+              }
+              return []
+          }
+          
+          return gqlResponse.data?.editions ?? []
+      } catch {
+          print("❌ GraphQL Editions API Error: \(error)")
+          return []
+      }
+  }
+  
+  // Update the edition for a user's book
+  static func updateEdition(userBookId: Int, editionId: Int) async -> Bool {
+    print("📝 Attempting to update edition - UserBookId: \(userBookId), EditionId: \(editionId)")
+    guard !HardcoverConfig.apiKey.isEmpty else { return false }
+    guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return false }
+    var request = URLRequest(url: url)
+    request.httpMethod = "POST"
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
+
+    // Fetch current user_book to get book_id, status, privacy
+    guard let ub = await fetchUserBook(by: userBookId), let bookId = ub.bookId else {
+        print("❌ Could not fetch user_book or book_id for id=\(userBookId)")
+        return false
+    }
+    let status = ub.statusId ?? 2
+    // Avoid awaiting inside a nil-coalescing autoclosure
+    let privacy: Int
+    if let p = ub.privacySettingId { privacy = p } else { privacy = await fetchAccountPrivacySettingId() ?? 1 }
+
+    let body: [String: Any] = [
+        "query": """
+        mutation InsertUserBook($object: UserBookCreateInput!) {
+          insert_user_book(object: $object) {
+            error
+            user_book { id book_id edition_id status_id privacy_setting_id }
+          }
+        }
+        """,
+        "variables": [
+            "object": [
+                "book_id": bookId,
+                "edition_id": editionId,
+                "status_id": status,
+                "privacy_setting_id": privacy
+            ]
+        ]
+    ]
+
+    do {
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        if let http = response as? HTTPURLResponse { print("📥 insert_user_book HTTP Status: \(http.statusCode)") }
+        if let raw = String(data: data, encoding: .utf8) { print("📥 insert_user_book Raw: \(raw)") }
+        if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            if let errs = json["errors"] as? [[String: Any]], !errs.isEmpty {
+                print("❌ insert_user_book GraphQL errors: \(errs)")
+                return false
+            }
+            if let dataDict = json["data"] as? [String: Any],
+               let insert = dataDict["insert_user_book"] as? [String: Any] {
+                if let err = insert["error"] as? String, !err.isEmpty {
+                    print("❌ insert_user_book error: \(err)")
+                    return false
+                }
+                // best-effort: align latest read edition
+                _ = await updateLatestReadEdition(userBookId: userBookId, editionId: editionId)
+                return insert["user_book"] != nil
+            }
+        }
+        return false
+    } catch {
+        print("❌ updateEdition (insert_user_book) Error: \(error)")
+        return false
+    }
+  }
+
+  /// Updates the most recent user_book_read's edition_id to keep reads aligned with the selected edition.
+  private static func updateLatestReadEdition(userBookId: Int, editionId: Int) async -> Bool {
+      guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return false }
+      var request = URLRequest(url: url)
+      request.httpMethod = "POST"
+      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+      request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
+
+      // Fetch latest read id
+      let readsQuery: [String: Any] = [
+          "query": """
+          query ($id: Int!) {
+            user_book_reads(where: { user_book_id: { _eq: $id } }, order_by: { id: desc }, limit: 1) {
+              id
+            }
+          }
+          """,
+          "variables": ["id": userBookId]
+      ]
+      do {
+          request.httpBody = try JSONSerialization.data(withJSONObject: readsQuery)
+          let (data, _) = try await URLSession.shared.data(for: request)
+          guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                let dataDict = root["data"] as? [String: Any],
+                let reads = dataDict["user_book_reads"] as? [[String: Any]],
+                let latest = reads.first, let readId = latest["id"] as? Int else {
+              return false
+          }
+          // Update that read's edition
+          let updateQuery: [String: Any] = [
+              "query": """
+              mutation ($id: Int!, $edition: Int!) {
+                update_user_book_read(id: $id, object: { edition_id: $edition }) {
+                  error
+                  user_book_read { id edition_id }
+                }
+              }
+              """,
+              "variables": ["id": readId, "edition": editionId]
+          ]
+          request.httpBody = try JSONSerialization.data(withJSONObject: updateQuery)
+          let (uData, _) = try await URLSession.shared.data(for: request)
+          if let root2 = try JSONSerialization.jsonObject(with: uData) as? [String: Any],
+             let errs = root2["errors"] as? [[String: Any]], !errs.isEmpty {
+              return false
+          }
+          return true
+      } catch {
+          print("❌ updateLatestReadEdition error: \(error)")
+          return false
+      }
+  }
+  
+  /// Inserts a user_book_read for the given user_book at the current page and date.
+  /// If editionId is provided, it will be used; otherwise, the current edition for the user_book will be fetched.
+  static func insertBookRead(userBookId: Int, page: Int, editionId: Int? = nil) async -> Bool {
+      print("📝 Inserting book read - UserBookId: \(userBookId), Page: \(page), EditionId: \(editionId ?? -1)")
+      guard !HardcoverConfig.apiKey.isEmpty else { return false }
+      guard page >= 0 else { return false }
+      
+      var targetEditionId = editionId
+      if targetEditionId == nil {
+          if let userBook = await fetchUserBook(by: userBookId) {
+              targetEditionId = userBook.editionId
+          }
+      }
+      
+      guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return false }
+      var request = URLRequest(url: url)
+      request.httpMethod = "POST"
+      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+      request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
+      
+      // Build date-only sträng för GraphQL 'date' typ (YYYY-MM-DD)
+      let df = DateFormatter()
+      df.calendar = Calendar(identifier: .gregorian)
+      df.locale = Locale(identifier: "en_US_POSIX")
+      df.timeZone = TimeZone(secondsFromGMT: 0)
+      df.dateFormat = "yyyy-MM-dd"
+      let startedAt = df.string(from: Date())
+      
+      // Mirror KOReader plugin mutation
+      let mutation = """
+      mutation InsertUserBookRead($id: Int!, $pages: Int, $editionId: Int, $startedAt: date) {
+          insert_user_book_read(user_book_id: $id, user_book_read: {
+              progress_pages: $pages,
+              edition_id: $editionId,
+              started_at: $startedAt,
+          }) {
+              error
+              user_book_read { id progress_pages edition_id started_at finished_at }
+          }
+      }
+      """
+      var variables: [String: Any] = [
+          "id": userBookId,
+          "pages": page,
+          "startedAt": startedAt
+      ]
+      if let eid = targetEditionId { variables["editionId"] = eid }
+      
+      let bodyDict: [String: Any] = [
+          "query": mutation,
+          "variables": variables
+      ]
+      
+      do {
+          let body = try JSONSerialization.data(withJSONObject: bodyDict)
+          request.httpBody = body
+          print("📤 Sending read mutation: \(String(data: body, encoding: .utf8) ?? "")")
+          let (data, response) = try await URLSession.shared.data(for: request)
+          if let http = response as? HTTPURLResponse { print("📥 Insert user_book_read HTTP Status: \(http.statusCode)") }
+          if let raw = String(data: data, encoding: .utf8) { print("📥 Insert user_book_read Raw: \(raw)") }
+          // Quick JSON check
+          if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+              if let errs = json["errors"] as? [[String: Any]], !errs.isEmpty {
+                  print("❌ Insert user_book_read GraphQL errors: \(errs)")
+                  return false
+              }
+              if let dataDict = json["data"] as? [String: Any],
+                 let insert = dataDict["insert_user_book_read"] as? [String: Any] {
+                  if let err = insert["error"] as? String, !err.isEmpty {
+                      print("❌ Insert user_book_read error: \(err)")
+                      return false
+                  }
+                  return insert["user_book_read"] != nil
+              }
+          }
+          return false
+      } catch {
+          print("❌ Insert user_book_read Error: \(error)")
+          return false
+      }
+  }
+  
+  // MARK: - Search API
+  /// Searches Hardcover for books by title and optional author, using the GraphQL search -> ids pattern, then hydrates results.
+  static func searchBooks(title: String, author: String? = nil, page: Int = 1) async -> [HydratedBook] {
+      guard !HardcoverConfig.apiKey.isEmpty else { return [] }
+      guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return [] }
+      var request = URLRequest(url: url)
+      request.httpMethod = "POST"
+      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+      request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
+      
+      let q = (title + " " + (author ?? "")).trimmingCharacters(in: .whitespacesAndNewlines)
+      guard !q.isEmpty else { return [] }
+      
+      let query = """
+      query ($query: String!, $page: Int!) {
+        search(query: $query, per_page: 25, page: $page, query_type: \"Book\") {
+          ids
+        }
+      }
+      """
+      let body: [String: Any] = [
+          "query": query,
+          "variables": [
+              "query": q,
+              "page": page
+          ]
+      ]
+      do {
+          request.httpBody = try JSONSerialization.data(withJSONObject: body)
+          let (data, _) = try await URLSession.shared.data(for: request)
+          let resp = try JSONDecoder().decode(GraphQLSearchResponse.self, from: data)
+          if let errors = resp.errors, !errors.isEmpty {
+              errors.forEach { print("❌ GraphQL Search Error: \($0.message)") }
+              return []
+          }
+          guard let idsStr = resp.data?.search?.ids else { return [] }
+          let ids = idsStr.compactMap { Int($0) }
+          guard !ids.isEmpty else { return [] }
+          return await hydrateBooksByIds(ids)
+      } catch {
+          print("❌ GraphQL Search Error: \(error)")
+          return []
+      }
+  }
+  
+  /// Hydrates a list of book IDs into minimal book objects for search results.
+  private static func hydrateBooksByIds(_ ids: [Int]) async -> [HydratedBook] {
+      guard !HardcoverConfig.apiKey.isEmpty else { return [] }
+      guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return [] }
+      var request = URLRequest(url: url)
+      request.httpMethod = "POST"
+      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+      request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
+      
+      let query = """
+      query ($ids: [Int!]) {
+        books(where: { id: { _in: $ids }}) {
+          id
+          title
+          contributions { author { name } }
+          image { url }
+        }
+      }
+      """
+      let body: [String: Any] = [
+          "query": query,
+          "variables": ["ids": ids]
+      ]
+      do {
+          request.httpBody = try JSONSerialization.data(withJSONObject: body)
+          let (data, _) = try await URLSession.shared.data(for: request)
+          let resp = try JSONDecoder().decode(GraphQLBooksHydrateResponse.self, from: data)
+          if let errors = resp.errors, !errors.isEmpty {
+              errors.forEach { print("❌ GraphQL Hydrate Error: \($0.message)") }
+              return []
+          }
+          let list = resp.data?.books ?? []
+          if list.count > 1 {
+              var order: [Int: Int] = [:]
+              for (i, v) in ids.enumerated() { order[v] = i }
+              return list.sorted { (a, b) -> Bool in
+                  (order[a.id] ?? Int.max) < (order[b.id] ?? Int.max)
+              }
+          }
+          return list
+      } catch {
+          print("❌ GraphQL Hydrate Error: \(error)")
+          return []
+      }
+  }
+  
+  // MARK: - Add book to Currently Reading
+  /// Inserts a user_book for the authenticated user with status Currently Reading (status_id = 2).
+  /// Returns true on success.
+  static func addBookToCurrentlyReading(bookId: Int, editionId: Int?) async -> Bool {
+      guard !HardcoverConfig.apiKey.isEmpty else { return false }
+      guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return false }
+      var request = URLRequest(url: url)
+      request.httpMethod = "POST"
+      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+      request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
+
+      // Use account privacy setting when possible (matches KOReader plugin behavior)
+      let privacySetting = await fetchAccountPrivacySettingId() ?? 1
+
+      var object: [String: Any] = [
+          "book_id": bookId,
+          "status_id": 2,                // Currently Reading
+          "privacy_setting_id": privacySetting
+      ]
+      if let eid = editionId { object["edition_id"] = eid }
+
+      let body: [String: Any] = [
+          "query": """
+          mutation InsertUserBook($object: UserBookCreateInput!) {
+            insert_user_book(object: $object) {
+              error
+              user_book { id book_id edition_id status_id privacy_setting_id }
+            }
+          }
+          """,
+          "variables": ["object": object]
+      ]
+
+      do {
+          request.httpBody = try JSONSerialization.data(withJSONObject: body)
+          let (data, response) = try await URLSession.shared.data(for: request)
+          if let http = response as? HTTPURLResponse { print("📥 Insert user_book HTTP Status: \(http.statusCode)") }
+          if let raw = String(data: data, encoding: .utf8) { print("📥 Insert user_book Raw: \(raw)") }
+          // Quick JSON check
+          if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+              if let errs = json["errors"] as? [[String: Any]], !errs.isEmpty {
+                  print("❌ Insert user_book GraphQL errors: \(errs)")
+                  return false
+              }
+              if let dataDict = json["data"] as? [String: Any],
+                 let insert = dataDict["insert_user_book"] as? [String: Any] {
+                  if let err = insert["error"] as? String, !err.isEmpty {
+                      print("❌ Insert user_book error: \(err)")
+                      return false
+                  }
+                  return insert["user_book"] != nil
+              }
+          }
+          return false
+      } catch {
+          print("❌ Insert user_book Error: \(error)")
+          return false
+      }
+  }
+  
+  /// Updates a user_book's status (e.g., mark as finished) using update_user_book.
+  static func updateUserBookStatus(userBookId: Int, statusId: Int) async -> Bool {
+      guard !HardcoverConfig.apiKey.isEmpty else { return false }
+      guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return false }
+      var request = URLRequest(url: url)
+      request.httpMethod = "POST"
+      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+      request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
+      let body: [String: Any] = [
+          "query": """
+          mutation ($id: Int!, $status: Int) {
+            update_user_book(id: $id, object: { status_id: $status }) {
+              error
+              user_book { id status_id }
+            }
+          }
+          """,
+          "variables": ["id": userBookId, "status": statusId]
+      ]
+      do {
+          request.httpBody = try JSONSerialization.data(withJSONObject: body)
+          let (data, _) = try await URLSession.shared.data(for: request)
+          if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+              if let errs = json["errors"] as? [[String: Any]], !errs.isEmpty { return false }
+              if let dataDict = json["data"] as? [String: Any],
+                 let update = dataDict["update_user_book"] as? [String: Any] {
+                  if let err = update["error"] as? String, !err.isEmpty { return false }
+                  return update["user_book"] != nil
+              }
+          }
+      } catch {
+          print("❌ update_user_book Error: \(error)")
+      }
+      return false
+  }
+  
+  /// Deletes a user_book entry entirely, effectively removing it from the user's list.
+  static func deleteUserBook(userBookId: Int) async -> Bool {
+      guard !HardcoverConfig.apiKey.isEmpty else { return false }
+      guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return false }
+      var request = URLRequest(url: url)
+      request.httpMethod = "POST"
+      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+      request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
+      let body: [String: Any] = [
+          "query": """
+          mutation($id: Int!) { delete_user_book(id: $id) { id } }
+          """,
+          "variables": ["id": userBookId]
+      ]
+      do {
+          request.httpBody = try JSONSerialization.data(withJSONObject: body)
+          let (data, _) = try await URLSession.shared.data(for: request)
+          if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+              if let errs = json["errors"] as? [[String: Any]], !errs.isEmpty { return false }
+              if let dataDict = json["data"] as? [String: Any],
+                 let del = dataDict["delete_user_book"] as? [String: Any] {
+                  return del["id"] != nil
+              }
+          }
+      } catch {
+          print("❌ delete_user_book Error: \(error)")
+      }
+      return false
+  }
+  
+  private static func fetchUserBook(by userBookId: Int) async -> UserBook? {
+      guard !HardcoverConfig.apiKey.isEmpty else { return nil }
+      guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return nil }
+      var request = URLRequest(url: url)
+      request.httpMethod = "POST"
+      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+      request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
+      let body: [String: Any] = [
+          "query": """
+          query GetUserBook($id: Int!) {
+            user_books(where: { id: { _eq: $id }}) {
+              id
+              book_id
+              status_id
+              edition_id
+              privacy_setting_id
+              rating
+            }
+          }
+          """,
+          "variables": ["id": userBookId]
+      ]
+      do {
+          request.httpBody = try JSONSerialization.data(withJSONObject: body)
+          let (data, _) = try await URLSession.shared.data(for: request)
+          let resp = try JSONDecoder().decode(GraphQLUserBooksResponse.self, from: data)
+          if let errs = resp.errors, !errs.isEmpty { return nil }
+          return resp.data?.user_books?.first
+      } catch {
+          print("❌ fetchUserBook error: \(error)")
+          return nil
+      }
+  }
+  
+  // Helper: fetch account_privacy_setting_id from `me`
+  private static func fetchAccountPrivacySettingId() async -> Int? {
+      guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return nil }
+      var request = URLRequest(url: url)
+      request.httpMethod = "POST"
+      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+      request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
+      let body: [String: Any] = [
+          "query": """
+          { me { account_privacy_setting_id } }
+          """
+      ]
+      do {
+          request.httpBody = try JSONSerialization.data(withJSONObject: body)
+          let (data, _) = try await URLSession.shared.data(for: request)
+          if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+             let dataDict = root["data"] as? [String: Any],
+             let meArr = dataDict["me"] as? [[String: Any]],
+             let first = meArr.first,
+             let val = first["account_privacy_setting_id"] as? Int {
+              return val
+          }
+      } catch {
+          print("❌ fetchAccountPrivacySettingId error: \(error)")
+      }
+      return nil
+  }
+  
+  // Update progress (create or update latest read), mirroring KOReader plugin behavior
+  static func updateProgress(userBookId: Int, editionId: Int?, page: Int) async -> Bool {
+      print("🧭 updateProgress called - userBookId: \(userBookId), editionId: \(editionId ?? -1), page: \(page)")
+      guard !HardcoverConfig.apiKey.isEmpty else { return false }
+      guard page >= 0 else { return false }
+      guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return false }
+      var request = URLRequest(url: url)
+      request.httpMethod = "POST"
+      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+      request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
+
+      // 1) Find latest user_book_read for this user_book
+      let findLatest: [String: Any] = [
+          "query": """
+          query ($id: Int!) {
+            user_book_reads(where: { user_book_id: { _eq: $id } }, order_by: { id: desc }, limit: 1) {
+              id
+            }
+          }
+          """,
+          "variables": ["id": userBookId]
+      ]
+      do {
+          request.httpBody = try JSONSerialization.data(withJSONObject: findLatest)
+          let (data, _) = try await URLSession.shared.data(for: request)
+          let root = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+          let dataDict = root?["data"] as? [String: Any]
+          let reads = dataDict?["user_book_reads"] as? [[String: Any]]
+          let readId = reads?.first?["id"] as? Int
+
+          // Build date-only string for GraphQL 'date' type (YYYY-MM-DD)
+          let df = DateFormatter()
+          df.calendar = Calendar(identifier: .gregorian)
+          df.locale = Locale(identifier: "en_US_POSIX")
+          df.timeZone = TimeZone(secondsFromGMT: 0)
+          df.dateFormat = "yyyy-MM-dd"
+          let startedAt = df.string(from: Date())
+
+          if let rid = readId {
+              // 2) Update existing read
+              var variables: [String: Any] = [
+                  "id": rid,
+                  "pages": page,
+                  "startedAt": startedAt
+              ]
+              if let eid = editionId { variables["editionId"] = eid }
+              let body: [String: Any] = [
+                  "query": """
+                  mutation UpdateBookProgress($id: Int!, $pages: Int, $editionId: Int, $startedAt: date) {
+                    update_user_book_read(id: $id, object: { progress_pages: $pages, edition_id: $editionId, started_at: $startedAt }) {
+                      error
+                      user_book_read { id progress_pages edition_id started_at finished_at }
+                    }
+                  }
+                  """,
+                  "variables": variables
+              ]
+              request.httpBody = try JSONSerialization.data(withJSONObject: body)
+              let (uData, _) = try await URLSession.shared.data(for: request)
+              if let root2 = try JSONSerialization.jsonObject(with: uData) as? [String: Any] {
+                  if let errs = root2["errors"] as? [[String: Any]], !errs.isEmpty {
+                      print("❌ update_user_book_read GraphQL errors: \(errs)")
+                      return false
+                  }
+                  if let dataDict2 = root2["data"] as? [String: Any],
+                     let update = dataDict2["update_user_book_read"] as? [String: Any] {
+                    if let err = update["error"] as? String, !err.isEmpty {
+                          print("❌ update_user_book_read error: \(err)")
+                          return false
+                      }
+                      return update["user_book_read"] != nil
+                  }
+              }
+              return false
+          } else {
+              // 3) No read exists yet -> create one
+              return await insertBookRead(userBookId: userBookId, page: page, editionId: editionId)
+          }
+      } catch {
+          print("❌ updateProgress error: \(error)")
+          return false
+      }
+  }
+  
+  // MARK: - Reading Stats
+  struct ReadingStats {
+      let fromDate: String
+      let toDate: String
+      let booksFinished: Int
+      let estimatedPages: Int
+      let averageRating: Double?
+  }
+  
+  /// Fetch reading statistics for a given calendar year. If year is nil, fetches all-time stats.
+  static func fetchReadingStats(year: Int?) async -> ReadingStats? {
+        guard !HardcoverConfig.apiKey.isEmpty else { return nil }
+        guard let userId = await fetchUserId(apiKey: HardcoverConfig.apiKey) else { return nil }
+        
+        // Vi struntar nu i datumintervall eftersom alla user_books med status_id=3 efterfrågas
+        guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return nil }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
+        
+        let query = """
+        query ($userId: Int!) {
+            user_books(where: { user_id: { _eq: $userId }, status_id: { _eq: 3 } }) {
+                id
+                rating
+                edition { pages }
+            }
+        }
+        """
+        let body: [String: Any] = [
+            "query": query,
+            "variables": ["userId": userId]
+        ]
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let (data, _) = try await URLSession.shared.data(for: request)
+            guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+            if let errs = root["errors"] as? [[String: Any]], !errs.isEmpty {
+                print("❌ fetchReadingStats GraphQL errors: \(errs)")
+                return nil
+            }
+            guard let dataDict = root["data"] as? [String: Any],
+                  let userBooks = dataDict["user_books"] as? [[String: Any]] else { return nil }
+            
+            let booksFinished = userBooks.count
+            let pagesSum = userBooks.reduce(0) { sum, ub in
+                let pages = (ub["edition"] as? [String: Any])?["pages"] as? Int ?? 0
+                return sum + max(0, pages)
+            }
+            let ratings = userBooks.compactMap { $0["rating"] as? Double }
+            let avg = ratings.isEmpty ? nil : (ratings.reduce(0, +) / Double(ratings.count))
+            
+            // Eftersom vi frågar alla tider används dessa etiketter, men kan anpassas vid behov
+            let from = "1900-01-01"
+            let to = "2999-01-01"
+            return ReadingStats(fromDate: from, toDate: to, booksFinished: booksFinished, estimatedPages: pagesSum, averageRating: avg)
+        } catch {
+            print("❌ fetchReadingStats error: \(error)")
+            return nil
+        }
+    }
+    
+    // MARK: - Reading Goals
+    /// Fetch the current user's reading goals from activities
+    static func fetchReadingGoals() async -> [ReadingGoal] {
+        guard !HardcoverConfig.apiKey.isEmpty else {
+            print("❌ No API key configured for reading goals")
+            return []
+        }
+        
+        guard let userId = await fetchUserId(apiKey: HardcoverConfig.apiKey) else {
+            print("❌ Could not get user ID for reading goals")
+            return []
+        }
+        
+        guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return [] }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
+        
+        // Query activities with event = "GoalActivity" for the current user
+        let query = """
+        query GetReadingGoals($userId: Int!) {
+            activities(where: {user_id: {_eq: $userId}, event: {_eq: "GoalActivity"}}, order_by: {created_at: desc}, limit: 10) {
+                id
+                event
+                data
+                created_at
+            }
+        }
+        """
+        
+        let body: [String: Any] = [
+            "query": query,
+            "variables": ["userId": userId]
+        ]
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let (data, _) = try await URLSession.shared.data(for: request)
+            let gqlResponse = try JSONDecoder().decode(GraphQLActivitiesResponse.self, from: data)
+            
+            if let errors = gqlResponse.errors {
+                for error in errors {
+                    print("❌ GraphQL Reading Goals API Error: \(error.message)")
+                }
+                return []
+            }
+            
+            guard let activities = gqlResponse.data?.activities else {
+                print("❌ No activities data returned for reading goals")
+                return []
+            }
+            
+            print("✅ Successfully fetched \(activities.count) goal activities from GraphQL")
+            
+            // Extract reading goals from activities
+            let goals = activities.compactMap { activity -> ReadingGoal? in
+                guard activity.event == "GoalActivity",
+                      let goal = activity.data?.goal else {
+                    return nil
+                }
+                return goal
+            }
+            
+            print("✅ Extracted \(goals.count) reading goals")
+            return goals
+            
+        } catch {
+            print("❌ GraphQL Reading Goals API Error: \(error)")
+            return []
+        }
+    }
+}
