@@ -76,7 +76,6 @@ struct HistoryView: View {
                         }
                     }
                     .listStyle(.plain)
-                    .refreshable { await reload() }
                 }
             }
             .navigationTitle("Reading History")

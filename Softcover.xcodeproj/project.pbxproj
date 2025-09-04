@@ -71,6 +71,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+				"ReadingGoalWidget 2.swift",
 			);
 			target = CB73FB772E583D6B00B36269 /* ReadingProgressWidgetExtension */;
 		};

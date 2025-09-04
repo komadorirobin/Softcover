@@ -7,6 +7,8 @@ struct ReadingGoalEntry: TimelineEntry {
 }
 
 struct ReadingGoalProvider: TimelineProvider {
+    typealias Entry = ReadingGoalEntry
+
     func placeholder(in context: Context) -> ReadingGoalEntry {
         let sample = ReadingGoal(
             id: 123,
@@ -53,7 +55,6 @@ struct ReadingGoalProvider: TimelineProvider {
         let goals = await HardcoverService.fetchReadingGoals()
         guard !goals.isEmpty else { return nil }
 
-        // Välj “aktivt” mål om möjligt, annars det med närmast framtida slutdatum eller senaste
         let today = Date()
         let df = DateFormatter()
         df.calendar = Calendar(identifier: .gregorian)
@@ -63,7 +64,6 @@ struct ReadingGoalProvider: TimelineProvider {
 
         func parse(_ s: String) -> Date? { df.date(from: s) }
 
-        // 1) Försök hitta ett mål där idag ∈ [start, end]
         if let active = goals.first(where: { g in
             guard let s = parse(g.startDate), let e = parse(g.endDate) else { return false }
             return (s ... e).contains(today)
@@ -71,7 +71,6 @@ struct ReadingGoalProvider: TimelineProvider {
             return active
         }
 
-        // 2) Annars ta det mål vars endDate ligger närmast i framtiden
         let future = goals
             .compactMap { g -> (ReadingGoal, Date)? in
                 guard let e = parse(g.endDate) else { return nil }
@@ -82,7 +81,6 @@ struct ReadingGoalProvider: TimelineProvider {
             .first?.0
         if let f = future { return f }
 
-        // 3) Annars ta det senast avslutade (störst endDate)
         return goals.sorted { ($0.endDate, $0.id) > ($1.endDate, $1.id) }.first
     }
 }
@@ -99,13 +97,10 @@ struct ReadingGoalWidgetEntryView: View {
                     ReadingGoalSmallView(goal: goal)
                 case .systemMedium:
                     ReadingGoalMediumView(goal: goal)
-                case .systemLarge:
-                    ReadingGoalLargeView(goal: goal, date: entry.date)
                 default:
                     ReadingGoalMediumView(goal: goal)
                 }
             } else {
-                // Tomt-läge
                 VStack(spacing: 6) {
                     Image(systemName: "target")
                         .font(.title2)
@@ -124,7 +119,6 @@ struct ReadingGoalWidgetEntryView: View {
 private extension ReadingGoal {
     var localizedTitle: String {
         if let description = self.description {
-            // Översätt “YYYY Reading Goal” till “Läsmål för YYYY” för svenskt språk
             if let regex = try? NSRegularExpression(pattern: "^(\\d{4}) Reading Goal$"),
                let match = regex.firstMatch(in: description, range: NSRange(location: 0, length: description.count)),
                let yearRange = Range(match.range(at: 1), in: description) {
@@ -201,6 +195,17 @@ private struct ReadingGoalMediumView: View {
                     .progressViewStyle(.linear)
                     .tint(Color.accentColor)
 
+                // Ahead/behind schedule line
+                if let schedule = scheduleStatus(for: goal) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "calendar.badge.clock")
+                            .foregroundColor(schedule.color)
+                        Text(schedule.text)
+                            .foregroundColor(schedule.color)
+                    }
+                    .font(.caption2)
+                }
+
                 HStack(spacing: 6) {
                     Text(format(date: goal.startDate))
                     Text("–")
@@ -232,81 +237,46 @@ private struct ReadingGoalMediumView: View {
         }
         return date
     }
-}
 
-private struct ReadingGoalLargeView: View {
-    let goal: ReadingGoal
-    let date: Date
+    // MARK: - Ahead/Behind schedule
+    private func scheduleStatus(for goal: ReadingGoal) -> (text: String, color: Color)? {
+        let metric = goal.metric.lowercased()
+        guard metric == "book" || metric == "page" else { return nil }
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .center) {
-                Text(goal.localizedTitle)
-                    .font(.title3)
-                    .fontWeight(.semibold)
-                Spacer()
-                Text("\(goal.percentageInt)%")
-                    .font(.headline.monospacedDigit())
-                    .foregroundColor(.secondary)
-            }
-
-            HStack(spacing: 14) {
-                ZStack {
-                    CircularProgressView(progress: goal.percentComplete, color: Color.accentColor)
-                        .frame(width: 76, height: 76)
-                    Text("\(goal.percentageInt)%")
-                        .font(.system(size: 16, weight: .bold))
-                        .monospacedDigit()
-                }
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(goal.progressLabel)
-                        .font(.subheadline)
-                    ProgressView(value: min(1.0, max(0.0, goal.percentComplete)))
-                        .progressViewStyle(.linear)
-                        .tint(Color.accentColor)
-                    HStack(spacing: 6) {
-                        Text(format(date: goal.startDate))
-                        Text("–")
-                        Text(format(date: goal.endDate))
-                        Spacer()
-                        if goal.percentComplete >= 1.0 {
-                            Text("Completed!")
-                                .font(.caption)
-                                .foregroundColor(.green)
-                        }
-                    }
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                }
-            }
-
-            Spacer()
-
-            HStack {
-                Spacer()
-                Text("Last updated: \(date, style: .time)")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-                Spacer()
-            }
-        }
-        .padding(12)
-    }
-
-    private func format(date: String) -> String {
         let df = DateFormatter()
         df.calendar = Calendar(identifier: .gregorian)
         df.locale = Locale(identifier: "en_US_POSIX")
         df.timeZone = TimeZone(secondsFromGMT: 0)
         df.dateFormat = "yyyy-MM-dd"
-        if let d = df.date(from: date) {
-            let out = DateFormatter()
-            out.dateStyle = .medium
-            out.timeStyle = .none
-            return out.string(from: d)
+
+        guard let start = df.date(from: goal.startDate),
+              let end = df.date(from: goal.endDate) else {
+            return nil
         }
-        return date
+
+        let now = Date()
+        let today = min(max(now, start), end)
+
+        let total = max(end.timeIntervalSince(start), 1)
+        let elapsed = max(min(today.timeIntervalSince(start), total), 0)
+        let fraction = elapsed / total
+
+        let expected = Int((Double(goal.goal) * fraction).rounded())
+        let finished = goal.progress
+        let delta = finished - expected
+
+        let unit = metric == "page" ? NSLocalizedString("pages", comment: "") : NSLocalizedString("books", comment: "")
+
+        if delta > 0 {
+            let text = String(format: NSLocalizedString("You're %d %@ ahead of schedule.", comment: ""), delta, unit)
+            return (text, .green)
+        } else if delta < 0 {
+            let text = String(format: NSLocalizedString("You're %d %@ behind schedule.", comment: ""), abs(delta), unit)
+            return (text, .red)
+        } else {
+            let text = NSLocalizedString("You're right on schedule.", comment: "")
+            return (text, .secondary)
+        }
     }
 }
 
@@ -319,7 +289,7 @@ struct ReadingGoalWidget: Widget {
         }
         .configurationDisplayName("Reading Goal")
         .description("Shows your current reading goal progress.")
-        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+        .supportedFamilies([.systemSmall, .systemMedium])
     }
 }
 

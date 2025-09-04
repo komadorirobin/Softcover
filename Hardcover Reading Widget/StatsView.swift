@@ -193,6 +193,18 @@ struct ReadingGoalCard: View {
             }
             .frame(height: 8)
             
+            // Schedule status (ahead/behind)
+            if let schedule = scheduleStatus() {
+                HStack(spacing: 6) {
+                    Image(systemName: "calendar.badge.clock")
+                        .foregroundColor(schedule.color)
+                        .font(.caption)
+                    Text(schedule.text)
+                        .font(.caption)
+                        .foregroundColor(schedule.color)
+                }
+            }
+            
             // Goal period
             HStack {
                 Text(formatDate(goal.startDate))
@@ -268,6 +280,49 @@ struct ReadingGoalCard: View {
         }
         
         return dateString
+    }
+    
+    // MARK: - Ahead/Behind schedule
+    private func scheduleStatus() -> (text: String, color: Color)? {
+        // Only show for known metrics (books/pages). If metric is something else, skip.
+        let metric = goal.metric.lowercased()
+        guard metric == "book" || metric == "page" else { return nil }
+        
+        let df = DateFormatter()
+        df.calendar = Calendar(identifier: .gregorian)
+        df.locale = Locale(identifier: "en_US_POSIX")
+        df.timeZone = TimeZone(secondsFromGMT: 0)
+        df.dateFormat = "yyyy-MM-dd"
+        
+        guard let start = df.date(from: goal.startDate),
+              let end = df.date(from: goal.endDate) else {
+            return nil
+        }
+        
+        // Clamp "today" to [start, end]
+        let now = Date()
+        let today = min(max(now, start), end)
+        
+        let total = max(end.timeIntervalSince(start), 1) // avoid /0
+        let elapsed = max(min(today.timeIntervalSince(start), total), 0)
+        let fraction = elapsed / total
+        
+        let expected = Int((Double(goal.goal) * fraction).rounded())
+        let finished = goal.progress
+        let delta = finished - expected
+        
+        let unit = metric == "page" ? NSLocalizedString("pages", comment: "") : NSLocalizedString("books", comment: "")
+        
+        if delta > 0 {
+            let text = String(format: NSLocalizedString("You're %d %@ ahead of schedule.", comment: ""), delta, unit)
+            return (text, .green)
+        } else if delta < 0 {
+            let text = String(format: NSLocalizedString("You're %d %@ behind schedule.", comment: ""), abs(delta), unit)
+            return (text, .red)
+        } else {
+            let text = NSLocalizedString("You're right on schedule.", comment: "")
+            return (text, .secondary)
+        }
     }
 }
 

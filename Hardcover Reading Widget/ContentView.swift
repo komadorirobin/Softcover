@@ -542,7 +542,7 @@ struct BookCardView: View {
                 isExpanded.toggle()
             }
         }
-        // Long-press menu: behåll “Mark as finished” men flytta “Remove” till swipe
+        // Long-press menu: innehåller “Mark as finished” samt “Remove from Currently Reading”
         .contextMenu {
             if let userBookId = book.userBookId {
                 Button {
@@ -552,18 +552,14 @@ struct BookCardView: View {
                 } label: {
                     Label("Mark as finished", systemImage: "checkmark.circle")
                 }
-            }
-        }
-        // Swipe to delete
-        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-            if book.userBookId != nil {
                 Button(role: .destructive) {
                     showRemoveConfirm = true
                 } label: {
-                    Label("Remove", systemImage: "trash")
+                    Label("Remove from Currently Reading", systemImage: "trash")
                 }
             }
         }
+        // Bekräftelse för borttagning (triggas från långtryck/Context Menu)
         .confirmationDialog("Remove from Currently Reading?", isPresented: $showRemoveConfirm, titleVisibility: .visible) {
             Button("Remove", role: .destructive) {
                 if let userBookId = book.userBookId {
@@ -601,8 +597,8 @@ struct BookCardView: View {
         }
         .sheet(isPresented: $showRatingSheet) {
             RatingSheet(
-                title: "Rate the book?",
-                subtitle: "You can leave a rating when marking as finished. This is optional.",
+                title: NSLocalizedString("Rate the book?", comment: "Title for rating prompt when finishing a book"),
+                subtitle: NSLocalizedString("You can leave a rating when marking as finished. This is optional.", comment: "Subtitle explaining rating is optional when finishing a book"),
                 rating: $selectedRating,
                 onSkip: {
                     print("ℹ️ RatingSheet: Skip tapped, sending rating=nil")
@@ -1033,3 +1029,4 @@ private struct StarCell: View {
         .frame(width: 34, height: 34) // touch-friendly
     }
 }
+
