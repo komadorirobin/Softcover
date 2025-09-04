@@ -1,12 +1,15 @@
 import SwiftUI
 import WidgetKit
+import AppIntents
 
 struct ReleaseCountdownEntry: TimelineEntry {
     let date: Date
     let releases: [HardcoverService.UpcomingRelease]
 }
 
-struct ReleaseCountdownProvider: TimelineProvider {
+struct ReleaseCountdownProvider: AppIntentTimelineProvider {
+    typealias Intent = ReleaseSelectionIntent
+    
     func placeholder(in context: Context) -> ReleaseCountdownEntry {
         let sample = HardcoverService.UpcomingRelease(
             id: 999,
@@ -19,41 +22,55 @@ struct ReleaseCountdownProvider: TimelineProvider {
         return ReleaseCountdownEntry(date: Date(), releases: [sample])
     }
     
-    func getSnapshot(in context: Context, completion: @escaping (ReleaseCountdownEntry) -> Void) {
+    func snapshot(for configuration: ReleaseSelectionIntent, in context: Context) async -> ReleaseCountdownEntry {
         if context.isPreview {
-            completion(placeholder(in: context))
-            return
+            return placeholder(in: context)
         }
-        Task {
-            // Hämta bara det som kan visas: 6 räcker för både medium (3) och large (6)
-            let list = await HardcoverService.fetchUpcomingReleasesFromWantToRead(limit: 6)
-            completion(ReleaseCountdownEntry(date: Date(), releases: list))
-        }
+        let list = await loadReleasesRespectedBySelection(configuration: configuration, cap: 6)
+        return ReleaseCountdownEntry(date: Date(), releases: list)
     }
     
-    func getTimeline(in context: Context, completion: @escaping (Timeline<ReleaseCountdownEntry>) -> Void) {
-        Task {
-            // Hämta bara det som kan visas: 6 räcker för både medium (3) och large (6)
-            let list = await HardcoverService.fetchUpcomingReleasesFromWantToRead(limit: 6)
-            let entry = ReleaseCountdownEntry(date: Date(), releases: list)
-            
-            // Smart refresh: vid nästa release-datum (strax efter lokal midnatt) eller fallback
-            let nextRefresh: Date = {
-                if let first = list.first {
-                    // Schemalägg strax efter att release-dagen börjar (lokal midnatt + 5 min)
-                    let cal = Calendar.current
-                    let startOfRelease = cal.startOfDay(for: first.releaseDate)
-                    let candidate = cal.date(byAdding: .minute, value: 5, to: startOfRelease) ?? Date().addingTimeInterval(3600)
-                    if candidate > Date() {
-                        return candidate
-                    }
+    func timeline(for configuration: ReleaseSelectionIntent, in context: Context) async -> Timeline<ReleaseCountdownEntry> {
+        let list = await loadReleasesRespectedBySelection(configuration: configuration, cap: 6)
+        let entry = ReleaseCountdownEntry(date: Date(), releases: list)
+        
+        // Smart refresh: vid nästa release-datum (strax efter lokal midnatt) eller fallback
+        let nextRefresh: Date = {
+            if let first = list.first {
+                let cal = Calendar.current
+                let startOfRelease = cal.startOfDay(for: first.releaseDate)
+                let candidate = cal.date(byAdding: .minute, value: 5, to: startOfRelease) ?? Date().addingTimeInterval(3600)
+                if candidate > Date() {
+                    return candidate
                 }
-                // Annars, uppdatera periodiskt
-                return Calendar.current.date(byAdding: .hour, value: 6, to: Date())!
-            }()
-            
-            completion(Timeline(entries: [entry], policy: .after(nextRefresh)))
+            }
+            return Calendar.current.date(byAdding: .hour, value: 6, to: Date())!
+        }()
+        
+        return Timeline(entries: [entry], policy: .after(nextRefresh))
+    }
+    
+    // MARK: - Helpers
+    private func loadReleasesRespectedBySelection(configuration: ReleaseSelectionIntent, cap: Int) async -> [HardcoverService.UpcomingRelease] {
+        // Hämta tillräckligt många för val + alla widgetstorlekar
+        var list = await HardcoverService.fetchUpcomingReleasesFromWantToRead(limit: max(30, cap))
+        
+        // Filtrera på användarens val om något är valt och behåll deras ordning
+        let selected = configuration.releases
+        if !selected.isEmpty {
+            var order: [Int: Int] = [:]
+            for (i, e) in selected.enumerated() {
+                if let id = Int(e.id) { order[id] = i }
+            }
+            let selectedIds = Set(order.keys)
+            list = list
+                .filter { selectedIds.contains($0.id) }
+                .sorted { (a, b) -> Bool in
+                    (order[a.id] ?? Int.max) < (order[b.id] ?? Int.max)
+                }
         }
+        
+        return Array(list.prefix(cap))
     }
 }
 
@@ -280,7 +297,11 @@ struct ReleaseCountdownWidget: Widget {
     let kind: String = "ReleaseCountdownWidget"
     
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: ReleaseCountdownProvider()) { entry in
+        AppIntentConfiguration(
+            kind: kind,
+            intent: ReleaseSelectionIntent.self,
+            provider: ReleaseCountdownProvider()
+        ) { entry in
             ReleaseCountdownWidgetEntryView(entry: entry)
         }
         .configurationDisplayName("Upcoming Releases")

@@ -10,6 +10,8 @@
 		CB00BAAF2E5B98B40086B374 /* AppIntents.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CB00BAAE2E5B98B40086B374 /* AppIntents.framework */; };
 		CB3A5E262E6A154200D54E31 /* ReleaseCountdownWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB3A5E252E6A154200D54E31 /* ReleaseCountdownWidget.swift */; };
 		CB3A5E272E6A154200D54E31 /* ReleaseCountdownWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB3A5E252E6A154200D54E31 /* ReleaseCountdownWidget.swift */; };
+		CB3A5E2B2E6A2CCB00D54E31 /* ReleaseSelectionIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB3A5E2A2E6A2CCB00D54E31 /* ReleaseSelectionIntent.swift */; };
+		CB3A5E2C2E6A2CCB00D54E31 /* ReleaseSelectionIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB3A5E2A2E6A2CCB00D54E31 /* ReleaseSelectionIntent.swift */; };
 		CB73FB7B2E583D6B00B36269 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CB73FB7A2E583D6B00B36269 /* WidgetKit.framework */; };
 		CB73FB7D2E583D6B00B36269 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CB73FB7C2E583D6B00B36269 /* SwiftUI.framework */; };
 		CB73FB8C2E583D6D00B36269 /* ReadingProgressWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = CB73FB782E583D6B00B36269 /* ReadingProgressWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -58,6 +60,7 @@
 /* Begin PBXFileReference section */
 		CB00BAAE2E5B98B40086B374 /* AppIntents.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppIntents.framework; path = System/Library/Frameworks/AppIntents.framework; sourceTree = SDKROOT; };
 		CB3A5E252E6A154200D54E31 /* ReleaseCountdownWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReleaseCountdownWidget.swift; sourceTree = "<group>"; };
+		CB3A5E2A2E6A2CCB00D54E31 /* ReleaseSelectionIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReleaseSelectionIntent.swift; sourceTree = "<group>"; };
 		CB73FB4A2E583D0300B36269 /* Softcover.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Softcover.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CB73FB572E583D0500B36269 /* SoftcoverTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SoftcoverTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		CB73FB612E583D0500B36269 /* SoftcoverUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SoftcoverUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -175,6 +178,7 @@
 				CB73FB792E583D6B00B36269 /* Frameworks */,
 				CB73FB4B2E583D0300B36269 /* Products */,
 				CB3A5E252E6A154200D54E31 /* ReleaseCountdownWidget.swift */,
+				CB3A5E2A2E6A2CCB00D54E31 /* ReleaseSelectionIntent.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -381,6 +385,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CB3A5E2B2E6A2CCB00D54E31 /* ReleaseSelectionIntent.swift in Sources */,
 				CB3A5E262E6A154200D54E31 /* ReleaseCountdownWidget.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -403,6 +408,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CB3A5E2C2E6A2CCB00D54E31 /* ReleaseSelectionIntent.swift in Sources */,
 				CB3A5E272E6A154200D54E31 /* ReleaseCountdownWidget.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
