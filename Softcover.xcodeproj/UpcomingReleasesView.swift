@@ -1,6 +1,8 @@
 import SwiftUI
+import UIKit
 
 struct UpcomingReleasesView: View {
+    @Environment(\.dismiss) private var dismiss
     @State private var releases: [HardcoverService.UpcomingRelease] = []
     @State private var isLoading = false
     @State private var errorText: String?
@@ -62,6 +64,9 @@ struct UpcomingReleasesView: View {
             }
             .navigationTitle("Kommande släpp")
             .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Stäng") { dismiss() }
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     if isLoading {
                         ProgressView()

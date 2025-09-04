@@ -1,5 +1,7 @@
 import Foundation
 import UIKit
+import ImageIO
+import MobileCoreServices
 
 // MARK: - GraphQL Models
 struct GraphQLMeResponse: Codable {
@@ -103,6 +105,11 @@ struct UserBookBook: Codable {
     let title: String
     let contributions: [BookContribution]?
     let image: BookImage?
+    let editions: [Edition]? // include editions for release dates
+    
+    enum CodingKeys: String, CodingKey {
+        case id, title, contributions, image, editions
+    }
 }
 
 struct BookImage: Codable {
@@ -125,6 +132,7 @@ struct Edition: Codable, Identifiable {
     let pages: Int?
     let publisher: Publisher?
     let image: EditionImage?
+    let releaseDate: String? // release_date (date)
     
     enum CodingKeys: String, CodingKey {
         case id
@@ -134,6 +142,7 @@ struct Edition: Codable, Identifiable {
         case pages
         case publisher
         case image
+        case releaseDate = "release_date"
     }
     
     var displayTitle: String {
@@ -347,19 +356,18 @@ class ImageCache {
     
     private init() {
         // Conservative cache limits for widget extension
-        cache.countLimit = 5 // Increased limit for multiple books
-        cache.totalCostLimit = 5 * 1024 * 1024 // Max 5MB
+        cache.countLimit = 8
+        cache.totalCostLimit = 3 * 1024 * 1024 // ~3MB
     }
     
     func setImageData(_ data: Data, forKey key: String) {
-        cache.setObject(data as NSData, forKey: key as NSString)
+        cache.setObject(data as NSData, forKey: key as NSString, cost: data.count)
     }
     func imageData(forKey key: String) -> Data? {
         return cache.object(forKey: key as NSString) as Data?
     }
 }
 
-// Extension to clear cache
 extension ImageCache {
     func clearCache() {
         cache.removeAllObjects()
@@ -392,8 +400,7 @@ struct HardcoverConfig {
     }
     static func headerValue(for key: String) -> String {
         let normalized = normalize(key)
-        guard !normalized.isEmpty else { return ""
-        }
+        guard !normalized.isEmpty else { return "" }
         return "Bearer \(normalized)"
     }
     static var username: String {
@@ -484,7 +491,10 @@ class HardcoverService {
       if let cached = ImageCache.shared.imageData(forKey: urlString) { return cached }
       do {
           let (data, _) = try await URLSession.shared.data(from: url)
-          if let resized = resizeImageToFitWidget(data) {
+          let resized = autoreleasepool(invoking: { () -> Data? in
+              return resizeImageToFitWidget(data)
+          })
+          if let resized {
               ImageCache.shared.setImageData(resized, forKey: urlString)
               return resized
           }
@@ -495,16 +505,25 @@ class HardcoverService {
       }
   }
   
+  // Downsample with ImageIO to avoid decoding the full-size image in memory.
   private static func resizeImageToFitWidget(_ imageData: Data) -> Data? {
-      guard let image = UIImage(data: imageData) else { return nil }
-      let maxWidth: CGFloat = 400
-      if image.size.width <= maxWidth { return image.jpegData(compressionQuality: 0.8) }
-      let scale = maxWidth / image.size.width
-      let newSize = CGSize(width: maxWidth, height: image.size.height * scale)
-      UIGraphicsBeginImageContextWithOptions(newSize, false, 1.0)
-      defer { UIGraphicsEndImageContext() }
-      image.draw(in: CGRect(origin: .zero, size: newSize))
-      return UIGraphicsGetImageFromCurrentImageContext()?.jpegData(compressionQuality: 0.8)
+      let targetMaxPixel: CGFloat = 120 // pixels on the longest side
+      let compression: CGFloat = 0.6
+      
+      guard let source = CGImageSourceCreateWithData(imageData as CFData, [kCGImageSourceShouldCache: false] as CFDictionary) else {
+          return nil
+      }
+      let options: [CFString: Any] = [
+          kCGImageSourceCreateThumbnailFromImageAlways: true,
+          kCGImageSourceShouldCache: false,
+          kCGImageSourceCreateThumbnailWithTransform: true,
+          kCGImageSourceThumbnailMaxPixelSize: Int(targetMaxPixel)
+      ]
+      guard let cgThumb = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
+          return nil
+      }
+      let ui = UIImage(cgImage: cgThumb, scale: 1.0, orientation: .up)
+      return ui.jpegData(compressionQuality: compression)
   }
   
   private static func fetchBooksFromGraphQL(apiKey: String) async -> [BookProgress] {
@@ -545,10 +564,8 @@ class HardcoverService {
               let displayTitle: String
               if let editionTitle = userBook.edition?.title, !editionTitle.isEmpty {
                   displayTitle = editionTitle
-                  print("✅ Using edition title: \(editionTitle)")
               } else {
                   displayTitle = bookData.title
-                  print("✅ Using book title: \(displayTitle)")
               }
               let author = bookData.contributions?.first?.author?.name ?? "Unknown Author"
               let totalPages = userBook.edition?.pages ?? 0
@@ -567,13 +584,10 @@ class HardcoverService {
               let imageUrl: String?
               if let editionImageUrl = userBook.edition?.image?.url, !editionImageUrl.isEmpty {
                   imageUrl = editionImageUrl
-                  print("✅ Using edition cover for: \(displayTitle)")
               } else if let bookImageUrl = bookData.image?.url, !bookImageUrl.isEmpty {
                   imageUrl = bookImageUrl
-                  print("✅ Using book cover for: \(displayTitle)")
               } else {
                   imageUrl = nil
-                  print("⚠️ No cover image for: \(displayTitle)")
               }
               
               var coverImageData: Data? = nil
@@ -595,7 +609,6 @@ class HardcoverService {
                   originalTitle: bookData.title
               )
               
-              print("📚 Created book - Title: \(displayTitle), UserBookId: \(userBook.id ?? -1), BookId: \(bookData.id ?? -1), EditionId: \(userBook.editionId ?? -1)")
               books.append(book)
           }
           return books
@@ -799,19 +812,16 @@ class HardcoverService {
       do {
           let body = try JSONSerialization.data(withJSONObject: bodyDict)
           request.httpBody = body
-          print("📤 Sending read mutation: \(String(data: body, encoding: .utf8) ?? "")")
           let (data, response) = try await URLSession.shared.data(for: request)
           if let http = response as? HTTPURLResponse { print("📥 Insert user_book_read HTTP Status: \(http.statusCode)") }
           if let raw = String(data: data, encoding: .utf8) { print("📥 Insert user_book_read Raw: \(raw)") }
           if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
               if let errs = json["errors"] as? [[String: Any]], !errs.isEmpty {
-                  print("❌ Insert user_book_read GraphQL errors: \(errs)")
                   return false
               }
               if let dataDict = json["data"] as? [String: Any],
                  let insert = dataDict["insert_user_book_read"] as? [String: Any] {
                   if let err = insert["error"] as? String, !err.isEmpty {
-                      print("❌ Insert user_book_read error: \(err)")
                       return false
                   }
                   return insert["user_book_read"] != nil
@@ -1135,7 +1145,6 @@ class HardcoverService {
             let (data, _) = try await URLSession.shared.data(for: request)
             guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
             if let errs = root["errors"] as? [[String: Any]], !errs.isEmpty {
-                print("❌ fetchReadingStats GraphQL errors: \(errs)")
                 return nil
             }
             guard let dataDict = root["data"] as? [String: Any],
@@ -1153,7 +1162,6 @@ class HardcoverService {
             let to = "2999-01-01"
             return ReadingStats(fromDate: from, toDate: to, booksFinished: booksFinished, estimatedPages: pagesSum, averageRating: avg)
         } catch {
-            print("❌ fetchReadingStats error: \(error)")
             return nil
         }
     }
@@ -1206,31 +1214,19 @@ class HardcoverService {
                 return 0
             }
             if countRereadsAsMultiple {
-                let count = reads.count
-                print("🔢 Self-heal: counted \(count) finished reads (including rereads) in \(startDate)...\(endDate) for user \(userId)")
-                return count
+                return reads.count
             } else {
                 let uniqueBookIds = Set(reads.compactMap { $0["user_book_id"] as? Int })
-                let count = uniqueBookIds.count
-                print("🔢 Self-heal: counted \(count) unique finished books in \(startDate)...\(endDate) for user \(userId) (reads rows: \(reads.count))")
-                return count
+                return uniqueBookIds.count
             }
         } catch {
-            print("❌ countFinishedBooks error: \(error)")
             return 0
         }
     }
     
     static func fetchReadingGoals() async -> [ReadingGoal] {
-        guard !HardcoverConfig.apiKey.isEmpty else {
-            print("❌ No API key configured for reading goals")
-            return []
-        }
-        
-        guard let userId = await fetchUserId(apiKey: HardcoverConfig.apiKey) else {
-            print("❌ Could not get user ID for reading goals")
-            return []
-        }
+        guard !HardcoverConfig.apiKey.isEmpty else { return [] }
+        guard let userId = await fetchUserId(apiKey: HardcoverConfig.apiKey) else { return [] }
         
         guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return [] }
         var request = URLRequest(url: url)
@@ -1258,90 +1254,41 @@ class HardcoverService {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
             let (data, _) = try await URLSession.shared.data(for: request)
             let gqlResponse = try JSONDecoder().decode(GraphQLActivitiesResponse.self, from: data)
+            if let errors = gqlResponse.errors, !errors.isEmpty { return [] }
+            guard let activities = gqlResponse.data?.activities else { return [] }
             
-            if let errors = gqlResponse.errors {
-                for error in errors {
-                    print("❌ GraphQL Reading Goals API Error: \(error.message)")
-                }
-                return []
-            }
-            
-            guard let activities = gqlResponse.data?.activities else {
-                print("❌ No activities data returned for reading goals")
-                return []
-            }
-            
-            print("📥 Reading Goals: fetched \(activities.count) GoalActivity rows for user_id=\(userId)")
-            
-            let debugGoalId = 33007
-            let debugMatches = activities.compactMap { act -> (String, ReadingGoal)? in
-                guard act.event == "GoalActivity", let g = act.data?.goal, g.id == debugGoalId else { return nil }
-                return (act.created_at ?? "nil", g)
-            }
-            if !debugMatches.isEmpty {
-                print("🔎 Debug Goal \(debugGoalId): found \(debugMatches.count) activity snapshots:")
-                for (ts, g) in debugMatches {
-                    print("   • created_at=\(ts), progress=\(g.progress), percent=\(Int(g.percentComplete * 100))%, start=\(g.startDate), end=\(g.endDate)")
-                }
-            } else {
-                print("🔎 Debug Goal \(debugGoalId): no snapshots found in fetched activities.")
-            }
-            
-            var latestByGoal: [Int: (goal: ReadingGoal, createdAt: Date, createdAtRaw: String)] = [:]
+            var latestByGoal: [Int: (goal: ReadingGoal, createdAt: Date)] = [:]
             for activity in activities {
                 guard activity.event == "GoalActivity",
-                      let goal = activity.data?.goal else {
-                    continue
-                }
-                let createdAtRaw = activity.created_at ?? ""
-                let createdAtDate = parseAPITimestamp(createdAtRaw) ?? .distantPast
+                      let goal = activity.data?.goal else { continue }
+                let createdAtDate = parseAPITimestamp(activity.created_at ?? "") ?? .distantPast
                 if let existing = latestByGoal[goal.id] {
                     if createdAtDate > existing.createdAt {
-                        latestByGoal[goal.id] = (goal, createdAtDate, createdAtRaw)
+                        latestByGoal[goal.id] = (goal, createdAtDate)
                     }
                 } else {
-                    latestByGoal[goal.id] = (goal, createdAtDate, createdAtRaw)
+                    latestByGoal[goal.id] = (goal, createdAtDate)
                 }
             }
-            
-            if let chosen = latestByGoal[debugGoalId] {
-                print("✅ Chosen snapshot for Goal \(debugGoalId): created_at=\(chosen.createdAtRaw), progress=\(chosen.goal.progress), percent=\(Int(chosen.goal.percentComplete * 100))%")
-            }
-            
-            var goals = latestByGoal.values
-                .map { $0.goal }
-                .sorted { ($0.endDate, $0.id) > ($1.endDate, $1.id) }
-            
-            print("✅ Extracted \(goals.count) unique reading goals (latest snapshot per goal).")
-            
+            var goals = latestByGoal.values.map { $0.goal }
             if enableGoalSelfHeal {
-                print("🛠️ Self-heal enabled: reconciling goal progress using finished books count when higher.")
                 var healed: [ReadingGoal] = []
                 for g in goals {
                     if g.metric.lowercased() == "book" {
                         let counted = await countFinishedBooks(userId: userId, startDate: g.startDate, endDate: g.endDate)
                         if counted > g.progress {
                             let newPercent = min(1.0, Double(counted) / Double(max(g.goal, 1)))
-                            print("✅ Self-heal applied for goal \(g.id): snapshot=\(g.progress), counted=\(counted) -> using \(counted) (\(Int(newPercent * 100))%)")
                             if let healedGoal = healGoalProgress(original: g, newProgress: counted, newPercent: newPercent) {
-                                healed.append(healedGoal)
-                                continue
+                                healed.append(healedGoal); continue
                             }
-                        } else {
-                            print("ℹ️ Self-heal not needed for goal \(g.id): snapshot=\(g.progress), counted=\(counted)")
                         }
                     }
                     healed.append(g)
                 }
                 goals = healed
-            } else {
-                print("ℹ️ Self-heal disabled: using snapshot progress as-is.")
             }
-            
             return goals
-            
         } catch {
-            print("❌ GraphQL Reading Goals API Error: \(error)")
             return []
         }
     }
@@ -1357,7 +1304,6 @@ class HardcoverService {
             let healed = try JSONDecoder().decode(ReadingGoal.self, from: newData)
             return healed
         } catch {
-            print("❌ healGoalProgress error: \(error)")
             return nil
         }
     }
@@ -1409,14 +1355,12 @@ class HardcoverService {
         ]
         
         func parseDate(_ s: String) -> Date? {
-            // Try yyyy-MM-dd first (GraphQL date)
             let df = DateFormatter()
             df.calendar = Calendar(identifier: .gregorian)
             df.locale = Locale(identifier: "en_US_POSIX")
             df.timeZone = TimeZone(secondsFromGMT: 0)
             df.dateFormat = "yyyy-MM-dd"
             if let d = df.date(from: s) { return d }
-            // Fallback to ISO8601 timestamps if server ever returns that
             return parseAPITimestamp(s)
         }
         
@@ -1424,10 +1368,7 @@ class HardcoverService {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
             let (data, _) = try await URLSession.shared.data(for: request)
             guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { return [] }
-            if let errs = root["errors"] as? [[String: Any]], !errs.isEmpty {
-                print("❌ fetchReadingHistory GraphQL errors: \(errs)")
-                return []
-            }
+            if let errs = root["errors"] as? [[String: Any]], !errs.isEmpty { return [] }
             guard let dataDict = root["data"] as? [String: Any],
                   let reads = dataDict["user_book_reads"] as? [[String: Any]] else {
                 return []
@@ -1447,14 +1388,12 @@ class HardcoverService {
                 let userBookId = userBook["id"] as? Int
                 let rating = userBook["rating"] as? Double
                 
-                // Title: prefer edition title, else book title
                 let editionDict = userBook["edition"] as? [String: Any]
                 let editionTitle = editionDict?["title"] as? String
                 let bookDict = userBook["book"] as? [String: Any]
                 let bookTitle = (bookDict?["title"] as? String) ?? "Unknown Title"
                 let displayTitle = (editionTitle?.isEmpty == false) ? editionTitle! : bookTitle
                 
-                // Author: first contribution author name
                 var author = "Unknown Author"
                 if let contributions = bookDict?["contributions"] as? [[String: Any]],
                    let first = contributions.first,
@@ -1463,7 +1402,6 @@ class HardcoverService {
                     author = a
                 }
                 
-                // Cover: prefer edition image, else book image
                 var coverUrl: String? = nil
                 if let img = (editionDict?["image"] as? [String: Any])?["url"] as? String, !img.isEmpty {
                     coverUrl = img
@@ -1491,7 +1429,6 @@ class HardcoverService {
             
             return results
         } catch {
-            print("❌ fetchReadingHistory error: \(error)")
             return []
         }
     }
@@ -1499,14 +1436,8 @@ class HardcoverService {
 
 // MARK: - Finish book helpers
 extension HardcoverService {
-    /// Marks a book as finished and ensures finished_at is set to today's date (UTC).
-    /// Also sets progress_pages to totalPages if provided, otherwise currentPage if provided.
-    /// Optionally sets a rating (1.0–5.0, half-star increments allowed).
     static func finishBook(userBookId: Int, editionId: Int?, totalPages: Int?, currentPage: Int?, rating: Double?) async -> Bool {
         guard !HardcoverConfig.apiKey.isEmpty else { return false }
-        print("📗 finishBook: userBookId=\(userBookId), editionId=\(editionId ?? -1), totalPages=\(totalPages ?? -1), currentPage=\(currentPage ?? -1), rating=\(String(describing: rating))")
-        
-        // If we have a rating, update status and rating in ONE mutation to avoid server-side overwrites/policies.
         var statusOK = true
         if let value = rating {
             let clamped = max(0.5, min(5.0, (round(value * 2) / 2)))
@@ -1514,32 +1445,20 @@ extension HardcoverService {
         } else {
             statusOK = await updateUserBookStatus(userBookId: userBookId, statusId: 3)
         }
-        if !statusOK {
-            print("❌ finishBook: failed to update status/rating")
-            return false
-        }
+        if !statusOK { return false }
         
         let today = utcDateString()
         var finishedOK = false
         if let readId = await fetchLatestReadId(userBookId: userBookId) {
-            // First try to set finished_at on the latest read
             finishedOK = await updateReadFinishedAt(readId: readId, finishedAt: today)
-            print("ℹ️ finishBook: updateReadFinishedAt -> \(finishedOK)")
         }
         if !finishedOK {
-            // Insert a finished read if no existing read or update failed
             let pages: Int? = totalPages ?? currentPage
             finishedOK = await insertFinishedRead(userBookId: userBookId, editionId: editionId, pages: pages, finishedAt: today)
-            print("ℹ️ finishBook: insertFinishedRead -> \(finishedOK)")
         }
-        if !finishedOK {
-            print("❌ finishBook: could not set finished_at")
-            return false
-        }
-        return true
+        return finishedOK
     }
     
-    /// Updates both status_id and rating in one mutation (sends rating only when non-nil).
     static func updateUserBook(userBookId: Int, statusId: Int, rating: Double?) async -> Bool {
         guard !HardcoverConfig.apiKey.isEmpty else { return false }
         guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return false }
@@ -1548,11 +1467,8 @@ extension HardcoverService {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
         
-        // Build the object dictionary without rating when rating == nil so we don't clear existing rating inadvertently.
         var object: [String: Any] = ["status_id": statusId]
-        if let r = rating {
-            object["rating"] = r
-        }
+        if let r = rating { object["rating"] = r }
         
         let mutation = """
         mutation UpdateUserBook($id: Int!, $object: UserBookUpdateInput!) {
@@ -1564,44 +1480,27 @@ extension HardcoverService {
         """
         let body: [String: Any] = [
             "query": mutation,
-            "variables": [
-                "id": userBookId,
-                "object": object
-            ]
+            "variables": ["id": userBookId, "object": object]
         ]
         
         do {
             let bodyData = try JSONSerialization.data(withJSONObject: body)
-            if let raw = String(data: bodyData, encoding: .utf8) {
-                print("📤 updateUserBook body: \(raw)")
-            }
             request.httpBody = bodyData
             let (data, _) = try await URLSession.shared.data(for: request)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                if let errs = root["errors"] as? [[String: Any]], !errs.isEmpty {
-                    print("❌ updateUserBook GraphQL errors: \(errs)")
-                    return false
-                }
+                if let errs = root["errors"] as? [[String: Any]], !errs.isEmpty { return false }
                 if let dataDict = root["data"] as? [String: Any],
                    let update = dataDict["update_user_book"] as? [String: Any] {
-                    if let err = update["error"] as? String, !err.isEmpty {
-                        print("❌ update_user_book error: \(err)")
-                        return false
-                    }
-                    if let ub = update["user_book"] as? [String: Any] {
-                        print("✅ updateUserBook success: \(ub)")
-                        return true
-                    }
-                    return false
+                    if let err = update["error"] as? String, !err.isEmpty { return false }
+                    return update["user_book"] != nil
                 }
             }
         } catch {
-            print("❌ updateUserBook error: \(error)")
+            return false
         }
         return false
     }
     
-    /// Updates rating on user_book. Passing nil will clear rating.
     static func updateUserBookRating(userBookId: Int, rating: Double?) async -> Bool {
         guard !HardcoverConfig.apiKey.isEmpty else { return false }
         guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return false }
@@ -1610,7 +1509,6 @@ extension HardcoverService {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
         
-        // GraphQL mutation to update rating on a user_book
         let mutation = """
         mutation ($id: Int!, $rating: float8) {
           update_user_book(id: $id, object: { rating: $rating }) {
@@ -1620,38 +1518,22 @@ extension HardcoverService {
         }
         """
         let vars: [String: Any] = ["id": userBookId, "rating": rating as Any]
-        let body: [String: Any] = [
-            "query": mutation,
-            "variables": vars
-        ]
+        let body: [String: Any] = ["query": mutation, "variables": vars]
         
         do {
             let bodyData = try JSONSerialization.data(withJSONObject: body)
-            if let raw = String(data: bodyData, encoding: .utf8) {
-                print("📤 updateUserBookRating body: \(raw)")
-            }
             request.httpBody = bodyData
             let (data, _) = try await URLSession.shared.data(for: request)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                if let errs = root["errors"] as? [[String: Any]], !errs.isEmpty {
-                    print("❌ updateUserBookRating GraphQL errors: \(errs)")
-                    return false
-                }
+                if let errs = root["errors"] as? [[String: Any]], !errs.isEmpty { return false }
                 if let dataDict = root["data"] as? [String: Any],
                    let update = dataDict["update_user_book"] as? [String: Any] {
-                    if let err = update["error"] as? String, !err.isEmpty {
-                        print("❌ update_user_book error: \(err)")
-                        return false
-                    }
-                    if let ub = update["user_book"] as? [String: Any] {
-                        print("✅ updateUserBookRating success: \(ub)")
-                        return true
-                    }
-                    return false
+                    if let err = update["error"] as? String, !err.isEmpty { return false }
+                    return update["user_book"] != nil
                 }
             }
         } catch {
-            print("❌ updateUserBookRating error: \(error)")
+            return false
         }
         return false
     }
@@ -1684,7 +1566,7 @@ extension HardcoverService {
                 return id
             }
         } catch {
-            print("❌ fetchLatestReadId error: \(error)")
+            return nil
         }
         return nil
     }
@@ -1718,7 +1600,7 @@ extension HardcoverService {
                 }
             }
         } catch {
-            print("❌ updateReadFinishedAt error: \(error)")
+            return false
         }
         return false
     }
@@ -1730,10 +1612,7 @@ extension HardcoverService {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
         
-        var vars: [String: Any] = [
-            "id": userBookId,
-            "finishedAt": finishedAt
-        ]
+        var vars: [String: Any] = ["id": userBookId, "finishedAt": finishedAt]
         if let p = pages { vars["pages"] = max(0, p) }
         if let eid = editionId { vars["editionId"] = eid }
         
@@ -1749,10 +1628,7 @@ extension HardcoverService {
           }
         }
         """
-        let body: [String: Any] = [
-            "query": mutation,
-            "variables": vars
-        ]
+        let body: [String: Any] = ["query": mutation, "variables": vars]
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
             let (data, _) = try await URLSession.shared.data(for: request)
@@ -1765,7 +1641,7 @@ extension HardcoverService {
                 }
             }
         } catch {
-            print("❌ insertFinishedRead error: \(error)")
+            return false
         }
         return false
     }
@@ -1777,5 +1653,145 @@ extension HardcoverService {
         df.timeZone = TimeZone(secondsFromGMT: 0)
         df.dateFormat = "yyyy-MM-dd"
         return df.string(from: Date())
+    }
+}
+
+// MARK: - Upcoming Releases (Want to read -> future editions)
+extension HardcoverService {
+    struct UpcomingRelease: Identifiable {
+        let id: Int            // edition id
+        let bookId: Int?
+        let title: String
+        let author: String
+        let releaseDate: Date
+        let coverImageData: Data?
+    }
+    
+    static func fetchUpcomingReleasesFromWantToRead(limit: Int = 30) async -> [UpcomingRelease] {
+        guard !HardcoverConfig.apiKey.isEmpty else { return [] }
+        guard let userId = await fetchUserId(apiKey: HardcoverConfig.apiKey) else { return [] }
+        guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return [] }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
+        
+        let query = """
+        query ($userId: Int!, $statusId: Int!) {
+          user_books(
+            where: { user_id: { _eq: $userId }, status_id: { _eq: $statusId } },
+            order_by: { id: desc },
+            limit: 500
+          ) {
+            id
+            book_id
+            edition_id
+            book {
+              id
+              title
+              contributions { author { name } }
+              image { url }
+              editions(where: { release_date: { _is_null: false } }) {
+                id
+                title
+                release_date
+                image { url }
+              }
+            }
+            edition {
+              id
+              title
+              release_date
+              image { url }
+            }
+          }
+        }
+        """
+        let body: [String: Any] = [
+            "query": query,
+            "variables": ["userId": userId, "statusId": 1]
+        ]
+        
+        func parseDate(_ s: String) -> Date? {
+            let df = DateFormatter()
+            df.calendar = Calendar(identifier: .gregorian)
+            df.locale = Locale(identifier: "en_US_POSIX")
+            df.timeZone = TimeZone(secondsFromGMT: 0)
+            df.dateFormat = "yyyy-MM-dd"
+            return df.date(from: s)
+        }
+        
+        struct TempRelease {
+            let id: Int
+            let bookId: Int?
+            let title: String
+            let author: String
+            let releaseDate: Date
+            let coverUrl: String?
+        }
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let (data, _) = try await URLSession.shared.data(for: request)
+            let resp = try JSONDecoder().decode(GraphQLUserBooksResponse.self, from: data)
+            if let errs = resp.errors, !errs.isEmpty {
+                return []
+            }
+            guard let rows = resp.data?.user_books else { return [] }
+            
+            let today = Calendar.current.startOfDay(for: Date())
+            var temps: [TempRelease] = []
+            temps.reserveCapacity(rows.count)
+            
+            for ub in rows {
+                // 1) Respektera vald edition först om den har framtida release
+                if let chosen = ub.edition,
+                   let s = chosen.releaseDate,
+                   let d = parseDate(s),
+                   d >= today {
+                    let title = (chosen.title?.isEmpty == false) ? chosen.title! : (ub.book?.title ?? "Unknown Title")
+                    let author = ub.book?.contributions?.first?.author?.name ?? "Unknown Author"
+                    var coverUrl: String? = nil
+                    if let u = chosen.image?.url, !u.isEmpty { coverUrl = u }
+                    else if let u = ub.book?.image?.url, !u.isEmpty { coverUrl = u }
+                    temps.append(TempRelease(id: chosen.id, bookId: ub.book?.id, title: title, author: author, releaseDate: d, coverUrl: coverUrl))
+                    continue
+                }
+                
+                // 2) Annars, välj tidigaste framtida bland övriga editioner under boken
+                var candidates: [Edition] = []
+                if let more = ub.book?.editions { candidates.append(contentsOf: more) }
+                let futureCandidates: [(Edition, Date)] = candidates.compactMap { ed in
+                    guard let s = ed.releaseDate, let d = parseDate(s) else { return nil }
+                    return d >= today ? (ed, d) : nil
+                }
+                guard let best = futureCandidates.sorted(by: { $0.1 < $1.1 }).first else { continue }
+                let chosenEdition = best.0
+                let rd = best.1
+                
+                let title = (chosenEdition.title?.isEmpty == false) ? chosenEdition.title! : (ub.book?.title ?? "Unknown Title")
+                let author = ub.book?.contributions?.first?.author?.name ?? "Unknown Author"
+                var coverUrl: String? = nil
+                if let u = chosenEdition.image?.url, !u.isEmpty { coverUrl = u }
+                else if let u = ub.book?.image?.url, !u.isEmpty { coverUrl = u }
+                
+                temps.append(TempRelease(id: chosenEdition.id, bookId: ub.book?.id, title: title, author: author, releaseDate: rd, coverUrl: coverUrl))
+            }
+            
+            // Sortera, beskära till limit, och hämta bilder ENDAST för dessa
+            let sorted = temps.sorted { $0.releaseDate < $1.releaseDate }
+            let limited = Array(sorted.prefix(limit))
+            
+            var items: [UpcomingRelease] = []
+            items.reserveCapacity(limited.count)
+            for t in limited {
+                let data: Data? = (t.coverUrl != nil) ? await fetchAndResizeImage(from: t.coverUrl!) : nil
+                items.append(UpcomingRelease(id: t.id, bookId: t.bookId, title: t.title, author: t.author, releaseDate: t.releaseDate, coverImageData: data))
+            }
+            return items
+        } catch {
+            return []
+        }
     }
 }

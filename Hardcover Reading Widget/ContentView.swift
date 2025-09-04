@@ -24,6 +24,8 @@ struct ContentView: View {
     @State private var showingHistory = false
     // NEW: finish banner
     @State private var showFinishBanner = false
+    // NEW: upcoming releases
+    @State private var showingUpcoming = false
     
     var body: some View {
         ZStack {
@@ -147,6 +149,10 @@ struct ContentView: View {
                     }
                     ToolbarItem(placement: .navigationBarTrailing) {
                         HStack(spacing: 16) {
+                            // NEW: Upcoming releases button
+                            Button(action: { showingUpcoming = true }) {
+                                Image(systemName: "calendar.badge.clock")
+                            }
                             // NEW: History button
                             Button(action: { showingHistory = true }) {
                                 Image(systemName: "clock")
@@ -157,12 +163,6 @@ struct ContentView: View {
                             Button(action: { showingSearch = true }) {
                                 Image(systemName: "plus")
                             }
-                            Button(action: { Task { await loadBooks() } }) {
-                                Image(systemName: "arrow.clockwise")
-                                    .rotationEffect(.degrees(isLoading ? 360 : 0))
-                                    .animation(isLoading ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: isLoading)
-                            }
-                            .disabled(isLoading)
                         }
                     }
                     // Keyboard toolbar lives on the NavigationView for reliability
@@ -214,6 +214,10 @@ struct ContentView: View {
             // NEW: History sheet
             .sheet(isPresented: $showingHistory) {
                 HistoryView()
+            }
+            // NEW: Upcoming Releases sheet
+            .sheet(isPresented: $showingUpcoming) {
+                UpcomingReleasesView()
             }
             
             if showGlobalConfetti {
@@ -1029,4 +1033,3 @@ private struct StarCell: View {
         .frame(width: 34, height: 34) // touch-friendly
     }
 }
-

@@ -125,12 +125,13 @@ struct ReadingProgressWidget: Widget {
     }
 }
 
-// MARK: - Bundle that exposes both widgets
+// MARK: - Bundle that exposes all widgets
 @main
 struct ReadingWidgetsBundle: WidgetBundle {
     var body: some Widget {
         ReadingProgressWidget()
         ReadingGoalWidget()
+        ReleaseCountdownWidget()
     }
 }
 

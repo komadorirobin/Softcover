@@ -25,20 +25,22 @@ struct ReleaseCountdownProvider: TimelineProvider {
             return
         }
         Task {
-            let list = await HardcoverService.fetchUpcomingReleasesFromWantToRead(limit: 12)
+            // Hämta bara det som kan visas: 6 räcker för både medium (3) och large (6)
+            let list = await HardcoverService.fetchUpcomingReleasesFromWantToRead(limit: 6)
             completion(ReleaseCountdownEntry(date: Date(), releases: list))
         }
     }
     
     func getTimeline(in context: Context, completion: @escaping (Timeline<ReleaseCountdownEntry>) -> Void) {
         Task {
-            let list = await HardcoverService.fetchUpcomingReleasesFromWantToRead(limit: 12)
+            // Hämta bara det som kan visas: 6 räcker för både medium (3) och large (6)
+            let list = await HardcoverService.fetchUpcomingReleasesFromWantToRead(limit: 6)
             let entry = ReleaseCountdownEntry(date: Date(), releases: list)
             
-            // Smart refresh: at next release date (just after midnight local) or fallback
+            // Smart refresh: vid nästa release-datum (strax efter lokal midnatt) eller fallback
             let nextRefresh: Date = {
                 if let first = list.first {
-                    // Schedule shortly after the first release date starts (local midnight + 5 min)
+                    // Schemalägg strax efter att release-dagen börjar (lokal midnatt + 5 min)
                     let cal = Calendar.current
                     let startOfRelease = cal.startOfDay(for: first.releaseDate)
                     let candidate = cal.date(byAdding: .minute, value: 5, to: startOfRelease) ?? Date().addingTimeInterval(3600)
@@ -46,7 +48,7 @@ struct ReleaseCountdownProvider: TimelineProvider {
                         return candidate
                     }
                 }
-                // Otherwise, refresh periodically
+                // Annars, uppdatera periodiskt
                 return Calendar.current.date(byAdding: .hour, value: 6, to: Date())!
             }()
             

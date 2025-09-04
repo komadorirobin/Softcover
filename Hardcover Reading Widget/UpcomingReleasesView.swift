@@ -13,7 +13,7 @@ struct UpcomingReleasesView: View {
                     VStack(spacing: 20) {
                         ProgressView()
                             .scaleEffect(1.5)
-                        Text("Loading upcoming releases…")
+                        Text(NSLocalizedString("Loading upcoming releases…", comment: "Loading state for upcoming releases"))
                             .font(.headline)
                             .foregroundColor(.secondary)
                     }
@@ -23,13 +23,13 @@ struct UpcomingReleasesView: View {
                         Image(systemName: "exclamationmark.triangle")
                             .font(.system(size: 48))
                             .foregroundColor(.orange)
-                        Text("Failed to load upcoming releases")
+                        Text(NSLocalizedString("Failed to load upcoming releases", comment: "Title for error when loading upcoming releases fails"))
                             .font(.headline)
                         Text(errorMessage)
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
-                        Button("Try Again") {
+                        Button(NSLocalizedString("Try Again", comment: "Retry button")) {
                             Task { await loadReleases() }
                         }
                         .buttonStyle(.borderedProminent)
@@ -41,9 +41,9 @@ struct UpcomingReleasesView: View {
                         Image(systemName: "calendar.badge.clock")
                             .font(.system(size: 48))
                             .foregroundColor(.secondary)
-                        Text("No upcoming releases found")
+                        Text(NSLocalizedString("No upcoming releases found", comment: "Empty state title when no upcoming releases"))
                             .font(.headline)
-                        Text("We’ll show future editions from your Want to Read list here.")
+                        Text(NSLocalizedString("We’ll show future editions from your Want to Read list here.", comment: "Empty state subtitle for upcoming releases"))
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
@@ -106,11 +106,11 @@ struct UpcomingReleasesView: View {
                     .listStyle(.plain)
                 }
             }
-            .navigationTitle("Upcoming Releases")
+            .navigationTitle(NSLocalizedString("Upcoming Releases", comment: "Navigation title for upcoming releases screen"))
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") { dismiss() }
+                    Button(NSLocalizedString("Done", comment: "Done button title")) { dismiss() }
                 }
             }
         }
@@ -127,7 +127,6 @@ struct UpcomingReleasesView: View {
             releases = items
             isLoading = false
             if items.isEmpty {
-                // No error, just empty state
                 errorMessage = nil
             }
         }
@@ -146,15 +145,18 @@ struct UpcomingReleasesView: View {
         let target = cal.startOfDay(for: date)
         guard let days = cal.dateComponents([.day], from: start, to: target).day else { return nil }
         if days < 0 {
-            return ("Released", .gray)
+            return (NSLocalizedString("Released", comment: "Badge for already released item"), .gray)
         } else if days == 0 {
-            return ("Today", .green)
+            return (NSLocalizedString("Today", comment: "Badge for release happening today"), .green)
         } else if days == 1 {
-            return ("Tomorrow", .green)
-        } else if days <= 14 {
-            return ("In \(days) days", .blue)
+            return (NSLocalizedString("Tomorrow", comment: "Badge for release happening tomorrow"), .green)
         } else {
-            return ("In \(days) days", .secondary)
+            // Use pluralizable format key "In %d days"
+            let text = String.localizedStringWithFormat(
+                NSLocalizedString("In %d days", comment: "Badge for release happening in N days"),
+                days
+            )
+            return (text, .blue)
         }
     }
 }
