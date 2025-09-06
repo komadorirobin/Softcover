@@ -26,6 +26,10 @@ struct ContentView: View {
     @State private var showFinishBanner = false
     // NEW: upcoming releases
     @State private var showingUpcoming = false
+    // NEW: Want to Read sheet
+    @State private var showingWantToRead = false
+    // NEW: Book details
+    @State private var selectedBookForDetails: BookProgress?
     
     var body: some View {
         ZStack {
@@ -109,19 +113,28 @@ struct ContentView: View {
                             }
                             
                             ForEach(books) { book in
-                                BookCardView(book: book, onEditionTap: {
-                                    selectedBookForEdition = book
-                                }, onProgressSaved: {
-                                    Task {
-                                        await loadBooks()
-                                        WidgetCenter.shared.reloadAllTimelines()
+                                BookCardView(
+                                    book: book,
+                                    onOpenDetails: {
+                                        selectedBookForDetails = book
+                                    },
+                                    onEditionTap: {
+                                        selectedBookForEdition = book
+                                    },
+                                    onProgressSaved: {
+                                        Task {
+                                            await loadBooks()
+                                            WidgetCenter.shared.reloadAllTimelines()
+                                        }
+                                    },
+                                    onCelebrate: {
+                                        triggerConfetti()
+                                    },
+                                    onFinished: {
+                                        // Show banner and confetti when a book is marked as finished
+                                        showFinishFeedback()
                                     }
-                                }, onCelebrate: {
-                                    triggerConfetti()
-                                }, onFinished: {
-                                    // Show banner and confetti when a book is marked as finished
-                                    showFinishFeedback()
-                                })
+                                )
                                 .listRowSeparator(.hidden)
                                 .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                             }
@@ -149,6 +162,10 @@ struct ContentView: View {
                     }
                     ToolbarItem(placement: .navigationBarTrailing) {
                         HStack(spacing: 16) {
+                            // NEW: Want to Read button
+                            Button(action: { showingWantToRead = true }) {
+                                Image(systemName: "bookmark")
+                            }
                             // NEW: Upcoming releases button
                             Button(action: { showingUpcoming = true }) {
                                 Image(systemName: "calendar.badge.clock")
@@ -218,6 +235,36 @@ struct ContentView: View {
             // NEW: Upcoming Releases sheet
             .sheet(isPresented: $showingUpcoming) {
                 UpcomingReleasesView()
+            }
+            // NEW: Want to Read sheet
+            .sheet(isPresented: $showingWantToRead) {
+                WantToReadView { didStart in
+                    if didStart {
+                        Task {
+                            await loadBooks()
+                            WidgetCenter.shared.reloadAllTimelines()
+                        }
+                    }
+                }
+            }
+            // NEW: Book Details sheet
+            .sheet(item: $selectedBookForDetails) { book in
+                BookDetailView(book: book)
+            }
+            // Handle deep links from widgets (softcover://upcoming and softcover://goals)
+            .onOpenURL { url in
+                guard url.scheme?.lowercased() == "softcover" else { return }
+                let host = url.host?.lowercased()
+                let path = url.path.lowercased()
+                
+                if host == "goals" || path.contains("/goals") {
+                    showingStats = true
+                    return
+                }
+                if host == "upcoming" || path.contains("/upcoming") {
+                    showingUpcoming = true
+                    return
+                }
             }
             
             if showGlobalConfetti {
@@ -291,14 +338,16 @@ struct ContentView: View {
     }
 }
 
+// BookCardView and the rest of the file remain unchanged below…
+
 struct BookCardView: View {
     let book: BookProgress
+    let onOpenDetails: () -> Void
     let onEditionTap: () -> Void
     let onProgressSaved: () -> Void
     let onCelebrate: () -> Void
     // NEW: notify parent when finished
     let onFinished: () -> Void
-    @State private var isExpanded = false
     @State private var editedPage: Int
     @State private var isUpdating = false
     @State private var showUpdateError = false
@@ -313,8 +362,9 @@ struct BookCardView: View {
     @State private var pendingFinishUserBookId: Int?
     @State private var selectedRating: Double? = 5.0 // default suggestion
     
-    init(book: BookProgress, onEditionTap: @escaping () -> Void, onProgressSaved: @escaping () -> Void, onCelebrate: @escaping () -> Void, onFinished: @escaping () -> Void) {
+    init(book: BookProgress, onOpenDetails: @escaping () -> Void, onEditionTap: @escaping () -> Void, onProgressSaved: @escaping () -> Void, onCelebrate: @escaping () -> Void, onFinished: @escaping () -> Void) {
         self.book = book
+        self.onOpenDetails = onOpenDetails
         self.onEditionTap = onEditionTap
         self.onProgressSaved = onProgressSaved
         self.onCelebrate = onCelebrate
@@ -341,13 +391,19 @@ struct BookCardView: View {
                 }
                 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(book.title)
-                        .font(.headline)
-                        .lineLimit(2)
-                    Text(book.author)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
+                    // Title tap opens details
+                    Button(action: onOpenDetails) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(book.title)
+                                .font(.headline)
+                                .lineLimit(2)
+                            Text(book.author)
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+                    .buttonStyle(.plain)
                     
                     Spacer()
                     
@@ -507,33 +563,6 @@ struct BookCardView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            
-            if isExpanded {
-                VStack(alignment: .leading, spacing: 8) {
-                    Divider()
-                    if book.title != book.originalTitle {
-                        HStack {
-                            Label("Original title", systemImage: "text.book.closed").font(.caption).foregroundColor(.secondary)
-                            Spacer()
-                            Text(book.originalTitle).font(.caption).foregroundColor(.secondary).lineLimit(1)
-                        }
-                    }
-                    HStack {
-                        Label("Book ID", systemImage: "number").font(.caption).foregroundColor(.secondary)
-                        Spacer()
-                        Text(book.bookId != nil ? "\(book.bookId!)" : "N/A").font(.caption).foregroundColor(.secondary)
-                    }
-                    if book.progress > 0 && book.totalPages > 0 {
-                        let remainingPages = book.totalPages - book.currentPage
-                        HStack {
-                            Label("Pages left", systemImage: "book").font(.caption).foregroundColor(.secondary)
-                            Spacer()
-                            Text("\(remainingPages)").font(.caption).foregroundColor(.secondary)
-                        }
-                    }
-                }
-                .padding(.top, 4)
-            }
         }
         .padding()
         .background(
@@ -541,11 +570,6 @@ struct BookCardView: View {
                 .fill(Color(UIColor.secondarySystemBackground))
                 .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
         )
-        .onTapGesture {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                isExpanded.toggle()
-            }
-        }
         // Long-press menu: innehåller “Mark as finished” samt “Remove from Currently Reading”
         .contextMenu {
             if let userBookId = book.userBookId {
@@ -624,6 +648,10 @@ struct BookCardView: View {
             )
             .presentationDetents([.height(300), .medium])
         }
+        .onTapGesture {
+            // Open details when tapping anywhere on the card background
+            onOpenDetails()
+        }
     }
     
     private func updateProgress() async {
@@ -656,7 +684,8 @@ struct BookCardView: View {
             editionId: book.editionId,
             totalPages: book.totalPages > 0 ? book.totalPages : nil,
             currentPage: book.currentPage > 0 ? book.currentPage : nil,
-            rating: rating
+            rating: rating,
+            reviewText: nil
         )
         await MainActor.run {
             isActionWorking = false
@@ -1033,3 +1062,4 @@ private struct StarCell: View {
         .frame(width: 34, height: 34) // touch-friendly
     }
 }
+

@@ -12,9 +12,15 @@
 		CB3A5E272E6A154200D54E31 /* ReleaseCountdownWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB3A5E252E6A154200D54E31 /* ReleaseCountdownWidget.swift */; };
 		CB3A5E2B2E6A2CCB00D54E31 /* ReleaseSelectionIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB3A5E2A2E6A2CCB00D54E31 /* ReleaseSelectionIntent.swift */; };
 		CB3A5E2C2E6A2CCB00D54E31 /* ReleaseSelectionIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB3A5E2A2E6A2CCB00D54E31 /* ReleaseSelectionIntent.swift */; };
+		CB3A5E2E2E6B171600D54E31 /* WantToReadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB3A5E2D2E6B171600D54E31 /* WantToReadView.swift */; };
+		CB3A5E2F2E6B171600D54E31 /* WantToReadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB3A5E2D2E6B171600D54E31 /* WantToReadView.swift */; };
+		CB3A5E312E6B172C00D54E31 /* WantToReadView 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB3A5E302E6B172C00D54E31 /* WantToReadView 2.swift */; };
+		CB3A5E322E6B172C00D54E31 /* WantToReadView 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB3A5E302E6B172C00D54E31 /* WantToReadView 2.swift */; };
 		CB73FB7B2E583D6B00B36269 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CB73FB7A2E583D6B00B36269 /* WidgetKit.framework */; };
 		CB73FB7D2E583D6B00B36269 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CB73FB7C2E583D6B00B36269 /* SwiftUI.framework */; };
 		CB73FB8C2E583D6D00B36269 /* ReadingProgressWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = CB73FB782E583D6B00B36269 /* ReadingProgressWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		CBE4A2C12E6CC74000325408 /* BookReviewSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBE4A2C02E6CC74000325408 /* BookReviewSheet.swift */; };
+		CBE4A2C22E6CC74000325408 /* BookReviewSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBE4A2C02E6CC74000325408 /* BookReviewSheet.swift */; };
 		CBE946E02E5EE5AB0018EEA1 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = CBE946DF2E5EE5AB0018EEA1 /* Localizable.xcstrings */; };
 		CBE946E12E5EE5AB0018EEA1 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = CBE946DF2E5EE5AB0018EEA1 /* Localizable.xcstrings */; };
 /* End PBXBuildFile section */
@@ -61,12 +67,15 @@
 		CB00BAAE2E5B98B40086B374 /* AppIntents.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppIntents.framework; path = System/Library/Frameworks/AppIntents.framework; sourceTree = SDKROOT; };
 		CB3A5E252E6A154200D54E31 /* ReleaseCountdownWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReleaseCountdownWidget.swift; sourceTree = "<group>"; };
 		CB3A5E2A2E6A2CCB00D54E31 /* ReleaseSelectionIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReleaseSelectionIntent.swift; sourceTree = "<group>"; };
+		CB3A5E2D2E6B171600D54E31 /* WantToReadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WantToReadView.swift; sourceTree = "<group>"; };
+		CB3A5E302E6B172C00D54E31 /* WantToReadView 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WantToReadView 2.swift"; sourceTree = "<group>"; };
 		CB73FB4A2E583D0300B36269 /* Softcover.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Softcover.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CB73FB572E583D0500B36269 /* SoftcoverTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SoftcoverTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		CB73FB612E583D0500B36269 /* SoftcoverUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SoftcoverUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		CB73FB782E583D6B00B36269 /* ReadingProgressWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ReadingProgressWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		CB73FB7A2E583D6B00B36269 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		CB73FB7C2E583D6B00B36269 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		CBE4A2C02E6CC74000325408 /* BookReviewSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookReviewSheet.swift; sourceTree = "<group>"; };
 		CBE946DF2E5EE5AB0018EEA1 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		CBFA1D7F2E633D3A002E60A5 /* Softcover.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Softcover.entitlements; sourceTree = "<group>"; };
 		CBFA1D802E633D67002E60A5 /* ReadingProgressWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ReadingProgressWidgetExtension.entitlements; sourceTree = "<group>"; };
@@ -179,6 +188,9 @@
 				CB73FB4B2E583D0300B36269 /* Products */,
 				CB3A5E252E6A154200D54E31 /* ReleaseCountdownWidget.swift */,
 				CB3A5E2A2E6A2CCB00D54E31 /* ReleaseSelectionIntent.swift */,
+				CB3A5E2D2E6B171600D54E31 /* WantToReadView.swift */,
+				CB3A5E302E6B172C00D54E31 /* WantToReadView 2.swift */,
+				CBE4A2C02E6CC74000325408 /* BookReviewSheet.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -385,6 +397,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CBE4A2C22E6CC74000325408 /* BookReviewSheet.swift in Sources */,
+				CB3A5E2E2E6B171600D54E31 /* WantToReadView.swift in Sources */,
+				CB3A5E312E6B172C00D54E31 /* WantToReadView 2.swift in Sources */,
 				CB3A5E2B2E6A2CCB00D54E31 /* ReleaseSelectionIntent.swift in Sources */,
 				CB3A5E262E6A154200D54E31 /* ReleaseCountdownWidget.swift in Sources */,
 			);
@@ -408,8 +423,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CB3A5E322E6B172C00D54E31 /* WantToReadView 2.swift in Sources */,
+				CB3A5E2F2E6B171600D54E31 /* WantToReadView.swift in Sources */,
 				CB3A5E2C2E6A2CCB00D54E31 /* ReleaseSelectionIntent.swift in Sources */,
 				CB3A5E272E6A154200D54E31 /* ReleaseCountdownWidget.swift in Sources */,
+				CBE4A2C12E6CC74000325408 /* BookReviewSheet.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

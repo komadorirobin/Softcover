@@ -26,7 +26,8 @@ struct Provider: AppIntentTimelineProvider {
         if context.isPreview {
             return placeholder(in: context)
         }
-        let allBooks = await HardcoverService.fetchCurrentlyReading()
+        // Widgets: använd mindre bilder för att spara minne/bandbredd
+        let allBooks = await HardcoverService.fetchCurrentlyReading(imageMaxPixel: 160, compression: 0.7)
         let filteredBooks = filterBooks(allBooks: allBooks, configuration: configuration)
         if filteredBooks.isEmpty && context.isPreview {
             return placeholder(in: context)
@@ -36,7 +37,8 @@ struct Provider: AppIntentTimelineProvider {
     
     func timeline(for configuration: BookSelectionIntent, in context: Context) async -> Timeline<SimpleEntry> {
         logDiagnostics(context: "timeline")
-        let allBooks = await HardcoverService.fetchCurrentlyReading()
+        // Widgets: använd mindre bilder för att spara minne/bandbredd
+        let allBooks = await HardcoverService.fetchCurrentlyReading(imageMaxPixel: 160, compression: 0.7)
         let filteredBooks = filterBooks(allBooks: allBooks, configuration: configuration)
         let entry = SimpleEntry(date: Date(), books: filteredBooks, configuration: configuration)
 
@@ -153,3 +155,4 @@ struct ReadingWidgetsBundle: WidgetBundle {
     )
     SimpleEntry(date: Date(), books: [previewBook], configuration: BookSelectionIntent())
 }
+

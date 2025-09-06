@@ -7,4 +7,7 @@
    <FileRef
       location = "group:UpcomingReleasesView.swift">
    </FileRef>
+   <FileRef
+      location = "group:NotificationManager.swift">
+   </FileRef>
 </Workspace>

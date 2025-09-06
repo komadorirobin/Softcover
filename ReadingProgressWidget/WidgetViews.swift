@@ -166,6 +166,18 @@ struct LargeWidgetView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             if !books.isEmpty {
+                // Header only when there's room (i.e., fewer than 4 books)
+                if books.count < 4 {
+                    HStack {
+                        Text(NSLocalizedString("Reading Now", comment: "Header for currently reading widget"))
+                            .font(.title3) // Larger than headline
+                            .fontWeight(.semibold)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, 6)
+                    .padding(.bottom, 8) // More room before the list
+                }
+
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(books.prefix(4), id: \.id) { book in
                         LargeBookProgressRow(book: book)

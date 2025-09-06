@@ -34,18 +34,11 @@ struct ReleaseCountdownProvider: AppIntentTimelineProvider {
         let list = await loadReleasesRespectedBySelection(configuration: configuration, cap: 6)
         let entry = ReleaseCountdownEntry(date: Date(), releases: list)
         
-        // Smart refresh: vid nästa release-datum (strax efter lokal midnatt) eller fallback
-        let nextRefresh: Date = {
-            if let first = list.first {
-                let cal = Calendar.current
-                let startOfRelease = cal.startOfDay(for: first.releaseDate)
-                let candidate = cal.date(byAdding: .minute, value: 5, to: startOfRelease) ?? Date().addingTimeInterval(3600)
-                if candidate > Date() {
-                    return candidate
-                }
-            }
-            return Calendar.current.date(byAdding: .hour, value: 6, to: Date())!
-        }()
+        // Uppdatera en gång per dygn: strax efter lokal midnatt (00:05).
+        let cal = Calendar.current
+        let tomorrow = cal.date(byAdding: .day, value: 1, to: Date())!
+        let startOfTomorrow = cal.startOfDay(for: tomorrow)
+        let nextRefresh = cal.date(byAdding: .minute, value: 5, to: startOfTomorrow)!
         
         return Timeline(entries: [entry], policy: .after(nextRefresh))
     }
@@ -53,7 +46,8 @@ struct ReleaseCountdownProvider: AppIntentTimelineProvider {
     // MARK: - Helpers
     private func loadReleasesRespectedBySelection(configuration: ReleaseSelectionIntent, cap: Int) async -> [HardcoverService.UpcomingRelease] {
         // Hämta tillräckligt många för val + alla widgetstorlekar
-        var list = await HardcoverService.fetchUpcomingReleasesFromWantToRead(limit: max(30, cap))
+        // Widgets: mindre bilder för att spara minne/bandbredd
+        var list = await HardcoverService.fetchUpcomingReleasesFromWantToRead(limit: max(30, cap), imageMaxPixel: 160, compression: 0.7)
         
         // Filtrera på användarens val om något är valt och behåll deras ordning
         let selected = configuration.releases
@@ -303,6 +297,8 @@ struct ReleaseCountdownWidget: Widget {
             provider: ReleaseCountdownProvider()
         ) { entry in
             ReleaseCountdownWidgetEntryView(entry: entry)
+                // Make the whole widget open Upcoming Releases in the app
+                .widgetURL(URL(string: "softcover://upcoming")!)
         }
         .configurationDisplayName("Upcoming Releases")
         .description("Shows countdowns for upcoming book releases from your Want to Read list.")

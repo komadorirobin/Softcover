@@ -116,6 +116,7 @@ struct ReadingGoalWidgetEntryView: View {
             }
         }
         .containerBackground(.fill.tertiary, for: .widget)
+        .widgetURL(URL(string: "softcover://goals"))
     }
 }
 

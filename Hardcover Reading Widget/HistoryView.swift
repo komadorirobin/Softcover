@@ -13,6 +13,11 @@ struct HistoryView: View {
     // Track seen bookIds so that only the latest finished read per book is shown
     @State private var seenBookIds: Set<Int> = []
     
+    // Selected book to show details
+    @State private var selectedBookForDetails: BookProgress?
+    // Optional: show a tiny spinner while fetching details
+    @State private var fetchingDetailsForBookId: Int?
+    
     private let pageSize = 25
     
     var body: some View {
@@ -55,7 +60,18 @@ struct HistoryView: View {
                 } else {
                     List {
                         ForEach(items) { entry in
-                            HistoryRow(entry: entry)
+                            ZStack(alignment: .trailing) {
+                                HistoryRow(entry: entry)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        Task { await openDetails(for: entry) }
+                                    }
+                                
+                                if fetchingDetailsForBookId == entry.bookId {
+                                    ProgressView()
+                                        .scaleEffect(0.8)
+                                }
+                            }
                         }
                         
                         if canLoadMore {
@@ -86,6 +102,10 @@ struct HistoryView: View {
             }
         }
         .task { await initialLoad() }
+        // Present detail view with finish action hidden (already read)
+        .sheet(item: $selectedBookForDetails) { book in
+            BookDetailView(book: book, showFinishAction: false)
+        }
     }
     
     private func initialLoad() async {
@@ -135,6 +155,37 @@ struct HistoryView: View {
             // to find unseen books; but stop when we start receiving empty pages.
             if filtered.isEmpty && fetched.count < pageSize {
                 canLoadMore = false
+            }
+        }
+    }
+    
+    private func openDetails(for entry: FinishedBookEntry) async {
+        await MainActor.run { fetchingDetailsForBookId = entry.bookId }
+        // Try to fetch richer details (incl. description); fall back to lightweight
+        let fetched = await HardcoverService.fetchBookDetailsById(bookId: entry.bookId, userBookId: entry.userBookId)
+        await MainActor.run {
+            fetchingDetailsForBookId = nil
+            if let book = fetched {
+                selectedBookForDetails = book
+            } else {
+                // Fallback: minimal info from history entry
+                let bp = BookProgress(
+                    id: "\(entry.id)",
+                    title: entry.title,
+                    author: entry.author,
+                    coverImageData: entry.coverImageData,
+                    progress: 0,
+                    totalPages: 0,
+                    currentPage: 0,
+                    bookId: entry.bookId,
+                    userBookId: entry.userBookId,
+                    editionId: nil,
+                    originalTitle: entry.title,
+                    editionAverageRating: nil,
+                    userRating: entry.rating,
+                    bookDescription: nil
+                )
+                selectedBookForDetails = bp
             }
         }
     }
