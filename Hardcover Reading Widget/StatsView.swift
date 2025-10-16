@@ -5,104 +5,116 @@ struct StatsView: View {
     @State private var readingGoals: [ReadingGoal] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
-    @Environment(\.dismiss) private var dismiss
     
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    if isLoading {
-                        VStack(spacing: 20) {
-                            ProgressView()
-                                .scaleEffect(1.5)
-                            Text("Loading statistics...")
-                                .font(.headline)
-                                .foregroundColor(.secondary)
+        ScrollView {
+            VStack(spacing: 24) {
+                if isLoading {
+                    VStack(spacing: 20) {
+                        ProgressView()
+                            .scaleEffect(1.5)
+                        Text("Loading statistics...")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 100)
+                } else if let error = errorMessage {
+                    VStack(spacing: 20) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: 50))
+                            .foregroundColor(.orange)
+                        Text("Failed to load statistics")
+                            .font(.headline)
+                        Text(error)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                        Button("Try Again") {
+                            Task { await loadData() }
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 100)
-                    } else if let error = errorMessage {
+                        .buttonStyle(.borderedProminent)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 100)
+                } else {
+                    // Reading Statistics Section
+                    if let stats = readingStats {
+                        VStack(alignment: .leading, spacing: 16) {
+                            LazyVGrid(columns: [
+                                GridItem(.flexible()),
+                                GridItem(.flexible())
+                            ], spacing: 16) {
+                                // Books Read
+                                StatCard(
+                                    icon: "checkmark.circle.fill",
+                                    iconColor: .green,
+                                    title: "Books Read",
+                                    value: "\(stats.booksFinished)"
+                                )
+                                
+                                // Pages Read
+                                StatCard(
+                                    icon: "doc.text.fill",
+                                    iconColor: .purple,
+                                    title: "Pages Read",
+                                    value: "\(stats.estimatedPages)"
+                                )
+                                
+                                // Average Rating
+                                if let avgRating = stats.averageRating {
+                                    StatCard(
+                                        icon: "star.fill",
+                                        iconColor: .yellow,
+                                        title: "Average Rating",
+                                        value: String(format: "%.1f", avgRating)
+                                    )
+                                }
+                            }
+                            .padding(.horizontal)
+                        }
+                    }
+                    
+                    // Reading Goals Section
+                    if !readingGoals.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Image(systemName: "target")
+                                    .foregroundColor(.blue)
+                                Text("Reading Goals")
+                                    .font(.title2)
+                                    .fontWeight(.semibold)
+                            }
+                            .padding(.horizontal)
+                            
+                            ForEach(readingGoals, id: \.id) { goal in
+                                ReadingGoalCard(goal: goal)
+                            }
+                        }
+                    }
+                    
+                    if readingGoals.isEmpty && readingStats == nil {
                         VStack(spacing: 20) {
-                            Image(systemName: "exclamationmark.triangle")
+                            Image(systemName: "chart.bar")
                                 .font(.system(size: 50))
-                                .foregroundColor(.orange)
-                            Text("Failed to load statistics")
+                                .foregroundColor(.secondary)
+                            Text("No statistics available")
                                 .font(.headline)
-                            Text(error)
+                            Text("Start reading and setting goals to see your statistics here")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                                 .multilineTextAlignment(.center)
-                            Button("Try Again") {
-                                Task { await loadData() }
-                            }
-                            .buttonStyle(.borderedProminent)
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.top, 100)
-                    } else {
-                        // Reading Goals Section
-                        if !readingGoals.isEmpty {
-                            VStack(alignment: .leading, spacing: 12) {
-                                HStack {
-                                    Image(systemName: "target")
-                                        .foregroundColor(.blue)
-                                    Text("Reading Goals")
-                                        .font(.title2)
-                                        .fontWeight(.semibold)
-                                }
-                                .padding(.horizontal)
-                                
-                                ForEach(readingGoals, id: \.id) { goal in
-                                    ReadingGoalCard(goal: goal)
-                                }
-                            }
-                        }
-                        
-                        // Reading Statistics Section
-                        if let stats = readingStats {
-                            VStack(alignment: .leading, spacing: 12) {
-                                HStack {
-                                    Image(systemName: "chart.bar")
-                                        .foregroundColor(.green)
-                                    Text("Reading Statistics")
-                                        .font(.title2)
-                                        .fontWeight(.semibold)
-                                }
-                                .padding(.horizontal)
-                                
-                                ReadingStatsCard(stats: stats)
-                            }
-                        }
-                        
-                        if readingGoals.isEmpty && readingStats == nil {
-                            VStack(spacing: 20) {
-                                Image(systemName: "chart.bar")
-                                    .font(.system(size: 50))
-                                    .foregroundColor(.secondary)
-                                Text("No statistics available")
-                                    .font(.headline)
-                                Text("Start reading and setting goals to see your statistics here")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                    .multilineTextAlignment(.center)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, 100)
-                        }
-                    }
-                }
-                .padding()
-            }
-            .navigationTitle("Reading Stats")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
                     }
                 }
             }
+            .padding(.vertical)
         }
+        .background(Color(UIColor.systemGroupedBackground))
+        .navigationTitle("Reading Stats")
+        .navigationBarTitleDisplayMode(.large)
         .task {
             await loadData()
         }

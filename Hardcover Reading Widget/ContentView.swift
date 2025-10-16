@@ -18,14 +18,12 @@ struct ContentView: View {
     @State private var showingApiSettings = false
     @State private var username: String = ""
     @State private var showGlobalConfetti = false
-    @State private var showingSearch = false
-    @State private var showingStats = false
-    // NEW: history sheet
-    @State private var showingHistory = false
     // NEW: finish banner
     @State private var showFinishBanner = false
-    // NEW: upcoming releases
-    @State private var showingUpcoming = false
+    // NEW: Book details
+    @State private var selectedBookForDetails: BookProgress?
+    // Tab selection
+    @State private var selectedTab = 0
     
     var body: some View {
         ZStack {
@@ -33,147 +31,52 @@ struct ContentView: View {
             Color(UIColor.systemBackground)
                 .ignoresSafeArea()
             
-            NavigationView {
-                Group {
-                    if isLoading && books.isEmpty {
-                        VStack(spacing: 20) {
-                            ProgressView()
-                                .scaleEffect(1.5)
-                            Text("Loading your books...")
-                                .font(.headline)
-                                .foregroundColor(.secondary)
+            TabView(selection: $selectedTab) {
+                Tab("Reading", systemImage: "book", value: 0) {
+                    currentlyReadingView
+                }
+                
+                Tab("Want to Read", systemImage: "bookmark", value: 1) {
+                    WantToReadView { didStart in
+                        if didStart {
+                            Task {
+                                await loadBooks()
+                                WidgetCenter.shared.reloadAllTimelines()
+                            }
+                            selectedTab = 0 // Switch back to Currently Reading
                         }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .padding(.top, 100)
-                    } else if let error = errorMessage {
-                        VStack(spacing: 20) {
-                            Image(systemName: "exclamationmark.triangle")
-                                .font(.system(size: 50))
-                                .foregroundColor(.orange)
-                            Text("Failed to load books")
-                                .font(.headline)
-                            Text(error)
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .multilineTextAlignment(.center)
-                            Button("Try Again") {
-                                Task { await loadBooks() }
-                            }
-                            .buttonStyle(.borderedProminent)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 100)
-                        .padding(.horizontal)
-                    } else if books.isEmpty {
-                        VStack(spacing: 20) {
-                            Image(systemName: "books.vertical")
-                                .font(.system(size: 50))
-                                .foregroundColor(.secondary)
-                            Text("No books currently reading")
-                                .font(.headline)
-                            Text("Start reading a book on Hardcover to see it here")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .multilineTextAlignment(.center)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 100)
-                        .padding(.horizontal)
-                    } else {
-                        List {
-                            if !username.isEmpty {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "person.circle")
-                                        .foregroundColor(.secondary)
-                                    Text("Signed in as @\(username)")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 0, trailing: 16))
-                            }
-                            
-                            if showFinishBanner {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "checkmark.seal.fill")
-                                        .foregroundColor(.green)
-                                    Text("Marked as finished")
-                                        .font(.subheadline)
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(.primary)
-                                    Spacer()
-                                }
-                                .padding(10)
-                                .background(Color.green.opacity(0.15))
-                                .cornerRadius(10)
-                                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
-                            }
-                            
-                            ForEach(books) { book in
-                                BookCardView(book: book, onEditionTap: {
-                                    selectedBookForEdition = book
-                                }, onProgressSaved: {
-                                    Task {
-                                        await loadBooks()
-                                        WidgetCenter.shared.reloadAllTimelines()
-                                    }
-                                }, onCelebrate: {
-                                    triggerConfetti()
-                                }, onFinished: {
-                                    // Show banner and confetti when a book is marked as finished
-                                    showFinishFeedback()
-                                })
-                                .listRowSeparator(.hidden)
-                                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                            }
-                            
-                            // Footer: last updated
-                            HStack {
-                                Image(systemName: "clock.arrow.circlepath")
-                                    .font(.caption)
-                                Text("Updated \(lastUpdated, style: .relative) ago")
-                                    .font(.caption)
-                                Spacer()
-                            }
-                            .foregroundColor(.secondary)
-                            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 12, trailing: 16))
-                        }
-                        .listStyle(.plain)
                     }
                 }
-                .background(Color(UIColor.systemBackground))
-                .navigationTitle("Currently Reading")
-                .navigationBarTitleDisplayMode(.large)
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        Button { showingApiSettings = true } label: { Image(systemName: "gearshape") }
-                    }
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        HStack(spacing: 16) {
-                            // NEW: Upcoming releases button
-                            Button(action: { showingUpcoming = true }) {
-                                Image(systemName: "calendar.badge.clock")
+                
+                Tab("Explore", systemImage: "safari", value: 2) {
+                    ExplorerView { didAdd in
+                        if didAdd {
+                            Task {
+                                await loadBooks()
+                                WidgetCenter.shared.reloadAllTimelines()
                             }
-                            // NEW: History button
-                            Button(action: { showingHistory = true }) {
-                                Image(systemName: "clock")
-                            }
-                            Button(action: { showingStats = true }) {
-                                Image(systemName: "chart.bar")
-                            }
-                            Button(action: { showingSearch = true }) {
-                                Image(systemName: "plus")
-                            }
+                            selectedTab = 0 // Switch back to Currently Reading
                         }
                     }
-                    // Keyboard toolbar lives on the NavigationView for reliability
-                    ToolbarItemGroup(placement: .keyboard) {
-                        Spacer()
-                        Button("Done") { hideKeyboard() }
+                }
+                
+                Tab("Profile", systemImage: "person.crop.circle.fill", value: 3) {
+                    ProfileView()
+                }
+                
+                Tab(value: 4, role: .search) {
+                    SearchBooksView { didAdd in
+                        if didAdd {
+                            Task {
+                                await loadBooks()
+                                WidgetCenter.shared.reloadAllTimelines()
+                            }
+                            selectedTab = 0 // Switch back to Currently Reading
+                        }
                     }
                 }
-                .refreshable { await refreshBooks() }
             }
-            .navigationViewStyle(StackNavigationViewStyle())
+            .tabViewStyle(.sidebarAdaptable)
             .task {
                 await loadBooks()
                 loadUsernameFromDefaults()
@@ -198,26 +101,24 @@ struct ContentView: View {
                     }
                 }
             }
-            .sheet(isPresented: $showingSearch) {
-                SearchBooksView { didAdd in
-                    if didAdd {
-                        Task {
-                            await loadBooks()
-                            WidgetCenter.shared.reloadAllTimelines()
-                        }
-                    }
+            // NEW: Book Details sheet
+            .sheet(item: $selectedBookForDetails) { book in
+                BookDetailView(book: book)
+            }
+            // Handle deep links from widgets (softcover://upcoming and softcover://goals)
+            .onOpenURL { url in
+                guard url.scheme?.lowercased() == "softcover" else { return }
+                let host = url.host?.lowercased()
+                let path = url.path.lowercased()
+                
+                if host == "goals" || path.contains("/goals") {
+                    selectedTab = 3 // Profile tab (which has link to Stats)
+                    return
                 }
-            }
-            .sheet(isPresented: $showingStats) {
-                StatsView()
-            }
-            // NEW: History sheet
-            .sheet(isPresented: $showingHistory) {
-                HistoryView()
-            }
-            // NEW: Upcoming Releases sheet
-            .sheet(isPresented: $showingUpcoming) {
-                UpcomingReleasesView()
+                if host == "upcoming" || path.contains("/upcoming") {
+                    selectedTab = 1 // Want to Read tab (now includes upcoming releases filter)
+                    return
+                }
             }
             
             if showGlobalConfetti {
@@ -229,6 +130,146 @@ struct ContentView: View {
         }
     }
     
+    // MARK: - Currently Reading View
+    private var currentlyReadingView: some View {
+        NavigationStack {
+            Group {
+                if isLoading && books.isEmpty {
+                    VStack(spacing: 20) {
+                        ProgressView()
+                            .scaleEffect(1.5)
+                        Text("Loading your books...")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(.top, 100)
+                } else if let error = errorMessage {
+                    VStack(spacing: 20) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: 50))
+                            .foregroundColor(.orange)
+                        Text("Failed to load books")
+                            .font(.headline)
+                        Text(error)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                        Button("Try Again") {
+                            Task { await loadBooks() }
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 100)
+                    .padding(.horizontal)
+                } else if books.isEmpty {
+                    VStack(spacing: 20) {
+                        Image(systemName: "books.vertical")
+                            .font(.system(size: 50))
+                            .foregroundColor(.secondary)
+                        Text("No books currently reading")
+                            .font(.headline)
+                        Text("Start reading a book on Hardcover to see it here")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 100)
+                    .padding(.horizontal)
+                } else {
+                    List {
+                        if !username.isEmpty {
+                            HStack(spacing: 6) {
+                                Image(systemName: "person.circle")
+                                    .foregroundColor(.secondary)
+                                Text("Signed in as @\(username)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 0, trailing: 16))
+                        }
+                        
+                        if showFinishBanner {
+                            HStack(spacing: 8) {
+                                Image(systemName: "checkmark.seal.fill")
+                                    .foregroundColor(.green)
+                                Text("Marked as finished")
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.primary)
+                                Spacer()
+                            }
+                            .padding(10)
+                            .background(Color.green.opacity(0.15))
+                            .cornerRadius(10)
+                            .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                        }
+                        
+                        ForEach(books) { book in
+                            BookCardView(
+                                book: book,
+                                onOpenDetails: {
+                                    selectedBookForDetails = book
+                                },
+                                onEditionTap: {
+                                    selectedBookForEdition = book
+                                },
+                                onProgressSaved: {
+                                    Task {
+                                        await loadBooks()
+                                        WidgetCenter.shared.reloadAllTimelines()
+                                    }
+                                },
+                                onCelebrate: {
+                                    triggerConfetti()
+                                },
+                                onFinished: {
+                                    // Show banner and confetti when a book is marked as finished
+                                    showFinishFeedback()
+                                }
+                            )
+                            .listRowSeparator(.hidden)
+                            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                        }
+                        
+                        // Footer: last updated
+                        HStack {
+                            Image(systemName: "clock.arrow.circlepath")
+                                .font(.caption)
+                            Text("Updated \(lastUpdated, style: .relative) ago")
+                                .font(.caption)
+                            Spacer()
+                        }
+                        .foregroundColor(.secondary)
+                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 12, trailing: 16))
+                    }
+                    .listStyle(.plain)
+                }
+            }
+            .background(Color(UIColor.systemBackground))
+            .navigationTitle("Currently Reading")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button { 
+                        showingApiSettings = true 
+                    } label: { 
+                        Image(systemName: "gearshape") 
+                    }
+                }
+                // Keyboard toolbar lives on the NavigationStack for reliability
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") { hideKeyboard() }
+                }
+            }
+            .refreshable { await refreshBooks() }
+        }
+    }
+    
+    // MARK: - Helper Methods
     private func hideKeyboard() {
 #if os(iOS)
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
@@ -291,14 +332,16 @@ struct ContentView: View {
     }
 }
 
+// BookCardView and the rest of the file remain unchanged below…
+
 struct BookCardView: View {
     let book: BookProgress
+    let onOpenDetails: () -> Void
     let onEditionTap: () -> Void
     let onProgressSaved: () -> Void
     let onCelebrate: () -> Void
     // NEW: notify parent when finished
     let onFinished: () -> Void
-    @State private var isExpanded = false
     @State private var editedPage: Int
     @State private var isUpdating = false
     @State private var showUpdateError = false
@@ -309,12 +352,13 @@ struct BookCardView: View {
     @State private var isManualEditing = false
     
     // Rating flow
-    @State private var showRatingSheet = false
-    @State private var pendingFinishUserBookId: Int?
-    @State private var selectedRating: Double? = 5.0 // default suggestion
+    private struct FinishID: Identifiable { let id: Int }
+    @State private var pendingFinishUserBookId: FinishID?
+    @State private var selectedRating: Double? = nil // no default; empty until set
     
-    init(book: BookProgress, onEditionTap: @escaping () -> Void, onProgressSaved: @escaping () -> Void, onCelebrate: @escaping () -> Void, onFinished: @escaping () -> Void) {
+    init(book: BookProgress, onOpenDetails: @escaping () -> Void, onEditionTap: @escaping () -> Void, onProgressSaved: @escaping () -> Void, onCelebrate: @escaping () -> Void, onFinished: @escaping () -> Void) {
         self.book = book
+        self.onOpenDetails = onOpenDetails
         self.onEditionTap = onEditionTap
         self.onProgressSaved = onProgressSaved
         self.onCelebrate = onCelebrate
@@ -325,29 +369,39 @@ struct BookCardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top, spacing: 16) {
-                if let imageData = book.coverImageData, let uiImage = UIImage(data: imageData) {
-                    Image(uiImage: uiImage)
+                // COVER: Async cache med fallback till befintlig Data
+                AsyncCachedImage(
+                    url: coverURL(for: book),
+                    maxPixel: 320,
+                    dataFallback: book.coverImageData
+                ) { image in
+                    image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
-                        .frame(width: 80, height: 120)
-                        .clipped()
-                        .cornerRadius(8)
-                        .shadow(radius: 4)
-                } else {
+                } placeholder: {
                     RoundedRectangle(cornerRadius: 8)
                         .fill(LinearGradient(colors: [Color("CardBackground").opacity(0.6), Color("CardBackground").opacity(0.4)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                        .frame(width: 80, height: 120)
                         .overlay(Image(systemName: "book.closed").font(.largeTitle).foregroundColor(.secondary))
                 }
+                .frame(width: 80, height: 120)
+                .clipped()
+                .cornerRadius(8)
+                .shadow(radius: 4)
                 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(book.title)
-                        .font(.headline)
-                        .lineLimit(2)
-                    Text(book.author)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
+                    // Title tap opens details
+                    Button(action: onOpenDetails) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(book.title)
+                                .font(.headline)
+                                .lineLimit(2)
+                            Text(book.author)
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+                    .buttonStyle(.plain)
                     
                     Spacer()
                     
@@ -388,9 +442,9 @@ struct BookCardView: View {
                                     HStack(spacing: 10) {
                                         // Mark as finished
                                         Button {
-                                            pendingFinishUserBookId = userBookId
-                                            selectedRating = 5.0
-                                            showRatingSheet = true
+                                            pendingFinishUserBookId = FinishID(id: userBookId)
+                                            // Prefill UI with any existing rating; but we won't send unless changed
+                                            selectedRating = book.userRating
                                         } label: {
                                             Image(systemName: "checkmark.circle.fill")
                                                 .foregroundColor(.green)
@@ -435,9 +489,8 @@ struct BookCardView: View {
                             if let userBookId = book.userBookId {
                                 HStack(spacing: 10) {
                                     Button {
-                                        pendingFinishUserBookId = userBookId
-                                        selectedRating = 5.0
-                                        showRatingSheet = true
+                                        pendingFinishUserBookId = FinishID(id: userBookId)
+                                        selectedRating = book.userRating
                                     } label: {
                                         Image(systemName: "checkmark.circle.fill")
                                             .foregroundColor(.green)
@@ -507,33 +560,6 @@ struct BookCardView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            
-            if isExpanded {
-                VStack(alignment: .leading, spacing: 8) {
-                    Divider()
-                    if book.title != book.originalTitle {
-                        HStack {
-                            Label("Original title", systemImage: "text.book.closed").font(.caption).foregroundColor(.secondary)
-                            Spacer()
-                            Text(book.originalTitle).font(.caption).foregroundColor(.secondary).lineLimit(1)
-                        }
-                    }
-                    HStack {
-                        Label("Book ID", systemImage: "number").font(.caption).foregroundColor(.secondary)
-                        Spacer()
-                        Text(book.bookId != nil ? "\(book.bookId!)" : "N/A").font(.caption).foregroundColor(.secondary)
-                    }
-                    if book.progress > 0 && book.totalPages > 0 {
-                        let remainingPages = book.totalPages - book.currentPage
-                        HStack {
-                            Label("Pages left", systemImage: "book").font(.caption).foregroundColor(.secondary)
-                            Spacer()
-                            Text("\(remainingPages)").font(.caption).foregroundColor(.secondary)
-                        }
-                    }
-                }
-                .padding(.top, 4)
-            }
         }
         .padding()
         .background(
@@ -541,20 +567,19 @@ struct BookCardView: View {
                 .fill(Color(UIColor.secondarySystemBackground))
                 .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
         )
-        .onTapGesture {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                isExpanded.toggle()
-            }
-        }
-        // Long-press menu: innehåller “Mark as finished” samt “Remove from Currently Reading”
+        // Long-press menu: innehåller “Mark as finished”, “Flytta till Vill läsa” samt “Remove from Currently Reading”
         .contextMenu {
             if let userBookId = book.userBookId {
                 Button {
-                    pendingFinishUserBookId = userBookId
-                    selectedRating = 5.0
-                    showRatingSheet = true
+                    pendingFinishUserBookId = FinishID(id: userBookId)
+                    selectedRating = book.userRating
                 } label: {
                     Label("Mark as finished", systemImage: "checkmark.circle")
+                }
+                Button {
+                    Task { await moveToWantToRead(userBookId: userBookId) }
+                } label: {
+                    Label("Flytta till Vill läsa", systemImage: "bookmark")
                 }
                 Button(role: .destructive) {
                     showRemoveConfirm = true
@@ -599,30 +624,28 @@ struct BookCardView: View {
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
             if isManualEditing { isManualEditing = false }
         }
-        .sheet(isPresented: $showRatingSheet) {
-            RatingSheet(
-                title: NSLocalizedString("Rate the book?", comment: "Title for rating prompt when finishing a book"),
-                subtitle: NSLocalizedString("You can leave a rating when marking as finished. This is optional.", comment: "Subtitle explaining rating is optional when finishing a book"),
-                rating: $selectedRating,
-                onSkip: {
-                    print("ℹ️ RatingSheet: Skip tapped, sending rating=nil")
-                    showRatingSheet = false
-                    if let userBookId = pendingFinishUserBookId {
-                        Task { await markAsFinished(userBookId: userBookId, rating: nil) }
-                    }
+        // PRESENTATION: item-baserad sheet (betyg tomt tills man ändrar)
+        .sheet(item: $pendingFinishUserBookId) { item in
+            FinishRateReviewSheet(
+                userBookId: item.id,
+                initialRating: selectedRating, // optional; nil => start empty
+                onPublishedReview: {
+                    // optional: toast
                 },
-                onConfirm: {
-                    // Defensive: always ensure a valid 0.5...5.0 value
-                    let raw = selectedRating ?? 5.0
-                    let clamped = max(0.5, min(5.0, (round(raw * 2) / 2)))
-                    print("✅ RatingSheet: Confirm tapped, sending rating=\(clamped)")
-                    showRatingSheet = false
-                    if let userBookId = pendingFinishUserBookId {
-                        Task { await markAsFinished(userBookId: userBookId, rating: clamped) }
-                    }
+                onSkip: { rating in
+                    // Skicka endast om användaren ändrat, annars nil
+                    Task { await markAsFinished(userBookId: item.id, rating: rating) }
+                },
+                onConfirmFinish: { rating in
+                    // Bekräfta färdig – skicka rating endast om ändrat
+                    Task { await markAsFinished(userBookId: item.id, rating: rating) }
                 }
             )
-            .presentationDetents([.height(300), .medium])
+            .presentationDetents([.large, .medium])
+        }
+        .onTapGesture {
+            // Open details when tapping anywhere on the card background
+            onOpenDetails()
         }
     }
     
@@ -656,7 +679,7 @@ struct BookCardView: View {
             editionId: book.editionId,
             totalPages: book.totalPages > 0 ? book.totalPages : nil,
             currentPage: book.currentPage > 0 ? book.currentPage : nil,
-            rating: rating
+            rating: rating // may be nil if untouched
         )
         await MainActor.run {
             isActionWorking = false
@@ -667,6 +690,24 @@ struct BookCardView: View {
 #endif
                 // Notify parent to show banner & confetti and refresh
                 onFinished()
+                onProgressSaved()
+            } else {
+                showActionError = true
+            }
+        }
+    }
+    
+    private func moveToWantToRead(userBookId: Int) async {
+        guard !isActionWorking else { return }
+        isActionWorking = true
+        // status_id 1 = Want to Read
+        let ok = await HardcoverService.updateUserBookStatus(userBookId: userBookId, statusId: 1)
+        await MainActor.run {
+            isActionWorking = false
+            if ok {
+#if os(iOS) && !targetEnvironment(macCatalyst)
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+#endif
                 onProgressSaved()
             } else {
                 showActionError = true
@@ -785,81 +826,212 @@ private final class ConfettiContainerView: UIView {
     }
 }
 
-struct EditionPickerView: View {
-    @StateObject private var viewModel: EditionPickerViewModel
+#Preview { ContentView() }
+
+// MARK: - Finish + Rate + Review Sheet
+struct FinishRateReviewSheet: View {
+    let userBookId: Int
+    @State private var rating: Double // 0..5, starts from initial or 0
+    let onPublishedReview: () -> Void
+    // We will pass nil to these closures if user never changed rating
+    let onSkip: (Double?) -> Void
+    let onConfirmFinish: (Double?) -> Void
+    
+    // Review UI state
+    @State private var reviewText: String = ""
+    @State private var hasSpoilers: Bool = false
+    @State private var isPublishingReview = false
+    @State private var publishError: String?
+    @State private var publishedOnce = false
+    // Confirm state
+    @State private var isConfirming = false
+    
+    // Track if user actually changed rating
+    @State private var didChangeRating = false
+    
+    // Dismiss environment
     @Environment(\.dismiss) private var dismiss
     
-    init(book: BookProgress, onComplete: @escaping (Bool) -> Void) {
-        _viewModel = StateObject(wrappedValue: EditionPickerViewModel(book: book, onComplete: onComplete))
+    init(userBookId: Int, initialRating: Double?, onPublishedReview: @escaping () -> Void, onSkip: @escaping (Double?) -> Void, onConfirmFinish: @escaping (Double?) -> Void) {
+        self.userBookId = userBookId
+        // Start from existing rating if any, otherwise 0 (visually tomt)
+        self._rating = State(initialValue: max(0.0, min(5.0, (round((initialRating ?? 0) * 2) / 2))))
+        self.onPublishedReview = onPublishedReview
+        self.onSkip = onSkip
+        self.onConfirmFinish = onConfirmFinish
     }
     
     var body: some View {
-        ZStack {
-            Color(UIColor.systemBackground).ignoresSafeArea()
-            VStack(spacing: 0) {
+        VStack(spacing: 14) {
+            Capsule()
+                .fill(Color.secondary.opacity(0.3))
+                .frame(width: 38, height: 5)
+                .padding(.top, 8)
+            
+            Text(NSLocalizedString("Rate and review", comment: "Title for finish+rate+review sheet"))
+                .font(.headline)
+            
+            // Rating control
+            StarRatingView(rating: Binding(
+                get: { rating },
+                set: { val in
+                    rating = max(0.0, min(5.0, (round(val * 2) / 2)))
+                    didChangeRating = true
+                }
+            ))
+            .padding(.horizontal)
+            
+            // Precise slider
+            VStack(spacing: 6) {
                 HStack {
-                    Button("Cancel") { dismiss() }.disabled(viewModel.isSaving)
+                    Text("Rating: \(rating, specifier: "%.1f")")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                     Spacer()
-                    Text("Select Edition").font(.headline)
+                }
+                Slider(
+                    value: Binding(
+                        get: { rating },
+                        set: { val in
+                            rating = max(0.0, min(5.0, (round(val * 2) / 2)))
+                            didChangeRating = true
+                        }
+                    ),
+                    in: 0...5,
+                    step: 0.5
+                )
+                .tint(.orange)
+            }
+            .padding(.horizontal)
+            
+            // Review editor
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text(NSLocalizedString("Review (optional)", comment: ""))
+                        .font(.subheadline)
                     Spacer()
-                    if viewModel.isSaving {
-                        ProgressView().scaleEffect(0.8)
-                    } else {
-                        Button("Save") { Task { await viewModel.saveEdition(dismiss: { dismiss() }) } }
-                            .disabled(viewModel.selectedEditionId == nil || viewModel.selectedEditionId == viewModel.book.editionId)
+                    if publishedOnce {
+                        Label(NSLocalizedString("Published", comment: ""), systemImage: "checkmark.seal.fill")
+                            .foregroundColor(.green)
+                            .font(.caption)
                     }
                 }
-                .padding()
-                .background(Color(UIColor.systemBackground))
-                Divider()
-                Group {
-                    if viewModel.isLoading { loadingView }
-                    else if viewModel.editions.isEmpty { emptyView }
-                    else { contentView }
+                TextEditor(text: $reviewText)
+                    .frame(minHeight: 120)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color.secondary.opacity(0.2))
+                    )
+                Toggle(NSLocalizedString("Contains spoilers", comment: ""), isOn: $hasSpoilers)
+                    .tint(.red)
+                
+                if let err = publishError {
+                    Text(err)
+                        .font(.caption)
+                        .foregroundColor(.red)
+                }
+                
+                HStack {
+                    Button {
+                        Task { await publishReview() }
+                    } label: {
+                        if isPublishingReview {
+                            ProgressView().scaleEffect(0.9)
+                        } else {
+                            Label(NSLocalizedString("Publish review", comment: ""), systemImage: "paperplane.fill")
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(reviewText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isPublishingReview || isConfirming)
+                    
+                    Spacer()
+                    
+                    Button(NSLocalizedString("Skip", comment: "")) {
+                        let value = didChangeRating ? currentClampedRating() : nil
+                        onSkip(value)
+                        dismiss()
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(isConfirming)
+                    
+                    Button(NSLocalizedString("Confirm", comment: "")) {
+                        Task { await handleConfirm() }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(isConfirming)
+                }
+            }
+            .padding(.horizontal)
+            
+            Spacer(minLength: 8)
+        }
+        .presentationDragIndicator(.visible)
+    }
+    
+    private func currentClampedRating() -> Double {
+        max(0.0, min(5.0, (round(rating * 2) / 2)))
+    }
+    
+    // Called when pressing "Confirm": save rating only if changed, publish review if present, then finish and dismiss.
+    private func handleConfirm() async {
+        await MainActor.run {
+            isConfirming = true
+            publishError = nil
+        }
+        
+        // 1) Save rating only if user changed it
+        if didChangeRating {
+            _ = await HardcoverService.updateUserBookRating(userBookId: userBookId, rating: currentClampedRating())
+        }
+        
+        // 2) If there is a review, publish it now. If it fails, show error and abort finishing.
+        let text = reviewText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !text.isEmpty {
+            let ok = await HardcoverService.publishReview(userBookId: userBookId, text: text, hasSpoilers: hasSpoilers)
+            if !ok {
+                await MainActor.run {
+                    publishError = NSLocalizedString("Failed to publish review. Please try again.", comment: "")
+                    isConfirming = false
+                }
+                return
+            } else {
+                await MainActor.run {
+                    publishedOnce = true
+                    onPublishedReview()
                 }
             }
         }
-        .task { await viewModel.loadEditions() }
-        .alert("Error", isPresented: $viewModel.showError) { Button("OK") { } } message: { Text(viewModel.errorMessage) }
-    }
-    
-    private var loadingView: some View {
-        VStack(spacing: 20) {
-            ProgressView().scaleEffect(1.5)
-            Text("Loading editions...").font(.headline).foregroundColor(.secondary)
+        
+        // 3) Proceed to finish WITH rating only if changed, then dismiss
+        await MainActor.run {
+            isConfirming = false
+            onConfirmFinish(didChangeRating ? currentClampedRating() : nil)
+            dismiss()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
-    private var emptyView: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "books.vertical.circle").font(.system(size: 60)).foregroundColor(.secondary)
-            Text("No editions found").font(.headline)
-            Text("This book might only have one edition").font(.caption).foregroundColor(.secondary).multilineTextAlignment(.center)
+    private func publishReview() async {
+        let text = reviewText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        await MainActor.run {
+            isPublishingReview = true
+            publishError = nil
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding()
-    }
-    
-    private var contentView: some View {
-        ScrollView {
-            LazyVStack(spacing: 12) {
-                ForEach(viewModel.editions) { edition in
-                    EditionRow(
-                        edition: edition,
-                        isSelected: viewModel.selectedEditionId == edition.id,
-                        isCurrent: viewModel.book.editionId == edition.id
-                    ) { viewModel.selectedEditionId = edition.id }
-                }
+        let ok = await HardcoverService.publishReview(userBookId: userBookId, text: text, hasSpoilers: hasSpoilers)
+        await MainActor.run {
+            isPublishingReview = false
+            if ok {
+                publishedOnce = true
+                onPublishedReview()
+            } else {
+                publishError = NSLocalizedString("Failed to publish review. Please try again.", comment: "")
             }
-            .padding()
         }
     }
 }
 
-#Preview { ContentView() }
-
 private struct RatingSheet: View {
+    // Deprecated by FinishRateReviewSheet but kept to avoid breaking previews where referenced.
     let title: String
     let subtitle: String
     @Binding var rating: Double?
@@ -1033,3 +1205,11 @@ private struct StarCell: View {
         .frame(width: 34, height: 34) // touch-friendly
     }
 }
+
+// Helper to resolve cover URL (temporary: returns nil until models include URL)
+private func coverURL(for book: BookProgress) -> URL? {
+    // När BookProgress får fältet `coverImageURL`, byt till:
+    // return book.coverImageURL
+    return nil
+}
+

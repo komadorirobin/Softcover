@@ -5,6 +5,9 @@
       location = "self:">
    </FileRef>
    <FileRef
-      location = "group:UpcomingReleasesView.swift">
+      location = "group:SearchBooksView.swift">
+   </FileRef>
+   <FileRef
+      location = "group:HardcoverService.swift">
    </FileRef>
 </Workspace>

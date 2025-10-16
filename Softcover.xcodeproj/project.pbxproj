@@ -12,9 +12,16 @@
 		CB3A5E272E6A154200D54E31 /* ReleaseCountdownWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB3A5E252E6A154200D54E31 /* ReleaseCountdownWidget.swift */; };
 		CB3A5E2B2E6A2CCB00D54E31 /* ReleaseSelectionIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB3A5E2A2E6A2CCB00D54E31 /* ReleaseSelectionIntent.swift */; };
 		CB3A5E2C2E6A2CCB00D54E31 /* ReleaseSelectionIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB3A5E2A2E6A2CCB00D54E31 /* ReleaseSelectionIntent.swift */; };
+		CB3A5E2E2E6B171600D54E31 /* WantToReadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB3A5E2D2E6B171600D54E31 /* WantToReadView.swift */; };
+		CB5BE0062E76020700228680 /* HardcoverService+WantToRead.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB5BE0052E76020700228680 /* HardcoverService+WantToRead.swift */; };
+		CB5BE0072E76020700228680 /* HardcoverService+WantToRead.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB5BE0052E76020700228680 /* HardcoverService+WantToRead.swift */; };
 		CB73FB7B2E583D6B00B36269 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CB73FB7A2E583D6B00B36269 /* WidgetKit.framework */; };
 		CB73FB7D2E583D6B00B36269 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CB73FB7C2E583D6B00B36269 /* SwiftUI.framework */; };
 		CB73FB8C2E583D6D00B36269 /* ReadingProgressWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = CB73FB782E583D6B00B36269 /* ReadingProgressWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		CBA693342E729BC300A554DE /* HardcoverService+Reviews.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBA693332E729BC300A554DE /* HardcoverService+Reviews.swift */; };
+		CBA693352E729BC300A554DE /* HardcoverService+Reviews.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBA693332E729BC300A554DE /* HardcoverService+Reviews.swift */; };
+		CBD7D0B32E782366009B4512 /* TestsBookReadStatusTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBD7D0B22E782366009B4512 /* TestsBookReadStatusTests.swift */; };
+		CBD7D0B42E782366009B4512 /* TestsBookReadStatusTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBD7D0B22E782366009B4512 /* TestsBookReadStatusTests.swift */; };
 		CBE946E02E5EE5AB0018EEA1 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = CBE946DF2E5EE5AB0018EEA1 /* Localizable.xcstrings */; };
 		CBE946E12E5EE5AB0018EEA1 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = CBE946DF2E5EE5AB0018EEA1 /* Localizable.xcstrings */; };
 /* End PBXBuildFile section */
@@ -61,12 +68,17 @@
 		CB00BAAE2E5B98B40086B374 /* AppIntents.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppIntents.framework; path = System/Library/Frameworks/AppIntents.framework; sourceTree = SDKROOT; };
 		CB3A5E252E6A154200D54E31 /* ReleaseCountdownWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReleaseCountdownWidget.swift; sourceTree = "<group>"; };
 		CB3A5E2A2E6A2CCB00D54E31 /* ReleaseSelectionIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReleaseSelectionIntent.swift; sourceTree = "<group>"; };
+		CB3A5E2D2E6B171600D54E31 /* WantToReadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WantToReadView.swift; sourceTree = "<group>"; };
+		CB5BE0052E76020700228680 /* HardcoverService+WantToRead.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HardcoverService+WantToRead.swift"; sourceTree = "<group>"; };
 		CB73FB4A2E583D0300B36269 /* Softcover.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Softcover.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CB73FB572E583D0500B36269 /* SoftcoverTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SoftcoverTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		CB73FB612E583D0500B36269 /* SoftcoverUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SoftcoverUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		CB73FB782E583D6B00B36269 /* ReadingProgressWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ReadingProgressWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		CB73FB7A2E583D6B00B36269 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		CB73FB7C2E583D6B00B36269 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		CBA693332E729BC300A554DE /* HardcoverService+Reviews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HardcoverService+Reviews.swift"; sourceTree = "<group>"; };
+		CBC20A872E7713B900CF8813 /* SearchBooksView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchBooksView.swift; sourceTree = "<group>"; };
+		CBD7D0B22E782366009B4512 /* TestsBookReadStatusTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestsBookReadStatusTests.swift; sourceTree = "<group>"; };
 		CBE946DF2E5EE5AB0018EEA1 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		CBFA1D7F2E633D3A002E60A5 /* Softcover.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Softcover.entitlements; sourceTree = "<group>"; };
 		CBFA1D802E633D67002E60A5 /* ReadingProgressWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ReadingProgressWidgetExtension.entitlements; sourceTree = "<group>"; };
@@ -179,6 +191,11 @@
 				CB73FB4B2E583D0300B36269 /* Products */,
 				CB3A5E252E6A154200D54E31 /* ReleaseCountdownWidget.swift */,
 				CB3A5E2A2E6A2CCB00D54E31 /* ReleaseSelectionIntent.swift */,
+				CB3A5E2D2E6B171600D54E31 /* WantToReadView.swift */,
+				CBA693332E729BC300A554DE /* HardcoverService+Reviews.swift */,
+				CB5BE0052E76020700228680 /* HardcoverService+WantToRead.swift */,
+				CBC20A872E7713B900CF8813 /* SearchBooksView.swift */,
+				CBD7D0B22E782366009B4512 /* TestsBookReadStatusTests.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -385,8 +402,12 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CB3A5E2E2E6B171600D54E31 /* WantToReadView.swift in Sources */,
+				CB5BE0072E76020700228680 /* HardcoverService+WantToRead.swift in Sources */,
 				CB3A5E2B2E6A2CCB00D54E31 /* ReleaseSelectionIntent.swift in Sources */,
+				CBD7D0B32E782366009B4512 /* TestsBookReadStatusTests.swift in Sources */,
 				CB3A5E262E6A154200D54E31 /* ReleaseCountdownWidget.swift in Sources */,
+				CBA693342E729BC300A554DE /* HardcoverService+Reviews.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -408,8 +429,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CBA693352E729BC300A554DE /* HardcoverService+Reviews.swift in Sources */,
 				CB3A5E2C2E6A2CCB00D54E31 /* ReleaseSelectionIntent.swift in Sources */,
+				CB5BE0062E76020700228680 /* HardcoverService+WantToRead.swift in Sources */,
 				CB3A5E272E6A154200D54E31 /* ReleaseCountdownWidget.swift in Sources */,
+				CBD7D0B42E782366009B4512 /* TestsBookReadStatusTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -565,7 +589,7 @@
 				CODE_SIGN_ENTITLEMENTS = Softcover.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 0.92;
 				DEVELOPMENT_TEAM = 7G6FEZ22K2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -579,7 +603,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 0.92;
 				PRODUCT_BUNDLE_IDENTIFIER = "komadori.Hardcover-Reading-Widget";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -597,7 +621,7 @@
 				CODE_SIGN_ENTITLEMENTS = Softcover.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 0.92;
 				DEVELOPMENT_TEAM = 7G6FEZ22K2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -611,7 +635,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 0.92;
 				PRODUCT_BUNDLE_IDENTIFIER = "komadori.Hardcover-Reading-Widget";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";

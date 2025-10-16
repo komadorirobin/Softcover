@@ -1,0 +1,160 @@
+# Översättningar för Softcover - Svenska (sv)
+# Kopiera dessa till Localizable.xcstrings i Xcode
+
+## Huvudnavigering
+"Reading" = "Läser";
+"Want to Read" = "Vill läsa";
+"Explore" = "Utforska";
+"Profile" = "Profil";
+"Search" = "Sök";
+
+## Läsvy (Currently Reading)
+"Currently Reading" = "Läser just nu";
+"Loading your books..." = "Laddar dina böcker...";
+"Failed to load books" = "Kunde inte ladda böcker";
+"No books currently reading" = "Inga böcker läses just nu";
+"Start reading a book on Hardcover to see it here" = "Börja läsa en bok på Hardcover för att se den här";
+"Marked as finished" = "Markerad som färdigläst";
+"Updated %@ ago" = "Uppdaterad %@ sedan";
+"Mark as finished" = "Markera som färdigläst";
+"Change edition" = "Ändra utgåva";
+"No progress information" = "Ingen läsframgång";
+"Remove from Currently Reading" = "Ta bort från Läser just nu";
+"Page %lld of %lld pages" = "Sida %lld av %lld sidor";
+"Page %lld" = "Sida %lld";
+"%lld pages" = "%lld sidor";
+
+## Vill läsa-vy
+"Loading Want to Read…" = "Laddar Vill läsa...";
+"No books in Want to Read" = "Inga böcker i Vill läsa";
+"Add books to your Want to Read list on Hardcover to see them here." = "Lägg till böcker i din Vill läsa-lista på Hardcover för att se dem här.";
+"Remove from Want to Read" = "Ta bort från Vill läsa";
+"Läs nu" = "Läs nu";
+
+## Profilvy
+"Loading profile..." = "Laddar profil...";
+"Failed to load profile" = "Kunde inte ladda profil";
+"Reading Stats" = "Lässtatistik";
+"Reading History" = "Läshistorik";
+"Lists" = "Listor";
+"Friends" = "Vänner";
+"No profile data available" = "Ingen profildata tillgänglig";
+"Following" = "Följer";
+"Follow" = "Följ";
+
+## Vänner
+"Loading friends..." = "Laddar vänner...";
+"Failed to load friends" = "Kunde inte ladda vänner";
+"@%@'s Friends" = "@%@s vänner";
+
+## Statistik
+"Loading statistics..." = "Laddar statistik...";
+"Failed to load statistics" = "Kunde inte ladda statistik";
+"Reading Goals" = "Läsmål";
+"No statistics available" = "Ingen statistik tillgänglig";
+"Start reading and setting goals to see your statistics here" = "Börja läsa och sätt mål för att se din statistik här";
+"Average Rating" = "Genomsnittsbetyg";
+"(%lld ratings)" = "(%lld betyg)";
+"This user hasn't shared any statistics yet" = "Denna användare har inte delat någon statistik än";
+"@%@'s Stats" = "@%@s statistik";
+
+## Bokdetaljer
+"Book Details" = "Bokdetaljer";
+"Description" = "Beskrivning";
+"Reviews" = "Recensioner";
+"No reviews found" = "Inga recensioner hittades";
+"Load more" = "Ladda fler";
+"Start Reading" = "Börja läsa";
+"Mark as Reading" = "Markera som läser";
+"Change Edition" = "Ändra utgåva";
+"Edition ID: %lld" = "Utgåve-ID: %lld";
+"Book ID: %lld" = "Bok-ID: %lld";
+"User Book ID: %lld" = "Användarbok-ID: %lld";
+
+## Läsdatum
+"Dates Read" = "Läsdatum";
+"Add New Read" = "Lägg till ny läsning";
+"Reading History" = "Läshistorik";
+"Started: %@" = "Påbörjad: %@";
+"Finished: %@" = "Avslutad: %@";
+"In progress" = "Pågående";
+"Delete" = "Ta bort";
+"Edit Read" = "Redigera läsning";
+"Delete This Read" = "Ta bort denna läsning";
+"Are you sure you want to delete this reading record?" = "Är du säker på att du vill ta bort denna läspost?";
+"Select when you finished reading, then tap Confirm" = "Välj när du slutade läsa, tryck sedan på Bekräfta";
+"Tap a date to mark when you started reading" = "Tryck på ett datum för att markera när du började läsa";
+"Confirm End Date" = "Bekräfta slutdatum";
+"Select End Date" = "Välj slutdatum";
+"Select Start Date" = "Välj startdatum";
+"Start Date" = "Startdatum";
+"End Date" = "Slutdatum";
+"Has finished reading" = "Har slutat läsa";
+"Saving..." = "Sparar...";
+
+## Sökvy
+"Recent Searches" = "Senaste sökningar";
+"Clear" = "Rensa";
+"No %@ found" = "Inga %@ hittades";
+"Search Hardcover for books" = "Sök efter böcker på Hardcover";
+"Trending this month" = "Trending denna månad";
+"Reload trending" = "Ladda om trending";
+
+## Utforska
+"Trending" = "Trending";
+"Upcoming" = "Kommande";
+"Community Lists" = "Community-listor";
+"Loading trending books..." = "Laddar trending-böcker...";
+"Failed to load trending books" = "Kunde inte ladda trending-böcker";
+"No trending books found" = "Inga trending-böcker hittades";
+"%lld reading" = "%lld läser";
+
+## Listor
+"Loading lists..." = "Laddar listor...";
+"Failed to load lists" = "Kunde inte ladda listor";
+"No lists yet" = "Inga listor än";
+"@%@ hasn't created any lists yet" = "@%@ har inte skapat några listor än";
+"@%@'s Lists" = "@%@s listor";
+"Loading list..." = "Laddar lista...";
+"Failed to load list" = "Kunde inte ladda lista";
+"No books in this list" = "Inga böcker i denna lista";
+"No books found in this list" = "Inga böcker hittades i denna lista";
+"Created by" = "Skapad av";
+"%lld books" = "%lld böcker";
+"%lld likes" = "%lld gillningar";
+"List" = "Lista";
+
+## Recensioner
+"Rate & Review" = "Betygsätt & recensera";
+"Creating entry..." = "Skapar post...";
+"Review" = "Recension";
+"Like review" = "Gilla recension";
+"Unlike review" = "Ta bort gillning";
+"Rating" = "Betyg";
+"Läst" = "Läst";
+
+## Utgåveväljare
+"Select Edition" = "Välj utgåva";
+"Loading editions..." = "Laddar utgåvor...";
+
+## Widgets
+"Reading Now" = "Läser nu";
+"No Books" = "Inga böcker";
+"Add books to read in Hardcover" = "Lägg till böcker att läsa i Hardcover";
+"No Reading Goal" = "Inget läsmål";
+"Last updated: %@" = "Senast uppdaterad: %@";
+"Updated: %@" = "Uppdaterad: %@";
+"%lld%%" = "%lld%%";
+"Progress: %lld%%" = "Framgång: %lld%%";
+"%lld%% complete" = "%lld%% klart";
+"No progress info" = "Ingen framgångsinfo";
+
+## Allmänt
+"Cancel" = "Avbryt";
+"Save" = "Spara";
+"Done" = "Klar";
+"Please try again." = "Försök igen.";
+"Loading description..." = "Laddar beskrivning...";
+"Error" = "Fel";
+"OK" = "OK";
+"Try Again" = "Försök igen";

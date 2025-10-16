@@ -9,7 +9,10 @@ struct ApiKeySettingsView: View {
     @State private var isFetchingUsername = false
     @State private var showSaved = false
     @State private var showPasteWarning = false
+    @State private var showDeveloperProfile = false
     @AppStorage("AppearancePreference", store: AppGroup.defaults) private var appearancePref: String = "system"
+    // NEW: Skip edition picker preference
+    @AppStorage("SkipEditionPickerOnAdd", store: AppGroup.defaults) private var skipEditionPickerOnAdd: Bool = false
     
     let onSaved: ((String) -> Void)?
     
@@ -20,8 +23,8 @@ struct ApiKeySettingsView: View {
     var body: some View {
         NavigationView {
             Form {
-                Section(header: Text("Hardcover API-nyckel")) {
-                    TextField("Klistra in din API-nyckel", text: $apiKey, axis: .vertical)
+                Section(header: Text("API Key", comment: "Settings section title")) {
+                    TextField("Paste your API key", text: $apiKey, axis: .vertical)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .font(.system(.body, design: .monospaced))
@@ -40,7 +43,7 @@ struct ApiKeySettingsView: View {
                         
                         Spacer()
                         
-                        Button("Rensa") {
+                        Button("Clear") {
                             apiKey = ""
                         }
                         .foregroundColor(.red)
@@ -50,18 +53,23 @@ struct ApiKeySettingsView: View {
                 // Egen liten sektion för att få fullbreddsseparatorer
                 Section {
                     Button(action: save) {
-                        Text("Spara inställningar")
+                        Text("Save Settings")
                             .frame(maxWidth: .infinity, alignment: .center)
                     }
                     .buttonStyle(.borderedProminent)
                     .disabled(apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
                 
-                Section(header: Text("Utseende")) {
-                    Picker("Tema", selection: $appearancePref) {
-                        Text("Följer system").tag("system")
-                        Text("Ljust").tag("light")
-                        Text("Mörkt").tag("dark")
+                Section(header: Text("Where do I find the key?")) {
+                    Text("You can find your personal API key on Hardcover under Account → API. Log in and go to:")
+                    Link("hardcover.app/account/api", destination: URL(string: "https://hardcover.app/account/api")!)
+                }
+                
+                Section(header: Text("Appearance")) {
+                    Picker("Theme", selection: $appearancePref) {
+                        Text("Follow System").tag("system")
+                        Text("Light").tag("light")
+                        Text("Dark").tag("dark")
                     }
                     .pickerStyle(.segmented)
                     Text(hintText)
@@ -69,9 +77,17 @@ struct ApiKeySettingsView: View {
                         .foregroundColor(.secondary)
                 }
                 
-                Section(header: Text("Konto")) {
+                // NEW: Add Book behavior
+                Section(header: Text("Add Book")) {
+                    Toggle("Skip \"Choose Edition\" when adding", isOn: $skipEditionPickerOnAdd)
+                    Text("When enabled, the default edition is automatically used when you add a book to \"Want to Read\" or \"Currently Reading\".")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                Section(header: Text("Account")) {
                     HStack {
-                        Text("Användarnamn")
+                        Text("Username")
                         Spacer()
                         if isFetchingUsername {
                             ProgressView()
@@ -85,36 +101,77 @@ struct ApiKeySettingsView: View {
                     }
                 }
                 
-                Section(header: Text("Var hittar jag nyckeln?")) {
-                    Text("Du hittar din personliga API-nyckel på Hardcover under Konto → API. Logga in och gå till:")
-                    Link("hardcover.app/account/api", destination: URL(string: "https://hardcover.app/account/api")!)
+                Section(header: Text("About", comment: "About section title")) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Softcover")
+                            .font(.headline)
+                        
+                        Text("Created by Robin Bolinsson", comment: "App creator credit")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.vertical, 4)
+                    
+                    Button {
+                        showDeveloperProfile = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "person.circle")
+                            Text("View Developer Profile", comment: "Link to developer profile")
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                
+                Section(header: Text("Data Source", comment: "Data source label")) {
+                    Text("All book data, reviews, and reading lists are provided by Hardcover.", comment: "Data source description")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.vertical, 4)
+                    
+                    Link(destination: URL(string: "https://hardcover.app")!) {
+                        HStack {
+                            Image(systemName: "link")
+                            Text("Visit Hardcover", comment: "Link to Hardcover website")
+                            Spacer()
+                            Image(systemName: "arrow.up.right.square")
+                        }
+                    }
                 }
             }
-            .navigationTitle("API-inställningar")
+            .navigationTitle("API Settings")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Stäng") { dismiss() }
+                    Button("Close") { dismiss() }
                 }
             }
             .onAppear { loadExistingAndRefreshUsername() }
-            .alert("Sparat", isPresented: $showSaved) {
+            .alert("Saved", isPresented: $showSaved) {
                 Button("OK") { dismiss() }
             } message: {
-                Text("Dina inställningar sparades. Widgetar uppdateras strax.")
+                Text("Your settings were saved. Widgets will update shortly.")
             }
-            .alert("Kunde inte klistra in", isPresented: $showPasteWarning) {
+            .alert("Could not paste", isPresented: $showPasteWarning) {
                 Button("OK") { }
             } message: {
-                Text("Kontrollera att clipboard innehåller text, och tillåt ”Klistra in” om iOS frågar.")
+                Text("Check that clipboard contains text, and allow \"Paste\" if iOS asks.")
+            }
+            .sheet(isPresented: $showDeveloperProfile) {
+                NavigationView {
+                    UserProfileView(username: "KomadoriRobin")
+                }
             }
         }
     }
     
     private var hintText: String {
         switch appearancePref {
-        case "light": return "Appen tvingas till ljust läge."
-        case "dark": return "Appen tvingas till mörkt läge."
-        default: return "Appen följer systemets ljus/mörkt."
+        case "light": return "App is forced to light mode."
+        case "dark": return "App is forced to dark mode."
+        default: return "App follows system light/dark mode."
         }
     }
     
@@ -153,3 +210,4 @@ struct ApiKeySettingsView: View {
         }
     }
 }
+

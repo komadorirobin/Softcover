@@ -50,7 +50,7 @@ struct UpcomingReleasesView: View {
                                 if isLoading {
                                     ProgressView()
                                 } else {
-                                    Button("Visa fler") {
+                                    Button("Show More") {
                                         limit += 30
                                         Task { await load(reset: true) }
                                     }
@@ -62,10 +62,10 @@ struct UpcomingReleasesView: View {
                     .listStyle(.insetGrouped)
                 }
             }
-            .navigationTitle("Kommande släpp")
+            .navigationTitle("Upcoming Releases")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Stäng") { dismiss() }
+                    Button("Close") { dismiss() }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     if isLoading {

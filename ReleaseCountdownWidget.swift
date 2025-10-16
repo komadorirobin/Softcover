@@ -26,26 +26,19 @@ struct ReleaseCountdownProvider: AppIntentTimelineProvider {
         if context.isPreview {
             return placeholder(in: context)
         }
-        let list = await loadReleasesRespectedBySelection(configuration: configuration, cap: 6)
+        let list = await loadReleasesRespectedBySelection(configuration: configuration, cap: 4)
         return ReleaseCountdownEntry(date: Date(), releases: list)
     }
     
     func timeline(for configuration: ReleaseSelectionIntent, in context: Context) async -> Timeline<ReleaseCountdownEntry> {
-        let list = await loadReleasesRespectedBySelection(configuration: configuration, cap: 6)
+        let list = await loadReleasesRespectedBySelection(configuration: configuration, cap: 4)
         let entry = ReleaseCountdownEntry(date: Date(), releases: list)
         
-        // Smart refresh: vid nästa release-datum (strax efter lokal midnatt) eller fallback
-        let nextRefresh: Date = {
-            if let first = list.first {
-                let cal = Calendar.current
-                let startOfRelease = cal.startOfDay(for: first.releaseDate)
-                let candidate = cal.date(byAdding: .minute, value: 5, to: startOfRelease) ?? Date().addingTimeInterval(3600)
-                if candidate > Date() {
-                    return candidate
-                }
-            }
-            return Calendar.current.date(byAdding: .hour, value: 6, to: Date())!
-        }()
+        // Uppdatera en gång per dygn: strax efter lokal midnatt (00:05).
+        let cal = Calendar.current
+        let tomorrow = cal.date(byAdding: .day, value: 1, to: Date())!
+        let startOfTomorrow = cal.startOfDay(for: tomorrow)
+        let nextRefresh = cal.date(byAdding: .minute, value: 5, to: startOfTomorrow)!
         
         return Timeline(entries: [entry], policy: .after(nextRefresh))
     }
@@ -84,19 +77,19 @@ struct ReleaseCountdownWidgetEntryView: View {
             SmallReleaseView(item: entry.releases.first)
                 .containerBackground(.fill.tertiary, for: .widget)
         case .systemMedium:
-            MediumReleaseListView(items: Array(entry.releases.prefix(3)))
+            MediumReleaseListView(items: Array(entry.releases.prefix(2)))
                 .containerBackground(.fill.tertiary, for: .widget)
         case .systemLarge:
-            LargeReleaseListView(items: Array(entry.releases.prefix(6)))
+            LargeReleaseListView(items: Array(entry.releases.prefix(4)))
                 .containerBackground(.fill.tertiary, for: .widget)
         default:
-            MediumReleaseListView(items: Array(entry.releases.prefix(3)))
+            MediumReleaseListView(items: Array(entry.releases.prefix(2)))
                 .containerBackground(.fill.tertiary, for: .widget)
         }
     }
 }
 
-// MARK: - Views
+// MARK: - Shared helpers
 private func daysUntil(_ date: Date) -> Int {
     let cal = Calendar.current
     let startToday = cal.startOfDay(for: Date())
@@ -111,56 +104,68 @@ private func formatDate(_ date: Date) -> String {
     return df.string(from: date)
 }
 
+// MARK: - Small: Full‑bleed “poster” style
 private struct SmallReleaseView: View {
     let item: HardcoverService.UpcomingRelease?
     
     var body: some View {
-        if let item = item {
-            VStack(spacing: 6) {
-                if let data = item.coverImageData, let ui = UIImage(data: data) {
-                    Image(uiImage: ui)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 70, height: 94)
-                        .clipped()
-                        .cornerRadius(6)
-                        .shadow(color: .black.opacity(0.2), radius: 6, x: 2, y: 4)
-                        .padding(.top, 6)
+        ZStack {
+            // Background image (full‑bleed)
+            if let data = item?.coverImageData, let ui = UIImage(data: data) {
+                Image(uiImage: ui)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
+            } else {
+                // Fallback background
+                LinearGradient(
+                    colors: [Color.gray.opacity(0.35), Color.gray.opacity(0.15)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                Image(systemName: "book.closed")
+                    .font(.system(size: 36, weight: .regular))
+                    .foregroundColor(.white.opacity(0.6))
+            }
+            
+            // Bottom gradient overlay for legibility
+            LinearGradient(
+                gradient: Gradient(colors: [Color.black.opacity(0.0), Color.black.opacity(0.55)]),
+                startPoint: .center,
+                endPoint: .bottom
+            )
+            .allowsHitTesting(false)
+            
+            // Bottom-left label(s)
+            VStack(alignment: .leading, spacing: 2) {
+                if let item {
+                    let d = daysUntil(item.releaseDate)
+                    Text(d <= 0 ? NSLocalizedString("Today!", comment: "") : String(format: NSLocalizedString("%d days", comment: ""), d))
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.white)
+                        .shadow(color: .black.opacity(0.6), radius: 2, x: 0, y: 1)
+                    
+                    Text(formatDate(item.releaseDate))
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.9))
+                        .shadow(color: .black.opacity(0.5), radius: 1, x: 0, y: 1)
                 } else {
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(Color.gray.opacity(0.25))
-                        .frame(width: 70, height: 94)
-                        .overlay(Image(systemName: "book.closed").font(.title3).foregroundColor(.gray.opacity(0.5)))
-                        .padding(.top, 6)
+                    Text(NSLocalizedString("No release", comment: ""))
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.9))
                 }
-                Text(item.title)
-                    .font(.caption.weight(.semibold))
-                    .lineLimit(2)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 6)
-                let d = daysUntil(item.releaseDate)
-                Text(d <= 0 ? NSLocalizedString("Releases today", comment: "") : String(format: NSLocalizedString("%d days left", comment: ""), d))
-                    .font(.caption2.monospacedDigit())
-                    .foregroundColor(.secondary)
-                Text(formatDate(item.releaseDate))
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
             }
-            .padding(.bottom, 6)
-        } else {
-            VStack(spacing: 6) {
-                Image(systemName: "calendar.badge.exclamationmark")
-                    .font(.title2)
-                    .foregroundColor(.secondary)
-                Text("No upcoming releases")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+            .padding(.horizontal, 10)
+            .padding(.bottom, 10)
         }
+        // Viktigt i widgets: låt systemet sköta hörnradien via containerBackground
+        .contentShape(Rectangle())
     }
 }
 
+// MARK: - Medium & Large list layouts (oförändrade)
 private struct MediumReleaseListView: View {
     let items: [HardcoverService.UpcomingRelease]
     
@@ -177,7 +182,7 @@ private struct MediumReleaseListView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             VStack(alignment: .leading, spacing: 8) {
-                ForEach(items.prefix(3), id: \.id) { item in
+                ForEach(items.prefix(2), id: \.id) { item in
                     HStack(spacing: 10) {
                         if let data = item.coverImageData, let ui = UIImage(data: data) {
                             Image(uiImage: ui)
@@ -230,66 +235,73 @@ private struct LargeReleaseListView: View {
     let items: [HardcoverService.UpcomingRelease]
     
     var body: some View {
-        if items.isEmpty {
-            VStack(spacing: 8) {
-                Spacer()
-                Image(systemName: "calendar.badge.exclamationmark")
-                    .font(.title)
-                    .foregroundColor(.secondary)
-                Text("No upcoming releases")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(NSLocalizedString("Upcoming Releases", comment: "Widget title"))
+                    .font(.headline)
                 Spacer()
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else {
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(items.prefix(6), id: \.id) { item in
-                    HStack(spacing: 10) {
-                        if let data = item.coverImageData, let ui = UIImage(data: data) {
-                            Image(uiImage: ui)
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(width: 44, height: 62)
-                                .clipped()
-                                .cornerRadius(5)
-                        } else {
-                            RoundedRectangle(cornerRadius: 5)
-                                .fill(Color.gray.opacity(0.25))
-                                .frame(width: 44, height: 62)
-                                .overlay(Image(systemName: "book.closed").foregroundColor(.gray))
-                        }
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(item.title)
-                                .font(.footnote.weight(.semibold))
-                                .lineLimit(1)
-                            Text(item.author)
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                                .lineLimit(1)
-                            HStack {
-                                let d = daysUntil(item.releaseDate)
-                                Text(d <= 0 ? NSLocalizedString("Releases today", comment: "") : String(format: NSLocalizedString("%d days left", comment: ""), d))
-                                    .font(.caption2.monospacedDigit())
-                                    .foregroundColor(.secondary)
-                                Spacer()
-                                Text(formatDate(item.releaseDate))
+            if items.isEmpty {
+                VStack(spacing: 8) {
+                    Spacer()
+                    Image(systemName: "calendar.badge.exclamationmark")
+                        .font(.title)
+                        .foregroundColor(.secondary)
+                    Text("No upcoming releases")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(items.prefix(4), id: \.id) { item in
+                        HStack(spacing: 10) {
+                            if let data = item.coverImageData, let ui = UIImage(data: data) {
+                                Image(uiImage: ui)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: 44, height: 62)
+                                    .clipped()
+                                    .cornerRadius(5)
+                            } else {
+                                RoundedRectangle(cornerRadius: 5)
+                                    .fill(Color.gray.opacity(0.25))
+                                    .frame(width: 44, height: 62)
+                                    .overlay(Image(systemName: "book.closed").foregroundColor(.gray))
+                            }
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(item.title)
+                                    .font(.footnote.weight(.semibold))
+                                    .lineLimit(1)
+                                Text(item.author)
                                     .font(.caption2)
                                     .foregroundColor(.secondary)
+                                    .lineLimit(1)
+                                HStack {
+                                    let d = daysUntil(item.releaseDate)
+                                    Text(d <= 0 ? NSLocalizedString("Releases today", comment: "") : String(format: NSLocalizedString("%d days left", comment: ""), d))
+                                        .font(.caption2.monospacedDigit())
+                                        .foregroundColor(.secondary)
+                                    Spacer()
+                                    Text(formatDate(item.releaseDate))
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
                             }
                         }
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 6)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color.primary.opacity(0.05))
+                        )
                     }
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color.primary.opacity(0.05))
-                    )
                 }
             }
-            .padding(.horizontal, 6)
-            .padding(.vertical, 8)
         }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 8)
     }
 }
 
@@ -303,6 +315,8 @@ struct ReleaseCountdownWidget: Widget {
             provider: ReleaseCountdownProvider()
         ) { entry in
             ReleaseCountdownWidgetEntryView(entry: entry)
+                // Make the whole widget open Upcoming Releases in the app
+                .widgetURL(URL(string: "softcover://upcoming")!)
         }
         .configurationDisplayName("Upcoming Releases")
         .description("Shows countdowns for upcoming book releases from your Want to Read list.")
@@ -310,7 +324,7 @@ struct ReleaseCountdownWidget: Widget {
     }
 }
 
-#Preview(as: .systemMedium) {
+#Preview(as: .systemSmall) {
     ReleaseCountdownWidget()
 } timeline: {
     let sample = HardcoverService.UpcomingRelease(
@@ -318,7 +332,7 @@ struct ReleaseCountdownWidget: Widget {
         bookId: 1,
         title: "Sample Book",
         author: "Sample Author",
-        releaseDate: Calendar.current.date(byAdding: .day, value: 5, to: .now)!,
+        releaseDate: Calendar.current.date(byAdding: .day, value: 0, to: .now)!,
         coverImageData: nil
     )
     ReleaseCountdownEntry(date: .now, releases: [sample])

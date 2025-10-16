@@ -166,6 +166,18 @@ struct LargeWidgetView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             if !books.isEmpty {
+                // Slightly larger header with modest spacing when there is free space (fewer than 4 books)
+                if books.count < 4 {
+                    HStack {
+                        Text("Reading Now")
+                            .font(.headline.weight(.semibold)) // subtle increase
+                            .foregroundColor(.primary)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.bottom, 4) // modest spacing before the book list
+                }
+                
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(books.prefix(4), id: \.id) { book in
                         LargeBookProgressRow(book: book)
@@ -185,9 +197,9 @@ struct LargeWidgetView: View {
                 Spacer()
             }
             .padding(.horizontal, 6)
-            .padding(.top, 0)
+            .padding(.top, 2)
         }
-        .padding(.top, 10)
+        .padding(.top, 10) // keep near the top but not cramped
         .padding(.bottom, 6)
     }
 }
