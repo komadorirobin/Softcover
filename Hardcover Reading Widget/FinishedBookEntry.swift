@@ -9,4 +9,5 @@ struct FinishedBookEntry: Identifiable, Hashable {
     let rating: Double?         // 0.5–5.0
     let finishedAt: Date
     let coverImageData: Data?
+    let coverImageUrl: String?
 }

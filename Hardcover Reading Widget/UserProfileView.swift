@@ -131,6 +131,34 @@ struct UserProfileView: View {
                     
                     // Navigation Links
                     VStack(spacing: 0) {
+                        // Books (only for other users, not the logged-in user)
+                        let loggedInUsername = AppGroup.defaults.string(forKey: "HardcoverUsername") ?? ""
+                        if !loggedInUsername.isEmpty && profile.username.lowercased() != loggedInUsername.lowercased() {
+                            NavigationLink {
+                                UserBooksView(username: profile.username)
+                            } label: {
+                                HStack {
+                                    Image(systemName: "books.vertical.fill")
+                                        .foregroundColor(.green)
+                                        .frame(width: 30)
+                                    Text("Books")
+                                        .font(.body)
+                                        .foregroundColor(.primary)
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                .padding(.vertical, 16)
+                                .padding(.horizontal)
+                                .background(Color(UIColor.secondarySystemGroupedBackground))
+                            }
+                            
+                            Divider()
+                                .padding(.leading, 46)
+                                .background(Color(UIColor.secondarySystemGroupedBackground))
+                        }
+                        
                         // Reading Stats
                         NavigationLink {
                             OtherUserStatsView(username: profile.username)

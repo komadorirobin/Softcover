@@ -1539,7 +1539,8 @@ class HardcoverService {
                     author: author,
                     rating: rating,
                     finishedAt: finishedDate,
-                    coverImageData: coverData
+                    coverImageData: coverData,
+                    coverImageUrl: nil
                 )
                 results.append(entry)
             }

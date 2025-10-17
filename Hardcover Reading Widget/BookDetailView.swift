@@ -12,6 +12,8 @@ struct BookDetailView: View {
     let showFinishAction: Bool
     // NEW: controls if the standalone "Omdöme" button is shown when showFinishAction is false
     let allowStandaloneReviewButton: Bool
+    // NEW: controls if this is the user's own book (enables edit actions)
+    let isOwnBook: Bool
     
     @State private var showingEditionPicker = false
     
@@ -49,10 +51,11 @@ struct BookDetailView: View {
     @State private var finishedDate: Date?
     @State private var isLoadingFinishedStatus = false
     
-    init(book: BookProgress, showFinishAction: Bool = true, allowStandaloneReviewButton: Bool = true) {
+    init(book: BookProgress, showFinishAction: Bool = true, allowStandaloneReviewButton: Bool = true, isOwnBook: Bool = true) {
         self.book = book
         self.showFinishAction = showFinishAction
         self.allowStandaloneReviewButton = allowStandaloneReviewButton
+        self.isOwnBook = isOwnBook
     }
     
     private var percentText: String? {
@@ -104,8 +107,8 @@ struct BookDetailView: View {
                         }
                     }
                     
-                    // Show "Dates Read" button for any book in user's library
-                    if let userBookId = book.userBookId {
+                    // Show "Dates Read" button only for user's own books
+                    if isOwnBook, let userBookId = book.userBookId {
                         Button {
                             showReadingDates = true
                         } label: {
@@ -145,8 +148,8 @@ struct BookDetailView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { dismiss() }
                 }
-                // Keep "Change edition" in toolbar if applicable
-                if book.userBookId != nil {
+                // Keep "Change edition" in toolbar only for user's own books
+                if isOwnBook, book.userBookId != nil {
                     ToolbarItem(placement: .primaryAction) {
                         Button {
                             showingEditionPicker = true
@@ -484,7 +487,7 @@ struct BookDetailView: View {
     
     @ViewBuilder
     private var quickActionsSection: some View {
-        if book.userBookId != nil {
+        if isOwnBook, book.userBookId != nil {
             HStack(spacing: 12) {
                 Button {
                     showingEditionPicker = true
