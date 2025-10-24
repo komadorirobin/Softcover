@@ -170,7 +170,7 @@ struct ListCard: View {
                     .lineLimit(2)
                 
                 if let description = list.description, !description.isEmpty {
-                    Text(description)
+                    Text(description.decodedHTMLEntities)
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .lineLimit(2)

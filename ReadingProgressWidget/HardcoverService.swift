@@ -1343,6 +1343,80 @@ class HardcoverService {
     
     static func fetchReadingGoals() async -> [ReadingGoal] {
         guard !HardcoverConfig.apiKey.isEmpty else { return [] }
+        
+        // First try: Direct goals query via me
+        if let goals = await tryFetchGoalsDirectly() {
+            return goals
+        }
+        
+        // Fallback: Activities approach
+        return await fetchGoalsViaActivities()
+    }
+    
+    private static func tryFetchGoalsDirectly() async -> [ReadingGoal]? {
+        guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return nil }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
+        request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        
+        let query = """
+        query {
+            me {
+                goals {
+                    id
+                    goal
+                    metric
+                    start_date
+                    end_date
+                    progress
+                    description
+                    privacy_setting_id
+                }
+            }
+        }
+        """
+        
+        let body: [String: Any] = ["query": query]
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let (data, _) = try await URLSession.shared.data(for: request)
+            
+            if let jsonString = String(data: data, encoding: .utf8) {
+                print("📦 Direct goals query response: \(jsonString)")
+            }
+            
+            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let dataDict = json["data"] as? [String: Any],
+                  let meArray = dataDict["me"] as? [[String: Any]],
+                  let me = meArray.first,
+                  let goalsArray = me["goals"] as? [[String: Any]] else {
+                print("⚠️ Direct goals query not supported, falling back to activities")
+                return nil
+            }
+            
+            print("✅ Found goals directly via me.goals: \(goalsArray.count)")
+            var goals: [ReadingGoal] = []
+            for goalDict in goalsArray {
+                do {
+                    let goalData = try JSONSerialization.data(withJSONObject: goalDict)
+                    let goal = try JSONDecoder().decode(ReadingGoal.self, from: goalData)
+                    print("🎯 Direct goal ID \(goal.id): \(goal.goal) \(goal.metric)")
+                    goals.append(goal)
+                } catch {
+                    print("❌ Failed to decode goal: \(error)")
+                }
+            }
+            return goals
+        } catch {
+            print("⚠️ Direct goals query failed: \(error)")
+            return nil
+        }
+    }
+    
+    private static func fetchGoalsViaActivities() async -> [ReadingGoal] {
         guard let userId = await fetchUserId(apiKey: HardcoverConfig.apiKey) else { return [] }
         
         guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return [] }
@@ -1350,10 +1424,12 @@ class HardcoverService {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
+        // Disable caching to ensure we get fresh reading goals data
+        request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
         
         let query = """
         query GetReadingGoals($userId: Int!) {
-            activities(where: {user_id: {_eq: $userId}, event: {_eq: "GoalActivity"}}, order_by: {created_at: desc}, limit: 500) {
+            activities(where: {user_id: {_eq: $userId}, event: {_eq: "GoalActivity"}}, order_by: {id: desc}, limit: 100) {
                 id
                 event
                 data
@@ -1370,24 +1446,42 @@ class HardcoverService {
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
             let (data, _) = try await URLSession.shared.data(for: request)
-            let gqlResponse = try JSONDecoder().decode(GraphQLActivitiesResponse.self, from: data)
-            if let errors = gqlResponse.errors, !errors.isEmpty { return [] }
-            guard let activities = gqlResponse.data?.activities else { return [] }
             
-            var latestByGoal: [Int: (goal: ReadingGoal, createdAt: Date)] = [:]
+            // DEBUG: Print raw JSON response
+            if let jsonString = String(data: data, encoding: .utf8) {
+                print("📦 Raw goals API response: \(jsonString)")
+            }
+            
+            let gqlResponse = try JSONDecoder().decode(GraphQLActivitiesResponse.self, from: data)
+            if let errors = gqlResponse.errors, !errors.isEmpty { 
+                print("❌ GraphQL activities API errors: \(errors)")
+                return [] 
+            }
+            guard let activities = gqlResponse.data?.activities else { 
+                print("❌ No activities data found")
+                return [] 
+            }
+            
+            print("🎯 fetchReadingGoals: Found \(activities.count) goal activities (sorted by ID desc)")
+            
+            // Group by goal ID and take the HIGHEST activity ID (most recent update)
+            var latestByGoal: [Int: (goal: ReadingGoal, activityId: Int)] = [:]
             for activity in activities {
                 guard activity.event == "GoalActivity",
-                      let goal = activity.data?.goal else { continue }
-                let createdAtDate = parseAPITimestamp(activity.created_at ?? "") ?? .distantPast
+                      let goal = activity.data?.goal,
+                      let activityId = activity.id else { continue }
+                print("🎯 Activity ID \(activityId): Goal ID \(goal.id) = \(goal.goal) \(goal.metric) (created: \(activity.created_at ?? "nil"))")
                 if let existing = latestByGoal[goal.id] {
-                    if createdAtDate > existing.createdAt {
-                        latestByGoal[goal.id] = (goal, createdAtDate)
+                    if activityId > existing.activityId {
+                        print("  ↳ Updating to newer activity (higher ID)")
+                        latestByGoal[goal.id] = (goal, activityId)
                     }
                 } else {
-                    latestByGoal[goal.id] = (goal, createdAtDate)
+                    latestByGoal[goal.id] = (goal, activityId)
                 }
             }
             var goals = latestByGoal.values.map { $0.goal }
+            print("🎯 Final goals after deduplication: \(goals.count)")
             if enableGoalSelfHeal {
                 var healed: [ReadingGoal] = []
                 for g in goals {

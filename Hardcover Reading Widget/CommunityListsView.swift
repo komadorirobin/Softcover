@@ -162,7 +162,7 @@ struct CommunityListCard: View {
             
             // List description
             if let description = list.description, !description.isEmpty {
-                Text(description)
+                Text(description.decodedHTMLEntities)
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .lineLimit(2)
@@ -311,7 +311,7 @@ struct CommunityListDetailView: View {
                             .fixedSize(horizontal: false, vertical: true)
                         
                         if let description = list.description, !description.isEmpty {
-                            Text(description)
+                            Text(description.decodedHTMLEntities)
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                                 .fixedSize(horizontal: false, vertical: true)

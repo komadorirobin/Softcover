@@ -42,7 +42,7 @@ struct ListDetailView: View {
                     // List Header
                     VStack(alignment: .leading, spacing: 12) {
                         if let description = list.description, !description.isEmpty {
-                            Text(description)
+                            Text(description.decodedHTMLEntities)
                                 .font(.body)
                                 .foregroundColor(.secondary)
                                 .padding(.horizontal)

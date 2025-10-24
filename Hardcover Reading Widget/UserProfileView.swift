@@ -117,7 +117,7 @@ struct UserProfileView: View {
                         
                         // Bio
                         if let bio = profile.bio, !bio.isEmpty {
-                            Text(bio)
+                            Text(bio.decodedHTMLEntities)
                                 .font(.body)
                                 .foregroundColor(.secondary)
                                 .multilineTextAlignment(.center)

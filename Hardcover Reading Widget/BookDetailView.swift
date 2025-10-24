@@ -259,12 +259,13 @@ struct BookDetailView: View {
         return nil
     }
     
-    // If description might contain stray HTML tags, strip very basic tags.
+    // If description might contain stray HTML tags, strip very basic tags and decode HTML entities.
     private func normalizedDescription(_ s: String?) -> String? {
         guard let s = s?.trimmingCharacters(in: .whitespacesAndNewlines), !s.isEmpty else { return nil }
         // Lightweight sanitation: remove very simple tags if present.
         let withoutTags = s.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
-        return withoutTags.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Decode HTML entities
+        return withoutTags.trimmingCharacters(in: .whitespacesAndNewlines).decodedHTMLEntities
     }
     
     @ViewBuilder

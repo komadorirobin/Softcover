@@ -69,6 +69,7 @@ struct ExplorerView: View {
                 }
             }
         }
+        .navigationViewStyle(.stack)
     }
 }
 

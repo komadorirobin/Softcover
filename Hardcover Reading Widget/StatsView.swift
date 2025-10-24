@@ -5,6 +5,7 @@ struct StatsView: View {
     @State private var readingGoals: [ReadingGoal] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var loadingTask: Task<Void, Never>?
     
     var body: some View {
         ScrollView {
@@ -115,31 +116,64 @@ struct StatsView: View {
         .background(Color(UIColor.systemGroupedBackground))
         .navigationTitle("Reading Stats")
         .navigationBarTitleDisplayMode(.large)
-        .task {
+        .refreshable {
             await loadData()
+        }
+        .onAppear {
+            // Only load data if we don't have any yet or if not currently loading
+            if readingGoals.isEmpty && readingStats == nil && loadingTask == nil {
+                Task {
+                    await loadData()
+                }
+            }
         }
     }
     
     private func loadData() async {
-        isLoading = true
-        errorMessage = nil
+        // Cancel any existing loading task
+        loadingTask?.cancel()
         
-        do {
-            // Load reading goals and stats in parallel
-            async let goals = HardcoverService.fetchReadingGoals()
-            async let stats = HardcoverService.fetchReadingStats(year: nil)
+        loadingTask = Task {
+            await MainActor.run {
+                isLoading = true
+                errorMessage = nil
+            }
             
-            readingGoals = await goals
-            readingStats = await stats
-            
-            print("✅ Loaded \(readingGoals.count) reading goals and stats: \(readingStats != nil)")
-            
-        } catch {
-            errorMessage = "Failed to load reading data: \(error.localizedDescription)"
-            print("❌ Error loading stats: \(error)")
+            do {
+                // Load reading goals and stats in parallel
+                async let goals = HardcoverService.fetchReadingGoals()
+                async let stats = HardcoverService.fetchReadingStats(year: nil)
+                
+                let loadedGoals = await goals
+                let loadedStats = await stats
+                
+                // Check if task was cancelled before updating UI
+                guard !Task.isCancelled else { return }
+                
+                await MainActor.run {
+                    readingGoals = loadedGoals
+                    readingStats = loadedStats
+                    isLoading = false
+                }
+                
+                print("✅ Loaded \(loadedGoals.count) reading goals and stats: \(loadedStats != nil)")
+                // Debug: Print goal details
+                for goal in loadedGoals {
+                    print("📊 Goal ID \(goal.id): \(goal.goal) \(goal.metric), progress: \(goal.progress), description: \(goal.description ?? "nil")")
+                }
+                
+            } catch {
+                guard !Task.isCancelled else { return }
+                
+                await MainActor.run {
+                    errorMessage = "Failed to load reading data: \(error.localizedDescription)"
+                    isLoading = false
+                }
+                print("❌ Error loading stats: \(error)")
+            }
         }
         
-        isLoading = false
+        await loadingTask?.value
     }
 }
 

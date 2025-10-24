@@ -291,6 +291,7 @@ struct SearchBooksView: View {
                 }
             }
         }
+        .navigationViewStyle(.stack)
         .task {
             loadSearchHistory()
         }

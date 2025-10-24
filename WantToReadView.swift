@@ -203,6 +203,7 @@ struct WantToReadView: View {
                 Text(book.title)
             }
         }
+        .navigationViewStyle(.stack)
     }
     
     @ViewBuilder

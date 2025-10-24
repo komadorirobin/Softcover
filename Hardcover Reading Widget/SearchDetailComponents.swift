@@ -311,7 +311,7 @@ struct SearchReviewRow: View {
             }
             
             if let text = review.text, !text.isEmpty {
-                Text(text)
+                Text(text.decodedHTMLEntities)
                     .font(.body)
                     .foregroundColor(.primary)
                     .fixedSize(horizontal: false, vertical: true)

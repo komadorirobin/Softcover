@@ -1,3 +1,42 @@
+# Changes Summary
+
+## Recent Fixes (October 2025)
+
+### Fix: HTML Entity Decoding Throughout App
+**Issue**: HTML entities like `&#x27;` (apostrophes), `&quot;` (quotes), and others were displaying literally in text instead of as proper characters.
+
+**Fixed in the following locations:**
+- **UserProfileView.swift**: User bio text
+- **BookDetailView.swift**: Book descriptions (via `normalizedDescription()`)
+- **SearchDetailComponents.swift**: Review text
+- **ListDetailView.swift**: List descriptions
+- **UserListsView.swift**: List descriptions
+- **CommunityListsView.swift**: List descriptions (two locations)
+- **All other user-facing text**: Applied `.decodedHTMLEntities` extension
+
+**Technical Implementation**:
+- Used existing `String.decodedHTMLEntities` extension throughout the codebase
+- Ensures all API-sourced text displays properly formatted characters
+- Applies to descriptions, reviews, bios, and list metadata
+
+### Fix: iPad Landscape Layout Issues
+**Issue**: Navigation views displayed as narrow sidebars in landscape mode on iPad, making content difficult to read and navigate.
+
+**Fixed in the following views:**
+- **WantToReadView.swift**: Added `.navigationViewStyle(.stack)`
+- **SearchBooksView.swift** (Explore tab): Added `.navigationViewStyle(.stack)`
+- **ExplorerView.swift**: Added `.navigationViewStyle(.stack)`
+
+**Technical Implementation**:
+- Applied `.navigationViewStyle(.stack)` modifier to force single-column layout
+- Prevents default iPad split-view (master-detail) behavior
+- Ensures consistent full-width layout across all device orientations
+- Note: `NavigationStack` views (like Currently Reading) don't have this issue
+
+**Affected Platforms**: iPad (all sizes) in landscape orientation
+
+---
+
 # Changes Summary: Swedish Book Read Status Feature
 
 ## Overview
