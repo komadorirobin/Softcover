@@ -878,7 +878,137 @@ class HardcoverService {
   }
   
   static func insertBookRead(userBookId: Int, page: Int, editionId: Int? = nil) async -> Bool {
-      print("📝 Inserting book read - UserBookId: \(userBookId), Page: \(page), EditionId: \(editionId ?? -1)")
+      print("📝 Updating book read progress - UserBookId: \(userBookId), Page: \(page), EditionId: \(editionId ?? -1)")
+      guard !HardcoverConfig.apiKey.isEmpty else { 
+          print("❌ API key is empty")
+          return false 
+      }
+      guard page >= 0 else { 
+          print("❌ Invalid page number: \(page)")
+          return false 
+      }
+      
+      // First, try to find the latest user_book_read for this user_book
+      if let latestReadId = await fetchLatestReadId(userBookId: userBookId) {
+          // Update the existing read
+          print("📝 Updating existing read ID: \(latestReadId)")
+          let success = await updateExistingBookRead(readId: latestReadId, page: page, editionId: editionId)
+          if success {
+              print("✅ Successfully updated existing read")
+              return true
+          }
+          print("⚠️ Failed to update existing read, will try creating new one")
+      } else {
+          print("⚠️ No existing read found")
+      }
+      
+      // If update failed or no existing read, create new one
+      print("📝 Creating new book read")
+      return await createNewBookRead(userBookId: userBookId, page: page, editionId: editionId)
+  }
+  
+  private static func fetchLatestReadId(userBookId: Int) async -> Int? {
+      guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return nil }
+      var request = URLRequest(url: url)
+      request.httpMethod = "POST"
+      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+      request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
+      
+      let query = """
+      query ($id: Int!) {
+        user_book_reads(where: { user_book_id: { _eq: $id }, finished_at: { _is_null: true } }, order_by: { id: desc }, limit: 1) {
+          id
+          started_at
+          finished_at
+        }
+      }
+      """
+      
+      let body: [String: Any] = [
+          "query": query,
+          "variables": ["id": userBookId]
+      ]
+      
+      do {
+          request.httpBody = try JSONSerialization.data(withJSONObject: body)
+          let (data, _) = try await URLSession.shared.data(for: request)
+          
+          if let raw = String(data: data, encoding: .utf8) {
+              print("📥 fetchLatestReadId response: \(raw)")
+          }
+          
+          guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                let dataDict = json["data"] as? [String: Any],
+                let reads = dataDict["user_book_reads"] as? [[String: Any]],
+                let latest = reads.first,
+                let readId = latest["id"] as? Int else {
+              print("⚠️ No ongoing read found (finished_at is null)")
+              return nil
+          }
+          print("✅ Found ongoing read ID: \(readId)")
+          return readId
+      } catch {
+          print("❌ fetchLatestReadId error: \(error)")
+          return nil
+      }
+  }
+  
+  private static func updateExistingBookRead(readId: Int, page: Int, editionId: Int?) async -> Bool {
+      guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return false }
+      var request = URLRequest(url: url)
+      request.httpMethod = "POST"
+      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+      request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
+      
+      var datesReadDict: [String: Any] = ["progress_pages": page]
+      if let eid = editionId {
+          datesReadDict["edition_id"] = eid
+      }
+      
+      let mutation = """
+      mutation ($id: Int!, $object: DatesReadInput!) {
+          update_user_book_read(id: $id, object: $object) {
+              error
+              user_book_read { id progress_pages edition_id }
+          }
+      }
+      """
+      
+      let body: [String: Any] = [
+          "query": mutation,
+          "variables": [
+              "id": readId,
+              "object": datesReadDict
+          ]
+      ]
+      
+      do {
+          request.httpBody = try JSONSerialization.data(withJSONObject: body)
+          let (data, response) = try await URLSession.shared.data(for: request)
+          if let http = response as? HTTPURLResponse { print("📥 Update user_book_read HTTP Status: \(http.statusCode)") }
+          if let raw = String(data: data, encoding: .utf8) { print("📥 Update user_book_read Raw: \(raw)") }
+          if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+              if let errs = json["errors"] as? [[String: Any]], !errs.isEmpty {
+                  print("❌ Update errors: \(errs)")
+                  return false
+              }
+              if let dataDict = json["data"] as? [String: Any],
+                 let update = dataDict["update_user_book_read"] as? [String: Any] {
+                  if let err = update["error"] as? String, !err.isEmpty {
+                      print("❌ Update error: \(err)")
+                      return false
+                  }
+                  return update["user_book_read"] != nil
+              }
+          }
+          return false
+      } catch {
+          print("❌ updateExistingBookRead error: \(error)")
+          return false
+      }
+  }
+  
+  private static func createNewBookRead(userBookId: Int, page: Int, editionId: Int?) async -> Bool {
       guard !HardcoverConfig.apiKey.isEmpty else { return false }
       guard page >= 0 else { return false }
       
@@ -1815,39 +1945,6 @@ extension HardcoverService {
         }
         print("❌ updateUserBookRating failed - no valid response")
         return false
-    }
-    
-    private static func fetchLatestReadId(userBookId: Int) async -> Int? {
-        guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return nil }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
-        let body: [String: Any] = [
-            "query": """
-            query ($id: Int!) {
-              user_book_reads(where: { user_book_id: { _eq: $id } }, order_by: { id: desc }, limit: 1) {
-                id
-                finished_at
-              }
-            }
-            """,
-            "variables": ["id": userBookId]
-        ]
-        do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
-            if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let dataDict = root["data"] as? [String: Any],
-               let reads = dataDict["user_book_reads"] as? [[String: Any]],
-               let latest = reads.first,
-               let id = latest["id"] as? Int {
-                return id
-            }
-        } catch {
-            return nil
-        }
-        return nil
     }
     
     private static func updateReadFinishedAt(readId: Int, finishedAt: String) async -> Bool {
