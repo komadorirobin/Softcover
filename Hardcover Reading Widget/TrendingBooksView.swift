@@ -7,6 +7,7 @@ struct TrendingBooksView: View {
     @State private var trendingAddInProgress: Int?
     @State private var selectedTrending: HardcoverService.TrendingBook?
     @State private var selectedFilter: TimeFilter = .lastMonth
+    @State private var addedBookIds: Set<Int> = []
     
     let onDone: (Bool) -> Void
     
@@ -93,6 +94,7 @@ struct TrendingBooksView: View {
                             TrendingBookCard(
                                 book: item,
                                 isAddInProgress: trendingAddInProgress == item.id,
+                                isAdded: addedBookIds.contains(item.id),
                                 onTap: { selectedTrending = item },
                                 onQuickAdd: { Task { await addTrendingBook(item) } }
                             )
@@ -146,6 +148,8 @@ struct TrendingBooksView: View {
         await MainActor.run {
             trendingAddInProgress = nil
             if success {
+                addedBookIds.insert(item.id)
+                // Notify for refresh but don't switch tabs
                 onDone(true)
             }
         }
@@ -155,6 +159,7 @@ struct TrendingBooksView: View {
 struct TrendingBookCard: View {
     let book: HardcoverService.TrendingBook
     let isAddInProgress: Bool
+    let isAdded: Bool
     let onTap: () -> Void
     let onQuickAdd: () -> Void
     
@@ -232,18 +237,22 @@ struct TrendingBookCard: View {
                 
                 Spacer()
                 
-                // Quick add button
+                // Quick add button or checkmark
                 Button(action: onQuickAdd) {
                     if isAddInProgress {
                         ProgressView()
                             .scaleEffect(0.8)
+                    } else if isAdded {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.green)
                     } else {
                         Image(systemName: "plus.circle.fill")
                             .font(.title2)
                             .foregroundColor(.blue)
                     }
                 }
-                .disabled(isAddInProgress)
+                .disabled(isAddInProgress || isAdded)
                 .buttonStyle(.plain)
             }
             .padding()

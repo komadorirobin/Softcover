@@ -57,7 +57,7 @@ struct ContentView: View {
                                 await loadBooks()
                                 WidgetCenter.shared.reloadAllTimelines()
                             }
-                            selectedTab = 0 // Switch back to Currently Reading
+                            // Don't switch tabs - stay in Explorer
                         }
                     }
                 }
