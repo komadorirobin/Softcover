@@ -710,7 +710,16 @@ struct BookCardView: View {
                                     }
                                 } else {
                                     // Normal mode - show stepper
-                                    Stepper(value: $editedPage, in: 0...maxValue) {
+                                    let total = book.isAudiobook ? book.totalMinutes : book.totalPages
+                                    let stepAmount: Int = {
+                                        // If percent mode is default and we have a total, calculate step to increment by ~1%
+                                        if defaultProgressInputMode == "percent" && total > 0 {
+                                            return max(1, total / 100)
+                                        }
+                                        return 1
+                                    }()
+                                    
+                                    Stepper(value: $editedPage, in: 0...maxValue, step: stepAmount) {
                                         Button {
                                             if book.isAudiobook {
                                                 // Split current minutes into hours and minutes
@@ -718,7 +727,6 @@ struct BookCardView: View {
                                                 editedMinutes = editedPage % 60
                                             }
                                             // Calculate percent
-                                            let total = book.isAudiobook ? book.totalMinutes : book.totalPages
                                             if total > 0 {
                                                 editedPercent = Int((Double(editedPage) / Double(total)) * 100.0)
                                             }
@@ -729,7 +737,6 @@ struct BookCardView: View {
                                         } label: {
                                             // Show percent if that's the default mode, otherwise show page/time
                                             if defaultProgressInputMode == "percent" {
-                                                let total = book.isAudiobook ? book.totalMinutes : book.totalPages
                                                 if total > 0 {
                                                     let percent = Int((Double(editedPage) / Double(total)) * 100.0)
                                                     Text("\(percent)%")
@@ -768,7 +775,6 @@ struct BookCardView: View {
                                             editedMinutes = newValue % 60
                                         }
                                         // Keep percent in sync when stepper is used
-                                        let total = book.isAudiobook ? book.totalMinutes : book.totalPages
                                         if total > 0 {
                                             editedPercent = Int((Double(newValue) / Double(total)) * 100.0)
                                         }
