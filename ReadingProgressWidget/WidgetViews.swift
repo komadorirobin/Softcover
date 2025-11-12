@@ -21,6 +21,7 @@ struct SmallWidgetView: View {
                        let uiImage = UIImage(data: imageData) {
                         Image(uiImage: uiImage)
                             .resizable()
+                            .widgetAccentedRenderingMode(.fullColor)
                             .aspectRatio(contentMode: .fill)
                             .frame(width: 65, height: 88)
                             .clipped()
@@ -214,6 +215,7 @@ struct LargeBookProgressRow: View {
             if let imageData = book.coverImageData, let uiImage = UIImage(data: imageData) {
                 Image(uiImage: uiImage)
                     .resizable()
+                    .widgetAccentedRenderingMode(.fullColor)
                     .aspectRatio(contentMode: .fill)
                     .frame(width: 45, height: 60)
                     .clipped()
@@ -321,6 +323,7 @@ struct MediumBookProgressRow: View {
             if let imageData = book.coverImageData, let uiImage = UIImage(data: imageData) {
                 Image(uiImage: uiImage)
                     .resizable()
+                    .widgetAccentedRenderingMode(.fullColor)
                     .aspectRatio(contentMode: .fill)
                     .frame(width: 48, height: 66)
                     .clipped()

@@ -114,6 +114,7 @@ private struct SmallReleaseView: View {
             if let data = item?.coverImageData, let ui = UIImage(data: data) {
                 Image(uiImage: ui)
                     .resizable()
+                    .widgetAccentedRenderingMode(.fullColor)
                     .aspectRatio(contentMode: .fill)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
@@ -187,6 +188,7 @@ private struct MediumReleaseListView: View {
                         if let data = item.coverImageData, let ui = UIImage(data: data) {
                             Image(uiImage: ui)
                                 .resizable()
+                                .widgetAccentedRenderingMode(.fullColor)
                                 .aspectRatio(contentMode: .fill)
                                 .frame(width: 40, height: 56)
                                 .clipped()
@@ -260,6 +262,7 @@ private struct LargeReleaseListView: View {
                             if let data = item.coverImageData, let ui = UIImage(data: data) {
                                 Image(uiImage: ui)
                                     .resizable()
+                                    .widgetAccentedRenderingMode(.fullColor)
                                     .aspectRatio(contentMode: .fill)
                                     .frame(width: 44, height: 62)
                                     .clipped()
