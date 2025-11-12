@@ -535,6 +535,7 @@ class HardcoverService {
           var items: [BookProgress] = []
           items.reserveCapacity(rows.count)
           
+          // Build items WITHOUT images first (faster initial display)
           for ub in rows {
               guard let bookData = ub.book else { continue }
               
@@ -543,24 +544,26 @@ class HardcoverService {
               let displayTitle = rawTitle.decodedHTMLEntities
               let author = bookData.contributions?.first?.author?.name ?? "Unknown Author"
               
-              // Prefer edition image, else book image
-              var imageUrl: String? = nil
-              if let u = ub.edition?.image?.url, !u.isEmpty { imageUrl = u }
-              else if let u = bookData.image?.url, !u.isEmpty { imageUrl = u }
-              
-              let coverData: Data? = (imageUrl != nil) ? await fetchAndResizeImage(from: imageUrl!) : nil
-              
               let edition = ub.edition
               let isAudiobook = edition?.isAudiobook ?? false
               let totalPages = edition?.pages ?? 0
               let totalMinutes = edition?.totalMinutes ?? 0
               let releaseDate = edition?.releaseDate
               
+              // Prefer edition image URL, else book image URL
+              var imageUrl: String? = nil
+              if let u = ub.edition?.image?.url, !u.isEmpty { imageUrl = u }
+              else if let u = bookData.image?.url, !u.isEmpty { imageUrl = u }
+              
+              // Check cache first, don't download now
+              let coverData: Data? = imageUrl.flatMap { ImageCache.shared.imageData(forKey: $0) }
+              
               let item = BookProgress(
                   id: "\(ub.id ?? 0)",
                   title: displayTitle,
                   author: author,
                   coverImageData: coverData,
+                  coverImageUrl: imageUrl, // Save URL for lazy loading
                   progress: 0.0,
                   totalPages: totalPages,
                   currentPage: 0,
@@ -752,6 +755,7 @@ class HardcoverService {
                   }
               }
               
+              // Get image URL (prefer edition, fallback to book)
               let imageUrl: String?
               if let editionImageUrl = userBook.edition?.image?.url, !editionImageUrl.isEmpty {
                   imageUrl = editionImageUrl
@@ -761,16 +765,15 @@ class HardcoverService {
                   imageUrl = nil
               }
               
-              var coverImageData: Data? = nil
-              if let imageUrl = imageUrl {
-                  coverImageData = await fetchAndResizeImage(from: imageUrl)
-              }
+              // OPTIMIZATION: Check cache only, don't download synchronously
+              let coverImageData: Data? = imageUrl.flatMap { ImageCache.shared.imageData(forKey: $0) }
               
               let book = BookProgress(
                   id: "\(userBook.id ?? 0)",
                   title: displayTitle,
                   author: author,
                   coverImageData: coverImageData,
+                  coverImageUrl: imageUrl, // Save URL for lazy loading
                   progress: progress,
                   totalPages: totalPages,
                   currentPage: currentPage, // FIX: använd beräknad currentPage

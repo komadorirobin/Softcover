@@ -1454,8 +1454,7 @@ private struct StarCell: View {
 
 // Helper to resolve cover URL (temporary: returns nil until models include URL)
 private func coverURL(for book: BookProgress) -> URL? {
-    // När BookProgress får fältet `coverImageURL`, byt till:
-    // return book.coverImageURL
-    return nil
+    guard let urlString = book.coverImageUrl else { return nil }
+    return URL(string: urlString)
 }
 

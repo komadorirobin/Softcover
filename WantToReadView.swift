@@ -415,10 +415,35 @@ struct WantToReadView: View {
     private func cover(for book: BookProgress) -> some View {
         Group {
             if let data = book.coverImageData, let ui = UIImage(data: data) {
+                // Already loaded/cached
                 Image(uiImage: ui)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
+            } else if let urlString = book.coverImageUrl, let url = URL(string: urlString) {
+                // Lazy load with AsyncCachedImage
+                AsyncCachedImage(url: url, maxPixel: 128) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    case .failure, .empty:
+                        ZStack {
+                            Color.gray.opacity(0.15)
+                            Image(systemName: "book.closed")
+                                .foregroundColor(.gray)
+                        }
+                    @unknown default:
+                        ZStack {
+                            Color.gray.opacity(0.15)
+                            ProgressView()
+                                .scaleEffect(0.7)
+                        }
+                    }
+                }
+                .transition(.opacity)
             } else {
+                // No image URL available
                 ZStack {
                     Color.gray.opacity(0.15)
                     Image(systemName: "book.closed")
@@ -443,7 +468,9 @@ struct WantToReadView: View {
             isLoading = true
             errorMessage = nil
         }
-        let list = await HardcoverService.fetchWantToRead(limit: 200)
+        // OPTIMIZATION: Reduced from 200 to 100 for faster initial load
+        // Users with more books can still scroll through all via search/filter
+        let list = await HardcoverService.fetchWantToRead(limit: 100)
         await MainActor.run {
             items = list
             isLoading = false
@@ -464,11 +491,21 @@ struct WantToReadView: View {
             return bid
         }
         guard !candidates.isEmpty else { return }
-        // Hämta sekventiellt (enkelt och snällt mot API:t)
-        for bid in candidates {
-            if let avg = await fetchBookAverageRating(bookId: bid) {
-                await MainActor.run {
-                    avgByBookId[bid] = avg
+        
+        // OPTIMIZATION: Load ratings in parallel instead of sequentially
+        await withTaskGroup(of: (Int, Double?).self) { group in
+            for bid in candidates {
+                group.addTask {
+                    let avg = await self.fetchBookAverageRating(bookId: bid)
+                    return (bid, avg)
+                }
+            }
+            
+            for await (bookId, rating) in group {
+                if let rating = rating {
+                    await MainActor.run {
+                        avgByBookId[bookId] = rating
+                    }
                 }
             }
         }
