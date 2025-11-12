@@ -46,6 +46,11 @@ struct SearchResultDetailSheet: View {
     @State private var isFinished = false
     @State private var finishedDate: Date?
     @State private var isLoadingFinishedStatus = false
+    
+    // Current book status (1=Want to Read, 2=Currently Reading, 3=Finished)
+    @State private var currentStatus: Int?
+    @State private var currentUserBookId: Int?
+    @State private var isLoadingStatus = false
 
     @AppStorage("SkipEditionPickerOnAdd", store: AppGroup.defaults) private var skipEditionPickerOnAdd: Bool = false
     
@@ -64,16 +69,27 @@ struct SearchResultDetailSheet: View {
                     
                     // Quick actions - only show if not finished
                     if !isFinished {
-                        BookActionsView(
-                            book: book,
-                            isWorking: isWorking,
-                            isWorkingReading: isWorkingReading,
-                            isWorkingFinished: isWorkingFinished,
-                            isLoadingEditions: isLoadingEditions,
-                            onWantToRead: { Task { await ensureEditionThenPerform(.wantToRead) } },
-                            onReadNow: { Task { await ensureEditionThenPerform(.readNow) } },
-                            onMarkAsRead: { Task { await ensureEditionThenPerform(.markAsRead) } }
-                        )
+                        if isLoadingStatus {
+                            HStack {
+                                ProgressView()
+                                Text("Loading status...")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding()
+                        } else {
+                            BookActionsView(
+                                book: book,
+                                currentStatus: currentStatus,
+                                isWorking: isWorking,
+                                isWorkingReading: isWorkingReading,
+                                isWorkingFinished: isWorkingFinished,
+                                isLoadingEditions: isLoadingEditions,
+                                onWantToRead: { Task { await ensureEditionThenPerform(.wantToRead) } },
+                                onReadNow: { Task { await ensureEditionThenPerform(.readNow) } },
+                                onMarkAsRead: { Task { await ensureEditionThenPerform(.markAsRead) } }
+                            )
+                        }
                     } else {
                         // Show read status
                         BookReadStatusView(finishedDate: finishedDate)
@@ -160,6 +176,7 @@ struct SearchResultDetailSheet: View {
             group.addTask { await loadMoods() }
             group.addTask { await loadReviews() }
             group.addTask { await loadFinishedStatus() }
+            group.addTask { await loadBookStatus() }
         }
     }
     
@@ -227,6 +244,8 @@ struct SearchResultDetailSheet: View {
             isWorking = false
             if success {
                 print("✅ Successfully added book \(bookId) to Want to Read")
+                // Refresh book status
+                Task { await loadBookStatus() }
                 // Post notification to refresh all book lists
                 NotificationCenter.default.post(name: NSNotification.Name("BookListsNeedRefresh"), object: nil)
                 onAddComplete(true)
@@ -253,6 +272,8 @@ struct SearchResultDetailSheet: View {
             isWorkingReading = false
             if success {
                 print("✅ Successfully started reading book \(bookId)")
+                // Refresh book status
+                Task { await loadBookStatus() }
                 // Post notification to refresh all book lists
                 NotificationCenter.default.post(name: NSNotification.Name("BookListsNeedRefresh"), object: nil)
                 onAddComplete(true)
@@ -284,6 +305,11 @@ struct SearchResultDetailSheet: View {
             isWorkingFinished = false
             if success {
                 print("✅ Successfully marked book \(bookId) as finished")
+                // Refresh book status and finished status
+                Task {
+                    await loadBookStatus()
+                    await loadFinishedStatus()
+                }
                 // Post notification to refresh all book lists
                 NotificationCenter.default.post(name: NSNotification.Name("BookListsNeedRefresh"), object: nil)
                 onAddComplete(true)
@@ -446,6 +472,29 @@ struct SearchResultDetailSheet: View {
             isLoadingFinishedStatus = false
             isFinished = finishedFlag
             finishedDate = dateValue
+        }
+    }
+    
+    private func loadBookStatus() async {
+        await MainActor.run { isLoadingStatus = true }
+        
+        guard let bookId = book.bookId else {
+            await MainActor.run { isLoadingStatus = false }
+            return
+        }
+        
+        if let result = await HardcoverService.fetchBookStatus(bookId: bookId) {
+            await MainActor.run {
+                currentStatus = result.statusId
+                currentUserBookId = result.userBookId
+                isLoadingStatus = false
+            }
+        } else {
+            await MainActor.run {
+                currentStatus = nil
+                currentUserBookId = nil
+                isLoadingStatus = false
+            }
         }
     }
     

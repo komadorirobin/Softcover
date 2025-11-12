@@ -1472,6 +1472,47 @@ class HardcoverService {
       }
   }
   
+  // Fetch user_book status for a given bookId
+  // Returns tuple: (statusId, userBookId) or nil if not in library
+  static func fetchBookStatus(bookId: Int) async -> (statusId: Int, userBookId: Int)? {
+      guard !HardcoverConfig.apiKey.isEmpty else { return nil }
+      guard let userId = await fetchUserId(apiKey: HardcoverConfig.apiKey) else { return nil }
+      guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return nil }
+      
+      var request = URLRequest(url: url)
+      request.httpMethod = "POST"
+      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+      request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
+      
+      let body: [String: Any] = [
+          "query": """
+          query GetBookStatus($userId: Int!, $bookId: Int!) {
+            user_books(where: { user_id: { _eq: $userId }, book_id: { _eq: $bookId } }, limit: 1) {
+              id
+              status_id
+            }
+          }
+          """,
+          "variables": ["userId": userId, "bookId": bookId]
+      ]
+      
+      do {
+          request.httpBody = try JSONSerialization.data(withJSONObject: body)
+          let (data, _) = try await URLSession.shared.data(for: request)
+          if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+             let dataDict = root["data"] as? [String: Any],
+             let userBooks = dataDict["user_books"] as? [[String: Any]],
+             let first = userBooks.first,
+             let statusId = first["status_id"] as? Int,
+             let userBookId = first["id"] as? Int {
+              return (statusId: statusId, userBookId: userBookId)
+          }
+      } catch {
+          print("❌ fetchBookStatus error: \(error)")
+      }
+      return nil
+  }
+  
   static func fetchAccountPrivacySettingId() async -> Int? {
       guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return nil }
       var request = URLRequest(url: url)

@@ -99,6 +99,7 @@ struct BookHeaderView: View {
 
 struct BookActionsView: View {
     let book: BookProgress
+    let currentStatus: Int? // 1=Want to Read, 2=Currently Reading, 3=Finished, nil=Not in library
     let isWorking: Bool
     let isWorkingReading: Bool
     let isWorkingFinished: Bool
@@ -109,54 +110,106 @@ struct BookActionsView: View {
     
     var body: some View {
         VStack(spacing: 10) {
-            Button(action: onWantToRead) {
-                if isWorking || isLoadingEditions {
-                    HStack {
-                        Spacer()
-                        ProgressView().scaleEffect(0.9)
-                        Spacer()
-                    }
-                } else {
-                    Label(NSLocalizedString("Add to Want to Read", comment: ""), systemImage: "bookmark.fill")
-                        .frame(maxWidth: .infinity)
+            // Show current status if book is in library
+            if let status = currentStatus {
+                HStack {
+                    Image(systemName: statusIcon(for: status))
+                        .foregroundColor(statusColor(for: status))
+                    Text(statusText(for: status))
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    Spacer()
                 }
+                .padding(.vertical, 8)
+                .padding(.horizontal, 12)
+                .background(Color.gray.opacity(0.1))
+                .cornerRadius(8)
             }
-            .buttonStyle(.borderedProminent)
-            .disabled(isWorking || isLoadingEditions || book.bookId == nil)
+            
+            // Only show "Add to Want to Read" if not already in library
+            if currentStatus == nil {
+                Button(action: onWantToRead) {
+                    if isWorking || isLoadingEditions {
+                        HStack {
+                            Spacer()
+                            ProgressView().scaleEffect(0.9)
+                            Spacer()
+                        }
+                    } else {
+                        Label(NSLocalizedString("Add to Want to Read", comment: ""), systemImage: "bookmark.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(isWorking || isLoadingEditions || book.bookId == nil)
+            }
             
             HStack(spacing: 10) {
-                Button(action: onReadNow) {
-                    if isWorkingReading || isLoadingEditions {
-                        HStack {
-                            Spacer()
-                            ProgressView().scaleEffect(0.9)
-                            Spacer()
+                // Only show "Read Now" if not currently reading or finished
+                if currentStatus != 2 && currentStatus != 3 {
+                    Button(action: onReadNow) {
+                        if isWorkingReading || isLoadingEditions {
+                            HStack {
+                                Spacer()
+                                ProgressView().scaleEffect(0.9)
+                                Spacer()
+                            }
+                        } else {
+                            Label(NSLocalizedString("Läs\u{00A0}nu", comment: "Start reading now"), systemImage: "book.fill")
+                                .frame(maxWidth: .infinity)
                         }
-                    } else {
-                        Label(NSLocalizedString("Läs\u{00A0}nu", comment: "Start reading now"), systemImage: "book.fill")
-                            .frame(maxWidth: .infinity)
                     }
+                    .buttonStyle(.bordered)
+                    .tint(.accentColor)
+                    .disabled(isWorkingReading || isLoadingEditions || book.bookId == nil)
                 }
-                .buttonStyle(.bordered)
-                .tint(.accentColor)
-                .disabled(isWorkingReading || isLoadingEditions || book.bookId == nil)
                 
-                Button(action: onMarkAsRead) {
-                    if isWorkingFinished || isLoadingEditions {
-                        HStack {
-                            Spacer()
-                            ProgressView().scaleEffect(0.9)
-                            Spacer()
+                // Always show "Mark as Read" button (unless already finished)
+                if currentStatus != 3 {
+                    Button(action: onMarkAsRead) {
+                        if isWorkingFinished || isLoadingEditions {
+                            HStack {
+                                Spacer()
+                                ProgressView().scaleEffect(0.9)
+                                Spacer()
+                            }
+                        } else {
+                            Label(NSLocalizedString("Markera som läst", comment: "Mark as read"), systemImage: "checkmark.circle.fill")
+                                .frame(maxWidth: .infinity)
                         }
-                    } else {
-                        Label(NSLocalizedString("Markera som läst", comment: "Mark as read"), systemImage: "checkmark.circle.fill")
-                            .frame(maxWidth: .infinity)
                     }
+                    .buttonStyle(.bordered)
+                    .tint(.green)
+                    .disabled(isWorkingFinished || isLoadingEditions || book.bookId == nil)
                 }
-                .buttonStyle(.bordered)
-                .tint(.green)
-                .disabled(isWorkingFinished || isLoadingEditions || book.bookId == nil)
             }
+        }
+    }
+    
+    private func statusText(for status: Int) -> String {
+        switch status {
+        case 1: return NSLocalizedString("In Want to Read", comment: "Book is in Want to Read list")
+        case 2: return NSLocalizedString("Currently Reading", comment: "Book is currently being read")
+        case 3: return NSLocalizedString("Finished", comment: "Book has been finished")
+        default: return ""
+        }
+    }
+    
+    private func statusIcon(for status: Int) -> String {
+        switch status {
+        case 1: return "bookmark.fill"
+        case 2: return "book.fill"
+        case 3: return "checkmark.circle.fill"
+        default: return "questionmark"
+        }
+    }
+    
+    private func statusColor(for status: Int) -> Color {
+        switch status {
+        case 1: return .blue
+        case 2: return .orange
+        case 3: return .green
+        default: return .gray
         }
     }
 }
