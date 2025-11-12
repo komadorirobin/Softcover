@@ -44,7 +44,7 @@ actor BookCache {
         
         // Fetch new books
         do {
-            let books = await HardcoverService.fetchCurrentlyReading()
+            let books = await HardcoverService.fetchCurrentlyReading(forWidget: true)
             let entities = books.map { BookEntity(id: $0.id, title: $0.title) }
             
             // Update cache

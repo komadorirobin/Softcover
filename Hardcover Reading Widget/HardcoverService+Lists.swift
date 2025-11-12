@@ -316,38 +316,57 @@ extension HardcoverService {
     /// Fetch community lists (featured or popular)
     static func fetchCommunityLists(filter: String) async -> [CommunityList] {
         guard !HardcoverConfig.apiKey.isEmpty else {
-            print("❌ No API key available")
+            print("❌ fetchCommunityLists: No API key available")
             return []
         }
         
         // Use filter to get featured or popular lists
         let endpoint = filter == "featured" ? "https://hardcover.app/lists" : "https://hardcover.app/lists/\(filter)"
         guard let url = URL(string: endpoint) else {
-            print("❌ Invalid URL")
+            print("❌ fetchCommunityLists: Invalid URL: \(endpoint)")
             return []
         }
+        
+        print("[Lists] Fetching \(filter) lists from: \(endpoint)")
         
         var req = URLRequest(url: url)
         req.httpMethod = "GET"
         req.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
+        req.timeoutInterval = 30 // Add timeout
         
         do {
-            let (data, _) = try await URLSession.shared.data(for: req)
+            let (data, response) = try await URLSession.shared.data(for: req)
+            
+            // Check HTTP status
+            if let httpResponse = response as? HTTPURLResponse {
+                print("[Lists] Status code: \(httpResponse.statusCode)")
+                guard (200...299).contains(httpResponse.statusCode) else {
+                    print("❌ HTTP error: \(httpResponse.statusCode)")
+                    return []
+                }
+            }
             
             guard let html = String(data: data, encoding: .utf8) else {
-                print("❌ Could not decode HTML")
+                print("❌ Could not decode HTML response")
                 return []
             }
             
+            print("[Lists] HTML length: \(html.count) characters")
+            
             // Extract community lists from HTML
             if let lists = extractCommunityListsFromHTML(html) {
-                print("✅ Fetched \(lists.count) \(filter) community lists")
+                print("[Lists] Successfully fetched \(lists.count) \(filter) community lists")
                 return lists
+            } else {
+                print("❌ Failed to extract lists from HTML")
             }
             
             return []
+        } catch let error as URLError {
+            print("❌ Network error fetching community lists: \(error.localizedDescription) (code: \(error.code.rawValue))")
+            return []
         } catch {
-            print("❌ Failed to fetch community lists: \(error)")
+            print("❌ Unexpected error fetching community lists: \(error)")
             return []
         }
     }
@@ -356,7 +375,11 @@ extension HardcoverService {
     private static func extractCommunityListsFromHTML(_ html: String) -> [CommunityList]? {
         // Find data-page attribute
         guard let dataPageRange = html.range(of: "data-page=\"") else {
-            print("❌ Could not find data-page attribute")
+            print("❌ Could not find data-page attribute in HTML")
+            // Check if it's an error page
+            if html.contains("Something went wrong") || html.contains("error") {
+                print("[Lists] HTML appears to be an error page")
+            }
             return nil
         }
         
@@ -370,18 +393,38 @@ extension HardcoverService {
             .replacingOccurrences(of: "&quot;", with: "\"")
             .replacingOccurrences(of: "&amp;", with: "&")
         
+        print("[Lists] JSON string length: \(jsonString.count)")
+        
         guard let jsonData = jsonString.data(using: .utf8) else {
             print("❌ Could not convert JSON string to data")
             return nil
         }
         
         do {
-            guard let json = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
-                  let props = json["props"] as? [String: Any],
-                  let listsArray = props["lists"] as? [[String: Any]] else {
-                print("❌ Could not parse lists from JSON")
+            guard let json = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any] else {
+                print("❌ Could not parse root JSON object")
                 return nil
             }
+            
+            print("[Lists] JSON keys: \(json.keys.joined(separator: ", "))")
+            
+            guard let props = json["props"] as? [String: Any] else {
+                print("❌ Could not find 'props' in JSON")
+                return nil
+            }
+            
+            print("[Lists] Props keys: \(props.keys.joined(separator: ", "))")
+            
+            guard let listsArray = props["lists"] as? [[String: Any]] else {
+                print("❌ Could not find 'lists' array in props")
+                // Try alternative structures
+                if let listData = props["list"] as? [String: Any] {
+                    print("[Lists] Found 'list' (singular) instead of 'lists'")
+                }
+                return nil
+            }
+            
+            print("[Lists] Found \(listsArray.count) lists in JSON")
             
             var communityLists: [CommunityList] = []
             

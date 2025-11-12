@@ -85,11 +85,20 @@ struct CommunityListsView: View {
         isLoading = true
         errorMessage = nil
         
+        // Check API key first
+        guard !HardcoverConfig.apiKey.isEmpty else {
+            await MainActor.run {
+                errorMessage = "No API key configured. Please add your Hardcover API key in Settings."
+                isLoading = false
+            }
+            return
+        }
+        
         let fetchedLists = await HardcoverService.fetchCommunityLists(filter: selectedFilter.path)
         
         await MainActor.run {
             if fetchedLists.isEmpty {
-                errorMessage = "No lists found"
+                errorMessage = "Could not load lists. Please check your internet connection and try again."
             } else {
                 lists = fetchedLists
             }

@@ -470,18 +470,18 @@ struct HardcoverConfig {
 // MARK: - Service
 class HardcoverService {
   
-  static func fetchCurrentlyReading() async -> [BookProgress] {
+  static func fetchCurrentlyReading(forWidget: Bool = false) async -> [BookProgress] {
       guard !HardcoverConfig.apiKey.isEmpty else {
           print("❌ No API key configured")
           return []
       }
-      let books = await fetchBooksFromGraphQL(apiKey: HardcoverConfig.apiKey)
+      let books = await fetchBooksFromGraphQL(apiKey: HardcoverConfig.apiKey, forWidget: forWidget)
       ImageCache.shared.clearCache()
       return books
   }
   
   // NEW: Fetch Want to Read list (status_id = 1)
-  static func fetchWantToRead(limit: Int) async -> [BookProgress] {
+  static func fetchWantToRead(limit: Int, forWidget: Bool = false) async -> [BookProgress] {
       guard !HardcoverConfig.apiKey.isEmpty else { return [] }
       guard let userId = await fetchUserId(apiKey: HardcoverConfig.apiKey) else { return [] }
       guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return [] }
@@ -579,6 +579,11 @@ class HardcoverService {
               items.append(item)
           }
           
+          // For widgets, download images that aren't cached
+          if forWidget {
+              await loadImagesForWidgets(books: &items)
+          }
+          
           return items
       } catch {
           return []
@@ -614,6 +619,28 @@ class HardcoverService {
           }
       } catch {
           AppGroup.defaults.set("", forKey: "HardcoverUsername")
+      }
+  }
+  
+  // Helper function to load images for widgets
+  private static func loadImagesForWidgets(books: inout [BookProgress]) async {
+      await withTaskGroup(of: (Int, Data?).self) { group in
+          for (index, book) in books.enumerated() {
+              // Skip if already has image data
+              if book.coverImageData != nil { continue }
+              guard let urlString = book.coverImageUrl else { continue }
+              
+              group.addTask {
+                  let imageData = await fetchAndResizeImage(from: urlString)
+                  return (index, imageData)
+              }
+          }
+          
+          for await (index, imageData) in group {
+              if let data = imageData {
+                  books[index].coverImageData = data
+              }
+          }
       }
   }
   
@@ -682,7 +709,7 @@ class HardcoverService {
       return ui.jpegData(compressionQuality: compression)
   }
   
-  private static func fetchBooksFromGraphQL(apiKey: String) async -> [BookProgress] {
+  private static func fetchBooksFromGraphQL(apiKey: String, forWidget: Bool = false) async -> [BookProgress] {
       guard let userId = await fetchUserId(apiKey: apiKey) else {
           print("❌ Could not get user ID")
           return []
@@ -788,6 +815,12 @@ class HardcoverService {
               
               books.append(book)
           }
+          
+          // For widgets, download images that aren't cached
+          if forWidget {
+              await loadImagesForWidgets(books: &books)
+          }
+          
           return books
       } catch {
           print("❌ GraphQL Books API Error: \(error)")
@@ -3711,5 +3744,151 @@ extension HardcoverService {
         }
         print("❌ Unexpected response format")
         return false
+    }
+    
+    // MARK: - Reading Journal Quotes
+    
+    struct ReadingJournalQuote: Codable {
+        let id: Int
+        let entry: String
+        let bookId: Int
+        let createdAt: String
+        let book: QuoteBook
+        
+        enum CodingKeys: String, CodingKey {
+            case id
+            case entry
+            case bookId = "book_id"
+            case createdAt = "created_at"
+            case book
+        }
+        
+        struct QuoteBook: Codable {
+            let title: String
+            let contributions: [Contribution]
+            
+            struct Contribution: Codable {
+                let author: Author?
+                
+                struct Author: Codable {
+                    let name: String
+                }
+            }
+        }
+    }
+    
+    static func fetchReadingJournalQuotes() async -> [ReadingJournalQuote] {
+        guard !HardcoverConfig.apiKey.isEmpty else {
+            print("❌ fetchReadingJournalQuotes: No API key available")
+            return []
+        }
+        
+        guard let userId = await fetchUserId(apiKey: HardcoverConfig.apiKey) else {
+            print("❌ fetchReadingJournalQuotes: No user ID available")
+            return []
+        }
+        
+        let query = """
+        query {
+          reading_journals(
+            where: {
+              user_id: {_eq: \(userId)},
+              event: {_eq: "quote"}
+            },
+            limit: 100,
+            order_by: {created_at: desc}
+          ) {
+            id
+            event
+            entry
+            book_id
+            created_at
+            book {
+              title
+              contributions {
+                author {
+                  name
+                }
+              }
+            }
+          }
+        }
+        """
+        
+        let payload: [String: Any] = ["query": query]
+        
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: payload) else {
+            print("❌ Could not serialize query")
+            return []
+        }
+        
+        guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else {
+            print("❌ Invalid URL")
+            return []
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
+        request.httpBody = jsonData
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("[Quotes] HTTP status: \(httpResponse.statusCode)")
+                guard (200...299).contains(httpResponse.statusCode) else {
+                    print("❌ HTTP error: \(httpResponse.statusCode)")
+                    return []
+                }
+            }
+            
+            if let jsonString = String(data: data, encoding: .utf8) {
+                print("[Quotes] Full response: \(jsonString)")
+            }
+            
+            struct Response: Codable {
+                let data: DataContainer
+                
+                struct DataContainer: Codable {
+                    let readingJournals: [ReadingJournalQuote]
+                    
+                    enum CodingKeys: String, CodingKey {
+                        case readingJournals = "reading_journals"
+                    }
+                }
+            }
+            
+            let decoder = JSONDecoder()
+            
+            print("[Quotes] Attempting to decode response...")
+            let decodedResponse = try decoder.decode(Response.self, from: data)
+            let quotes = decodedResponse.data.readingJournals
+            
+            print("[Quotes] Successfully fetched \(quotes.count) quotes")
+            if quotes.count > 0 {
+                print("[Quotes] First quote preview: \(quotes[0].entry.prefix(50))...")
+            }
+            return quotes
+            
+        } catch {
+            print("❌ Error fetching quotes: \(error)")
+            if let decodingError = error as? DecodingError {
+                switch decodingError {
+                case .keyNotFound(let key, let context):
+                    print("❌ Key '\(key.stringValue)' not found: \(context.debugDescription)")
+                case .typeMismatch(let type, let context):
+                    print("❌ Type mismatch for type \(type): \(context.debugDescription)")
+                case .valueNotFound(let type, let context):
+                    print("❌ Value not found for type \(type): \(context.debugDescription)")
+                case .dataCorrupted(let context):
+                    print("❌ Data corrupted: \(context.debugDescription)")
+                @unknown default:
+                    print("❌ Unknown decoding error")
+                }
+            }
+            return []
+        }
     }
 }
