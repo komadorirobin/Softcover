@@ -238,6 +238,7 @@ struct ReadingGoal: Codable {
     let description: String?
     let percentComplete: Double
     let privacySettingId: Int
+    let archived: Bool
     
     init(
         id: Int,
@@ -249,7 +250,8 @@ struct ReadingGoal: Codable {
         conditions: [String: String]?,
         description: String?,
         percentComplete: Double,
-        privacySettingId: Int
+        privacySettingId: Int,
+        archived: Bool = false
     ) {
         self.id = id
         self.goal = goal
@@ -261,6 +263,7 @@ struct ReadingGoal: Codable {
         self.description = description
         self.percentComplete = percentComplete
         self.privacySettingId = privacySettingId
+        self.archived = archived
     }
     
     init(from decoder: Decoder) throws {
@@ -338,6 +341,9 @@ struct ReadingGoal: Codable {
             percent = min(1.0, max(0.0, Double(progress) / Double(denom)))
         }
         
+        // Check if archived (default to false for backward compatibility)
+        let archived = (try? c.decode(Bool.self, forKey: DynamicCodingKey("archived"))) ?? false
+        
         self.init(
             id: id,
             goal: goal,
@@ -348,7 +354,8 @@ struct ReadingGoal: Codable {
             conditions: conditions,
             description: description,
             percentComplete: percent,
-            privacySettingId: privacy
+            privacySettingId: privacy,
+            archived: archived
         )
     }
 }
@@ -1708,13 +1715,50 @@ class HardcoverService {
     static func fetchReadingGoals() async -> [ReadingGoal] {
         guard !HardcoverConfig.apiKey.isEmpty else { return [] }
         
-        // First try: Direct goals query via me
-        if let goals = await tryFetchGoalsDirectly() {
-            return goals
+        // Get current user's username first
+        guard let username = await getCurrentUsername() else {
+            print("❌ Could not get current username for goals")
+            return []
         }
         
-        // Fallback: Activities approach
-        return await fetchGoalsViaActivities()
+        // Use HTML scraping to get goals (same as other users)
+        // This ensures we respect the archived flag
+        return await fetchUserReadingGoals(username: username)
+    }
+    
+    private static func getCurrentUsername() async -> String? {
+        guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return nil }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
+        
+        let query = """
+        query {
+            me {
+                username
+            }
+        }
+        """
+        
+        let body: [String: Any] = ["query": query]
+        guard let bodyData = try? JSONSerialization.data(withJSONObject: body) else { return nil }
+        request.httpBody = bodyData
+        
+        do {
+            let (data, _) = try await URLSession.shared.data(for: request)
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let dataObj = json["data"] as? [String: Any],
+               let me = dataObj["me"] as? [[String: Any]],
+               let firstMe = me.first,
+               let username = firstMe["username"] as? String {
+                return username
+            }
+        } catch {
+            print("❌ Failed to fetch username: \(error)")
+        }
+        
+        return nil
     }
     
     private static func tryFetchGoalsDirectly() async -> [ReadingGoal]? {
@@ -1774,7 +1818,8 @@ class HardcoverService {
                 }
             }
             
-            // Filter out archived/old goals (end date is more than 30 days in the past)
+            // Filter out archived goals
+            // Note: GraphQL doesn't return archived field, so we check end date
             let now = Date()
             let calendar = Calendar(identifier: .gregorian)
             let dateFormatter = DateFormatter()
@@ -1782,22 +1827,18 @@ class HardcoverService {
             dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
             
             goals = goals.filter { goal in
+                // If archived field is explicitly set, use it
+                if goal.archived {
+                    return false
+                }
+                
+                // Otherwise, check end date (for GraphQL data that doesn't include archived field)
                 guard let endDate = dateFormatter.date(from: goal.endDate) else {
-                    print("⚠️ Could not parse end date for goal \(goal.id): \(goal.endDate)")
                     return true // Keep if we can't parse the date
                 }
                 
-                // Calculate days since end date
                 let daysSinceEnd = calendar.dateComponents([.day], from: endDate, to: now).day ?? 0
-                
-                // Keep goals that haven't ended yet, or ended within the last 30 days
-                let shouldKeep = daysSinceEnd <= 30
-                
-                if !shouldKeep {
-                    print("🗄️ Filtering out archived goal \(goal.id) (ended \(daysSinceEnd) days ago)")
-                }
-                
-                return shouldKeep
+                return daysSinceEnd <= 30
             }
             
             print("🎯 Active goals after filtering archived: \(goals.count)")
@@ -1876,7 +1917,8 @@ class HardcoverService {
             var goals = latestByGoal.values.map { $0.goal }
             print("🎯 Final goals after deduplication: \(goals.count)")
             
-            // Filter out archived/old goals (end date is more than 30 days in the past)
+            // Filter out archived goals
+            // Note: GraphQL doesn't return archived field, so we check end date
             let now = Date()
             let calendar = Calendar(identifier: .gregorian)
             let dateFormatter = DateFormatter()
@@ -1884,22 +1926,18 @@ class HardcoverService {
             dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
             
             goals = goals.filter { goal in
+                // If archived field is explicitly set, use it
+                if goal.archived {
+                    return false
+                }
+                
+                // Otherwise, check end date (for GraphQL data that doesn't include archived field)
                 guard let endDate = dateFormatter.date(from: goal.endDate) else {
-                    print("⚠️ Could not parse end date for goal \(goal.id): \(goal.endDate)")
                     return true // Keep if we can't parse the date
                 }
                 
-                // Calculate days since end date
                 let daysSinceEnd = calendar.dateComponents([.day], from: endDate, to: now).day ?? 0
-                
-                // Keep goals that haven't ended yet, or ended within the last 30 days
-                let shouldKeep = daysSinceEnd <= 30
-                
-                if !shouldKeep {
-                    print("🗄️ Filtering out archived goal \(goal.id) (ended \(daysSinceEnd) days ago)")
-                }
-                
-                return shouldKeep
+                return daysSinceEnd <= 30
             }
             
             print("🎯 Active goals after filtering archived: \(goals.count)")
@@ -1974,21 +2012,8 @@ class HardcoverService {
             if let goals = extractGoalsFromHTML(html) {
                 print("✅ Fetched \(goals.count) goals for @\(cleanUsername)")
                 
-                // Filter out archived/old goals (end date is more than 30 days in the past)
-                let now = Date()
-                let calendar = Calendar(identifier: .gregorian)
-                let dateFormatter = DateFormatter()
-                dateFormatter.dateFormat = "yyyy-MM-dd"
-                dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
-                
-                let activeGoals = goals.filter { goal in
-                    guard let endDate = dateFormatter.date(from: goal.endDate) else {
-                        return true // Keep if we can't parse the date
-                    }
-                    
-                    let daysSinceEnd = calendar.dateComponents([.day], from: endDate, to: now).day ?? 0
-                    return daysSinceEnd <= 30
-                }
+                // Filter out archived goals using the archived field from HTML
+                let activeGoals = goals.filter { !$0.archived }
                 
                 return activeGoals
             }
