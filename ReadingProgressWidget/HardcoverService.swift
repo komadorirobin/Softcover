@@ -1760,6 +1760,35 @@ class HardcoverService {
                     print("❌ Failed to decode goal: \(error)")
                 }
             }
+            
+            // Filter out archived/old goals (end date is more than 30 days in the past)
+            let now = Date()
+            let calendar = Calendar(identifier: .gregorian)
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd"
+            dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+            
+            goals = goals.filter { goal in
+                guard let endDate = dateFormatter.date(from: goal.endDate) else {
+                    print("⚠️ Could not parse end date for goal \(goal.id): \(goal.endDate)")
+                    return true // Keep if we can't parse the date
+                }
+                
+                // Calculate days since end date
+                let daysSinceEnd = calendar.dateComponents([.day], from: endDate, to: now).day ?? 0
+                
+                // Keep goals that haven't ended yet, or ended within the last 30 days
+                let shouldKeep = daysSinceEnd <= 30
+                
+                if !shouldKeep {
+                    print("🗄️ Filtering out archived goal \(goal.id) (ended \(daysSinceEnd) days ago)")
+                }
+                
+                return shouldKeep
+            }
+            
+            print("🎯 Active goals after filtering archived: \(goals.count)")
+            
             return goals
         } catch {
             print("⚠️ Direct goals query failed: \(error)")
@@ -1833,6 +1862,35 @@ class HardcoverService {
             }
             var goals = latestByGoal.values.map { $0.goal }
             print("🎯 Final goals after deduplication: \(goals.count)")
+            
+            // Filter out archived/old goals (end date is more than 30 days in the past)
+            let now = Date()
+            let calendar = Calendar(identifier: .gregorian)
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd"
+            dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+            
+            goals = goals.filter { goal in
+                guard let endDate = dateFormatter.date(from: goal.endDate) else {
+                    print("⚠️ Could not parse end date for goal \(goal.id): \(goal.endDate)")
+                    return true // Keep if we can't parse the date
+                }
+                
+                // Calculate days since end date
+                let daysSinceEnd = calendar.dateComponents([.day], from: endDate, to: now).day ?? 0
+                
+                // Keep goals that haven't ended yet, or ended within the last 30 days
+                let shouldKeep = daysSinceEnd <= 30
+                
+                if !shouldKeep {
+                    print("🗄️ Filtering out archived goal \(goal.id) (ended \(daysSinceEnd) days ago)")
+                }
+                
+                return shouldKeep
+            }
+            
+            print("🎯 Active goals after filtering archived: \(goals.count)")
+            
             if enableGoalSelfHeal {
                 var healed: [ReadingGoal] = []
                 for g in goals {
