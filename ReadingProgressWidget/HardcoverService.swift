@@ -269,7 +269,11 @@ struct ReadingGoal: Codable {
         func intValue(_ keys: [String], default def: Int? = nil) throws -> Int {
             for k in keys {
                 if let v = try? c.decode(Int.self, forKey: DynamicCodingKey(k)) { return v }
-                if let s = try? c.decode(String.self, forKey: DynamicCodingKey(k)), let v = Int(s) { return v }
+                if let s = try? c.decode(String.self, forKey: DynamicCodingKey(k)) {
+                    // Try Int first (for "13"), then Double (for "13.0")
+                    if let v = Int(s) { return v }
+                    if let d = Double(s) { return Int(d) }
+                }
                 if let d = try? c.decode(Double.self, forKey: DynamicCodingKey(k)) { return Int(d) }
             }
             if let def = def { return def }
@@ -311,16 +315,25 @@ struct ReadingGoal: Codable {
         let metric = try stringValue(["metric"])
         let startDate = try stringValue(["startDate", "start_date"])
         let endDate = try stringValue(["endDate", "end_date"])
+        
+        // Progress can be Int, Double, or String (from HTML scraping)
         let progress = try intValue(["progress"], default: 0)
+        
         let description = optionalString(["description", "name", "title"])
         let conditions = dictStringString(["conditions"])
         let privacy = (try? intValue(["privacySettingId", "privacy_setting_id"])) ?? 1
         
-        // percentComplete may be missing or snake_case or string – compute fallback
+        // Try calculatedProgress (HTML scraping) or percentComplete (GraphQL) or compute fallback
+        // HTML returns calculatedProgress as 0-100, GraphQL returns percentComplete as 0-1
         let percent: Double
-        if let p = try? doubleValue(["percentComplete", "percent_complete"]) {
+        if let calc = try? doubleValue(["calculatedProgress", "calculated_progress"]) {
+            // HTML scraping: 0-100 scale
+            percent = min(1.0, max(0.0, calc / 100.0))
+        } else if let p = try? doubleValue(["percentComplete", "percent_complete"]) {
+            // GraphQL: 0-1 scale
             percent = min(1.0, max(0.0, p))
         } else {
+            // Fallback: compute from progress/goal
             let denom = max(1, goal)
             percent = min(1.0, max(0.0, Double(progress) / Double(denom)))
         }
@@ -1924,6 +1937,121 @@ class HardcoverService {
             let healed = try JSONDecoder().decode(ReadingGoal.self, from: newData)
             return healed
         } catch {
+            return nil
+        }
+    }
+    
+    // MARK: - Fetch Reading Goals for Other Users
+    /// Fetch reading goals for a specific user by scraping their goals page
+    static func fetchUserReadingGoals(username: String) async -> [ReadingGoal] {
+        guard !HardcoverConfig.apiKey.isEmpty else {
+            print("❌ No API key for fetchUserReadingGoals")
+            return []
+        }
+        
+        // Remove @ if present
+        let cleanUsername = username.hasPrefix("@") ? String(username.dropFirst()) : username
+        
+        // Fetch from goals page
+        guard let url = URL(string: "https://hardcover.app/@\(cleanUsername)/goals") else {
+            print("❌ Invalid URL")
+            return []
+        }
+        
+        var req = URLRequest(url: url)
+        req.httpMethod = "GET"
+        req.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
+        
+        do {
+            let (data, _) = try await URLSession.shared.data(for: req)
+            
+            guard let html = String(data: data, encoding: .utf8) else {
+                print("❌ Could not decode HTML for @\(cleanUsername)")
+                return []
+            }
+            
+            // Extract goals from Inertia.js data-page attribute
+            if let goals = extractGoalsFromHTML(html) {
+                print("✅ Fetched \(goals.count) goals for @\(cleanUsername)")
+                
+                // Filter out archived/old goals (end date is more than 30 days in the past)
+                let now = Date()
+                let calendar = Calendar(identifier: .gregorian)
+                let dateFormatter = DateFormatter()
+                dateFormatter.dateFormat = "yyyy-MM-dd"
+                dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+                
+                let activeGoals = goals.filter { goal in
+                    guard let endDate = dateFormatter.date(from: goal.endDate) else {
+                        return true // Keep if we can't parse the date
+                    }
+                    
+                    let daysSinceEnd = calendar.dateComponents([.day], from: endDate, to: now).day ?? 0
+                    return daysSinceEnd <= 30
+                }
+                
+                return activeGoals
+            }
+            
+            return []
+        } catch {
+            print("❌ Failed to fetch goals for @\(cleanUsername): \(error)")
+            return []
+        }
+    }
+    
+    /// Extract reading goals from Inertia.js data-page attribute
+    private static func extractGoalsFromHTML(_ html: String) -> [ReadingGoal]? {
+        // Find data-page attribute
+        guard let dataPageRange = html.range(of: "data-page=\"") else {
+            print("❌ Could not find data-page attribute in goals HTML")
+            return nil
+        }
+        
+        let startIndex = dataPageRange.upperBound
+        guard let endIndex = html[startIndex...].range(of: "\">")?.lowerBound else {
+            print("❌ Could not find end of data-page attribute")
+            return nil
+        }
+        
+        let jsonString = String(html[startIndex..<endIndex])
+            .replacingOccurrences(of: "&quot;", with: "\"")
+            .replacingOccurrences(of: "&amp;", with: "&")
+        
+        guard let jsonData = jsonString.data(using: .utf8) else {
+            print("❌ Could not convert JSON string to data")
+            return nil
+        }
+        
+        do {
+            // Parse the Inertia.js page data
+            if let jsonObject = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+               let props = jsonObject["props"] as? [String: Any] {
+                
+                if let goalsArray = props["goals"] as? [[String: Any]] {
+                    var goals: [ReadingGoal] = []
+                    
+                    for goalDict in goalsArray {
+                        do {
+                            let goalData = try JSONSerialization.data(withJSONObject: goalDict)
+                            let goal = try JSONDecoder().decode(ReadingGoal.self, from: goalData)
+                            goals.append(goal)
+                        } catch {
+                            print("⚠️ Failed to decode goal: \(error)")
+                        }
+                    }
+                    
+                    return goals
+                } else {
+                    print("❌ Could not find goals array in props")
+                    return nil
+                }
+            } else {
+                print("❌ Could not parse page JSON or find props")
+                return nil
+            }
+        } catch {
+            print("❌ Failed to parse goals JSON: \(error)")
             return nil
         }
     }
