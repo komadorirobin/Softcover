@@ -815,7 +815,7 @@ struct BookCardView: View {
                 Button {
                     Task { await moveToWantToRead(userBookId: userBookId) }
                 } label: {
-                    Label("Flytta till Vill läsa", systemImage: "bookmark")
+                    Label(NSLocalizedString("Move to Want to Read", comment: "Move book to Want to Read list"), systemImage: "bookmark")
                 }
                 Button(role: .destructive) {
                     showRemoveConfirm = true

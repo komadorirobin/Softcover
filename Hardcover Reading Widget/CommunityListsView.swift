@@ -24,52 +24,46 @@ struct CommunityListsView: View {
     }
     
     var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                // Filter picker
-                Picker("Filter", selection: $selectedFilter) {
-                    ForEach(ListFilter.allCases, id: \.self) { filter in
-                        Text(filter.displayName).tag(filter)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .padding()
-                .onChange(of: selectedFilter) { _ in
-                    Task { await loadLists() }
-                }
-                
-                if isLoading {
-                    ProgressView("Loading lists...")
-                        .padding()
-                    Spacer()
-                } else if let errorMessage = errorMessage {
-                    VStack(spacing: 10) {
-                        Image(systemName: "exclamationmark.triangle")
-                            .font(.largeTitle)
-                            .foregroundColor(.orange)
-                        Text(errorMessage)
-                            .font(.body)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .padding()
-                    Spacer()
-                } else {
-                    ScrollView {
-                        LazyVStack(spacing: 16) {
-                            ForEach(lists) { list in
-                                CommunityListCard(list: list)
-                                    .onTapGesture {
-                                        selectedList = list
-                                    }
-                            }
-                        }
-                        .padding()
-                    }
+        VStack(spacing: 0) {
+            // Filter picker
+            Picker("Filter", selection: $selectedFilter) {
+                ForEach(ListFilter.allCases, id: \.self) { filter in
+                    Text(filter.displayName).tag(filter)
                 }
             }
-            .navigationTitle("Community Lists")
-            .navigationBarTitleDisplayMode(.large)
+            .pickerStyle(.segmented)
+            .padding()
+            .onChange(of: selectedFilter) { _ in
+                Task { await loadLists() }
+            }
+            
+            if isLoading {
+                ProgressView("Loading lists...")
+                    .padding()
+                Spacer()
+            } else if let errorMessage = errorMessage {
+                VStack(spacing: 10) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.largeTitle)
+                        .foregroundColor(.orange)
+                    Text(errorMessage)
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding()
+                Spacer()
+            } else {
+                LazyVStack(spacing: 16) {
+                    ForEach(lists) { list in
+                        CommunityListCard(list: list)
+                            .onTapGesture {
+                                selectedList = list
+                            }
+                    }
+                }
+                .padding()
+            }
         }
         .task {
             await loadLists()

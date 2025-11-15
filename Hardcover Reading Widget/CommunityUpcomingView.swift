@@ -58,17 +58,15 @@ struct CommunityUpcomingView: View {
                 .padding()
                 Spacer()
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 16) {
-                        ForEach(upcomingBooks) { book in
-                            CommunityUpcomingBookCard(book: book)
-                                .onTapGesture {
-                                    selectedBook = book.toBookProgress()
-                                }
-                        }
+                LazyVStack(spacing: 16) {
+                    ForEach(upcomingBooks) { book in
+                        CommunityUpcomingBookCard(book: book)
+                            .onTapGesture {
+                                selectedBook = book.toBookProgress()
+                            }
                     }
-                    .padding()
                 }
+                .padding()
             }
         }
         .task {

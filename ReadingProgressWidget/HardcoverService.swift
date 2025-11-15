@@ -3988,6 +3988,42 @@ extension HardcoverService {
         }
     }
     
+    // New structure for user_books approach (better variety)
+    struct UserBookWithQuotes: Codable {
+        let book: QuoteBook
+        let readingJournals: [JournalEntry]
+        
+        enum CodingKeys: String, CodingKey {
+            case book
+            case readingJournals = "reading_journals"
+        }
+        
+        struct QuoteBook: Codable {
+            let title: String
+            let contributions: [Contribution]
+            
+            struct Contribution: Codable {
+                let author: Author?
+                
+                struct Author: Codable {
+                    let name: String
+                }
+            }
+        }
+        
+        struct JournalEntry: Codable {
+            let entry: String
+            let event: String
+            let objectType: String?
+            
+            enum CodingKeys: String, CodingKey {
+                case entry
+                case event
+                case objectType = "object_type"
+            }
+        }
+    }
+    
     static func fetchReadingJournalQuotes() async -> [ReadingJournalQuote] {
         guard !HardcoverConfig.apiKey.isEmpty else {
             print("❌ fetchReadingJournalQuotes: No API key available")
@@ -3999,28 +4035,28 @@ extension HardcoverService {
             return []
         }
         
+        // Use user_books approach to get ALL books with quotes (not chronologically limited)
         let query = """
         query {
-          reading_journals(
+          user_books(
             where: {
               user_id: {_eq: \(userId)},
-              event: {_eq: "quote"}
-            },
-            limit: 100,
-            order_by: {created_at: desc}
+              reading_journals: {event: {_eq: "quote"}}
+            }
           ) {
-            id
-            event
-            entry
-            book_id
-            created_at
             book {
+              id
               title
               contributions {
                 author {
                   name
                 }
               }
+            }
+            reading_journals(where: {event: {_eq: "quote"}}) {
+              entry
+              event
+              object_type
             }
           }
         }
@@ -4063,10 +4099,10 @@ extension HardcoverService {
                 let data: DataContainer
                 
                 struct DataContainer: Codable {
-                    let readingJournals: [ReadingJournalQuote]
+                    let userBooks: [UserBookWithQuotes]
                     
                     enum CodingKeys: String, CodingKey {
-                        case readingJournals = "reading_journals"
+                        case userBooks = "user_books"
                     }
                 }
             }
@@ -4075,13 +4111,41 @@ extension HardcoverService {
             
             print("[Quotes] Attempting to decode response...")
             let decodedResponse = try decoder.decode(Response.self, from: data)
-            let quotes = decodedResponse.data.readingJournals
+            let userBooks = decodedResponse.data.userBooks
             
-            print("[Quotes] Successfully fetched \(quotes.count) quotes")
-            if quotes.count > 0 {
-                print("[Quotes] First quote preview: \(quotes[0].entry.prefix(50))...")
+            print("[Quotes] Successfully fetched \(userBooks.count) books with quotes")
+            
+            // Convert user_books with journals to flat list of ReadingJournalQuote
+            // This maintains compatibility with existing widget code
+            var allQuotes: [ReadingJournalQuote] = []
+            for (index, userBook) in userBooks.enumerated() {
+                for (journalIndex, journal) in userBook.readingJournals.enumerated() {
+                    // Create a ReadingJournalQuote from the journal entry
+                    let quote = ReadingJournalQuote(
+                        id: index * 1000 + journalIndex, // Generate unique IDs
+                        entry: journal.entry,
+                        bookId: 0, // Not needed for widget display
+                        createdAt: "", // Not needed for widget display
+                        book: ReadingJournalQuote.QuoteBook(
+                            title: userBook.book.title,
+                            contributions: userBook.book.contributions.map { contrib in
+                                ReadingJournalQuote.QuoteBook.Contribution(
+                                    author: contrib.author.map { author in
+                                        ReadingJournalQuote.QuoteBook.Contribution.Author(name: author.name)
+                                    }
+                                )
+                            }
+                        )
+                    )
+                    allQuotes.append(quote)
+                }
             }
-            return quotes
+            
+            print("[Quotes] Converted to \(allQuotes.count) total quotes from all books")
+            if allQuotes.count > 0 {
+                print("[Quotes] First quote preview: \(allQuotes[0].entry.prefix(50))...")
+            }
+            return allQuotes
             
         } catch {
             print("❌ Error fetching quotes: \(error)")

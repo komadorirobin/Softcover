@@ -20,36 +20,38 @@ struct ExplorerView: View {
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 0) {
-                // Segmented picker at the top
-                Picker("Section", selection: $selectedSection) {
-                    Text("Trending").tag(0)
-                    Text("Upcoming").tag(1)
-                    Text("Lists").tag(2)
-                }
-                .pickerStyle(.segmented)
-                .padding()
-                
-                // Info text based on selection
-                VStack(spacing: 4) {
-                    Text(sectionInfoText)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                        .padding(.bottom, 8)
-                }
-                
-                // Content based on selection
-                switch selectedSection {
-                case 0:
-                    TrendingBooksView(onDone: onDone)
-                case 1:
-                    CommunityUpcomingView()
-                case 2:
-                    CommunityListsView()
-                default:
-                    EmptyView()
+            ScrollView {
+                VStack(spacing: 0) {
+                    // Segmented picker at the top
+                    Picker("Section", selection: $selectedSection) {
+                        Text("Trending").tag(0)
+                        Text("Upcoming").tag(1)
+                        Text("Lists").tag(2)
+                    }
+                    .pickerStyle(.segmented)
+                    .padding()
+                    
+                    // Info text based on selection
+                    VStack(spacing: 4) {
+                        Text(sectionInfoText)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                            .padding(.bottom, 8)
+                    }
+                    
+                    // Content based on selection
+                    switch selectedSection {
+                    case 0:
+                        TrendingBooksView(onDone: onDone)
+                    case 1:
+                        CommunityUpcomingView()
+                    case 2:
+                        CommunityListsView()
+                    default:
+                        EmptyView()
+                    }
                 }
             }
             .navigationTitle("Explore")

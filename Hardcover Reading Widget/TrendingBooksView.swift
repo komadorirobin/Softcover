@@ -88,20 +88,18 @@ struct TrendingBooksView: View {
                 .padding()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 16) {
-                        ForEach(trending) { item in
-                            TrendingBookCard(
-                                book: item,
-                                isAddInProgress: trendingAddInProgress == item.id,
-                                isAdded: addedBookIds.contains(item.id),
-                                onTap: { selectedTrending = item },
-                                onQuickAdd: { Task { await addTrendingBook(item) } }
-                            )
-                        }
+                LazyVStack(spacing: 16) {
+                    ForEach(trending) { item in
+                        TrendingBookCard(
+                            book: item,
+                            isAddInProgress: trendingAddInProgress == item.id,
+                            isAdded: addedBookIds.contains(item.id),
+                            onTap: { selectedTrending = item },
+                            onQuickAdd: { Task { await addTrendingBook(item) } }
+                        )
                     }
-                    .padding()
                 }
+                .padding()
             }
             }  // Group
         }  // VStack
