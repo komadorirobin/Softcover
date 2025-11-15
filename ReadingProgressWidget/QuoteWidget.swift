@@ -92,7 +92,7 @@ struct QuoteWidgetView: View {
             Text(entry.quote)
                 .font(family == .systemSmall ? .caption : .body)
                 .foregroundColor(.white)
-                .lineLimit(family == .systemSmall ? 4 : 6)
+                .lineLimit(family == .systemSmall ? 4 : 8)
                 .minimumScaleFactor(0.8)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             
