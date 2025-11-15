@@ -74,29 +74,28 @@ struct QuoteWidgetView: View {
             // Header with quote icon and refresh button
             HStack {
                 Image(systemName: "quote.opening")
-                    .font(.system(size: family == .systemSmall ? 18 : 22))
+                    .font(.system(size: family == .systemSmall ? 16 : 20))
                     .foregroundColor(.white.opacity(0.8))
                 
                 Spacer()
                 
                 Button(intent: QuoteRefreshIntent()) {
                     Image(systemName: "arrow.clockwise")
-                        .font(.system(size: family == .systemSmall ? 13 : 15))
+                        .font(.system(size: family == .systemSmall ? 12 : 14))
                         .foregroundColor(.white.opacity(0.7))
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.bottom, family == .systemSmall ? 8 : 10)
+            .padding(.bottom, family == .systemSmall ? 6 : 8)
             
-            // Quote text - with flexible spacing
+            // Quote text
             Text(entry.quote)
-                .font(family == .systemSmall ? .caption : .callout)
+                .font(family == .systemSmall ? .caption : .subheadline)
                 .foregroundColor(.white)
-                .lineLimit(family == .systemSmall ? 4 : 10)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .lineLimit(family == .systemSmall ? 4 : 5)
+                .lineSpacing(family == .systemSmall ? 1 : 2)
             
-            Spacer(minLength: family == .systemSmall ? 8 : 12)
+            Spacer(minLength: 0)
             
             // Book info - fixed at bottom
             if !entry.bookTitle.isEmpty {
@@ -112,6 +111,7 @@ struct QuoteWidgetView: View {
                         .foregroundColor(.white.opacity(0.7))
                         .lineLimit(1)
                 }
+                .padding(.top, family == .systemSmall ? 6 : 8)
             }
         }
         .padding(family == .systemSmall ? 12 : 16)
