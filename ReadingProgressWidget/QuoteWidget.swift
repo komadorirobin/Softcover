@@ -93,8 +93,10 @@ struct QuoteWidgetView: View {
                 .font(family == .systemSmall ? .caption : .callout)
                 .foregroundColor(.white)
                 .lineLimit(family == .systemSmall ? 4 : 10)
-                .minimumScaleFactor(0.75)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+            
+            Spacer(minLength: family == .systemSmall ? 8 : 12)
             
             // Book info - fixed at bottom
             if !entry.bookTitle.isEmpty {
@@ -110,7 +112,6 @@ struct QuoteWidgetView: View {
                         .foregroundColor(.white.opacity(0.7))
                         .lineLimit(1)
                 }
-                .padding(.top, family == .systemSmall ? 8 : 12)
             }
         }
         .padding(family == .systemSmall ? 12 : 16)
