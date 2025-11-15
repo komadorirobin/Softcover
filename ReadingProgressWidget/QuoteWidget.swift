@@ -90,9 +90,9 @@ struct QuoteWidgetView: View {
             
             // Quote text
             Text(entry.quote)
-                .font(family == .systemSmall ? .caption : .subheadline)
+                .font(family == .systemSmall ? .caption : .footnote)
                 .foregroundColor(.white)
-                .lineLimit(family == .systemSmall ? 4 : 5)
+                .lineLimit(family == .systemSmall ? 4 : 8)
                 .lineSpacing(family == .systemSmall ? 1 : 2)
             
             Spacer(minLength: 0)
