@@ -143,6 +143,12 @@ extension HardcoverService {
                 
                 if let profile = result.data?.me?.first {
                     print("✅ Fetched profile for @\(profile.username)")
+                    
+                    // Save username to AppGroup defaults for use by Friends and other features
+                    let normalized = HardcoverConfig.normalizeUsername(profile.username)
+                    AppGroup.defaults.set(normalized, forKey: "HardcoverUsername")
+                    print("💾 Saved username to defaults: @\(normalized)")
+                    
                     return profile
                 } else {
                     print("⚠️ No profile data in response")
