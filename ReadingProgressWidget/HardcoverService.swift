@@ -67,6 +67,7 @@ struct UserBook: Codable {
     let editionId: Int?
     let privacySettingId: Int?
     let rating: Double?
+    let updatedAt: String?
     let userBookReads: [UserBookRead]?
     let book: UserBookBook?
     let edition: Edition?
@@ -78,6 +79,7 @@ struct UserBook: Codable {
         case editionId = "edition_id"
         case privacySettingId = "privacy_setting_id"
         case rating
+        case updatedAt = "updated_at"
         case userBookReads = "user_book_reads"
         case book
         case edition
@@ -515,7 +517,7 @@ class HardcoverService {
       query ($userId: Int!, $limit: Int!) {
         user_books(
           where: { user_id: { _eq: $userId }, status_id: { _eq: 1 } },
-          order_by: { id: desc },
+          order_by: { updated_at: desc },
           limit: $limit
         ) {
           id
@@ -523,6 +525,7 @@ class HardcoverService {
           status_id
           edition_id
           rating
+          updated_at
           book {
             id
             title
@@ -742,7 +745,7 @@ class HardcoverService {
       request.setValue(HardcoverConfig.headerValue(for: apiKey), forHTTPHeaderField: "Authorization")
       
       let booksQuery = """
-      { "query": "{ user_books(where: {user_id: {_eq: \(userId)}, status_id: {_eq: 2}}, order_by: {id: desc}, limit: 10) { id book_id status_id edition_id privacy_setting_id rating user_book_reads(order_by: {id: asc}) { id started_at finished_at progress_pages progress_seconds edition_id } book { id title contributions { author { name } } image { url } } edition { id title isbn_10 isbn_13 pages audio_seconds publisher { name } image { url } } } }" }
+      { "query": "{ user_books(where: {user_id: {_eq: \(userId)}, status_id: {_eq: 2}}, order_by: {updated_at: desc}, limit: 10) { id book_id status_id edition_id privacy_setting_id rating updated_at user_book_reads(order_by: {id: asc}) { id started_at finished_at progress_pages progress_seconds edition_id } book { id title contributions { author { name } } image { url } } edition { id title isbn_10 isbn_13 pages audio_seconds publisher { name } image { url } } } }" }
       """
       request.httpBody = booksQuery.data(using: .utf8)
       

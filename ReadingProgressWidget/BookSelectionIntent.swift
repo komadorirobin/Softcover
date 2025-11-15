@@ -2,15 +2,31 @@ import WidgetKit
 import AppIntents
 
 struct BookSelectionIntent: WidgetConfigurationIntent {
-    static var title: LocalizedStringResource = "Select Books"
-    static var description = IntentDescription("Choose which books to display in the widget.")
+    static var title: LocalizedStringResource = "Configure Widget"
+    static var description = IntentDescription("Choose how books are displayed in the widget.")
 
-    @Parameter(title: "Books", default: [])
-    var books: [BookEntity]
+    @Parameter(title: "Display Mode", default: .recentlyUpdated)
+    var displayMode: DisplayMode
+    
+    @Parameter(title: "Books")
+    var books: [BookEntity]?
 
     init() {
-        self.books = []
+        self.displayMode = .recentlyUpdated
+        self.books = nil
     }
+}
+
+enum DisplayMode: String, AppEnum {
+    case recentlyUpdated = "Recently Updated"
+    case manualSelection = "Manual Selection"
+    
+    static var typeDisplayRepresentation: TypeDisplayRepresentation = "Display Mode"
+    
+    static var caseDisplayRepresentations: [DisplayMode: DisplayRepresentation] = [
+        .recentlyUpdated: "Recently Updated",
+        .manualSelection: "Manual Selection"
+    ]
 }
 
 // Represents a single book that the user can select.

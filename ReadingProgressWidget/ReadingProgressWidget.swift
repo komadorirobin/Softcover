@@ -56,11 +56,18 @@ struct Provider: AppIntentTimelineProvider {
     }
     
     private func filterBooks(allBooks: [BookProgress], configuration: BookSelectionIntent) -> [BookProgress] {
-        if configuration.books.isEmpty {
+        // If Recently Updated mode, sort by most recently updated
+        if configuration.displayMode == .recentlyUpdated {
+            // Books are already sorted by update time from the API (order_by: {id: desc})
+            return allBooks
+        }
+        
+        // Manual Selection mode
+        guard let selectedBooks = configuration.books, !selectedBooks.isEmpty else {
             return allBooks
         }
         var filtered: [BookProgress] = []
-        for selected in configuration.books {
+        for selected in selectedBooks {
             if let match = allBooks.first(where: { $0.id == selected.id }) {
                 filtered.append(match)
             }
