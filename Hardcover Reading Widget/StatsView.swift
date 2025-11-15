@@ -192,7 +192,7 @@ struct ReadingGoalCard: View {
                         Image(systemName: goalIcon)
                             .foregroundColor(.blue)
                             .font(.caption)
-                        Text(String(format: NSLocalizedString("%lld of %lld %@s", comment: ""), goal.progress, goal.goal, NSLocalizedString("books", comment: "")))
+                        Text(String(format: NSLocalizedString("%lld of %lld %@", comment: ""), goal.progress, goal.goal, NSLocalizedString("books", comment: "")))
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
