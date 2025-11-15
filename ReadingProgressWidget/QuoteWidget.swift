@@ -70,57 +70,107 @@ struct QuoteWidgetView: View {
     @Environment(\.widgetFamily) var family
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Header with quote icon and refresh button
-            HStack {
-                Image(systemName: "quote.opening")
-                    .font(.system(size: family == .systemSmall ? 16 : 20))
-                    .foregroundColor(.white.opacity(0.8))
-                
-                Spacer()
-                
-                Button(intent: QuoteRefreshIntent()) {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: family == .systemSmall ? 12 : 14))
-                        .foregroundColor(.white.opacity(0.7))
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.bottom, family == .systemSmall ? 6 : 8)
-            
-            // Quote text
-            Text(entry.quote)
-                .font(family == .systemSmall ? .caption : .footnote)
-                .foregroundColor(.white)
-                .lineLimit(family == .systemSmall ? 4 : 8)
-                .lineSpacing(family == .systemSmall ? 1 : 2)
-            
-            Spacer(minLength: 0)
-            
-            // Book info - fixed at bottom
-            if !entry.bookTitle.isEmpty {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(entry.bookTitle)
-                        .font(family == .systemSmall ? .caption2 : .caption)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.white.opacity(0.9))
-                        .lineLimit(1)
+        if family == .systemSmall {
+            // Small widget - original layout
+            VStack(alignment: .leading, spacing: 0) {
+                HStack {
+                    Image(systemName: "quote.opening")
+                        .font(.system(size: 18))
+                        .foregroundColor(.white.opacity(0.8))
                     
-                    Text(entry.authorName)
-                        .font(family == .systemSmall ? .caption2 : .caption)
-                        .foregroundColor(.white.opacity(0.7))
-                        .lineLimit(1)
+                    Spacer()
+                    
+                    Button(intent: QuoteRefreshIntent()) {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 13))
+                            .foregroundColor(.white.opacity(0.7))
+                    }
+                    .buttonStyle(.plain)
                 }
-                .padding(.top, family == .systemSmall ? 6 : 8)
+                .padding(.bottom, 6)
+                
+                Text(entry.quote)
+                    .font(.caption)
+                    .foregroundColor(.white)
+                    .lineLimit(4)
+                    .minimumScaleFactor(0.8)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                
+                if !entry.bookTitle.isEmpty {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(entry.bookTitle)
+                            .font(.caption2)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.white.opacity(0.9))
+                            .lineLimit(1)
+                        
+                        Text(entry.authorName)
+                            .font(.caption2)
+                            .foregroundColor(.white.opacity(0.7))
+                            .lineLimit(1)
+                    }
+                    .padding(.top, 6)
+                }
             }
-        }
-        .padding(family == .systemSmall ? 12 : 16)
-        .containerBackground(for: .widget) {
-            LinearGradient(
-                colors: [Color(red: 0.1, green: 0.1, blue: 0.15), Color(red: 0.15, green: 0.1, blue: 0.2)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+            .padding(12)
+            .containerBackground(for: .widget) {
+                LinearGradient(
+                    colors: [Color(red: 0.1, green: 0.1, blue: 0.15), Color(red: 0.15, green: 0.1, blue: 0.2)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            }
+        } else {
+            // Medium widget - quote icon at bottom
+            VStack(alignment: .leading, spacing: 0) {
+                HStack {
+                    Spacer()
+                    Button(intent: QuoteRefreshIntent()) {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 15))
+                            .foregroundColor(.white.opacity(0.7))
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.bottom, 8)
+                
+                Text(entry.quote)
+                    .font(.callout)
+                    .foregroundColor(.white)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+                
+                Spacer(minLength: 12)
+                
+                if !entry.bookTitle.isEmpty {
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "quote.opening")
+                            .font(.system(size: 22))
+                            .foregroundColor(.white.opacity(0.8))
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(entry.bookTitle)
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white.opacity(0.9))
+                                .lineLimit(1)
+                            
+                            Text(entry.authorName)
+                                .font(.caption)
+                                .foregroundColor(.white.opacity(0.7))
+                                .lineLimit(1)
+                        }
+                    }
+                }
+            }
+            .padding(16)
+            .containerBackground(for: .widget) {
+                LinearGradient(
+                    colors: [Color(red: 0.1, green: 0.1, blue: 0.15), Color(red: 0.15, green: 0.1, blue: 0.2)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            }
         }
     }
 }
