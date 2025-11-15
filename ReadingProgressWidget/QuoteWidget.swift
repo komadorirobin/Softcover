@@ -90,10 +90,10 @@ struct QuoteWidgetView: View {
             
             // Quote text - with flexible spacing
             Text(entry.quote)
-                .font(family == .systemSmall ? .caption : .body)
+                .font(family == .systemSmall ? .caption : .callout)
                 .foregroundColor(.white)
-                .lineLimit(family == .systemSmall ? 4 : 8)
-                .minimumScaleFactor(0.8)
+                .lineLimit(family == .systemSmall ? 4 : 10)
+                .minimumScaleFactor(0.75)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             
             // Book info - fixed at bottom
