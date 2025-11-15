@@ -15,6 +15,8 @@ struct ApiKeySettingsView: View {
     @AppStorage("SkipEditionPickerOnAdd", store: AppGroup.defaults) private var skipEditionPickerOnAdd: Bool = false
     // NEW: Default progress input mode preference
     @AppStorage("DefaultProgressInputMode", store: AppGroup.defaults) private var defaultProgressInputMode: String = "page"
+    // NEW: Currently Reading widget sort order preference
+    @AppStorage("CurrentlyReadingSortOrder", store: AppGroup.defaults) private var currentlyReadingSortOrder: String = "recentlyUpdated"
     
     let onSaved: ((String) -> Void)?
     
@@ -114,6 +116,21 @@ struct ApiKeySettingsView: View {
                         Text("Percent").tag("percent")
                     }
                     Text("Choose whether to update progress using page numbers/time or percentage by default. You can always switch between modes when updating.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                // NEW: Widget Settings
+                Section(header: Text("Widget Settings")) {
+                    Picker("Currently Reading Sort Order", selection: $currentlyReadingSortOrder) {
+                        Text("Recently Updated").tag("recentlyUpdated")
+                        Text("Recently Added").tag("recentlyAdded")
+                    }
+                    .onChange(of: currentlyReadingSortOrder) { _, _ in
+                        // Reload widgets when sort order changes
+                        WidgetCenter.shared.reloadAllTimelines()
+                    }
+                    Text("Choose how your currently reading books are sorted in both the app and widgets. \"Recently Updated\" shows books you've most recently updated progress on. \"Recently Added\" shows books in the order you added them to your reading list.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }

@@ -692,6 +692,47 @@ class HardcoverService {
       }
   }
   
+  // MARK: - Local Progress Timestamps
+  /// Saves a local timestamp when progress is updated for a book
+  private static func saveLocalProgressTimestamp(forUserBookId userBookId: Int) {
+      let timestamp = Date().timeIntervalSince1970
+      AppGroup.defaults.set(timestamp, forKey: "progressTimestamp_\(userBookId)")
+      print("💾 Saved local progress timestamp for userBookId \(userBookId): \(timestamp)")
+  }
+  
+  /// Gets the local progress timestamp for a book
+  private static func getLocalProgressTimestamp(forUserBookId userBookId: Int) -> TimeInterval? {
+      let timestamp = AppGroup.defaults.double(forKey: "progressTimestamp_\(userBookId)")
+      return timestamp > 0 ? timestamp : nil
+  }
+  
+  /// Saves the last known progress for a book
+  private static func saveLastKnownProgress(forUserBookId userBookId: Int, progress: Int) {
+      AppGroup.defaults.set(progress, forKey: "lastProgress_\(userBookId)")
+  }
+  
+  /// Gets the last known progress for a book
+  private static func getLastKnownProgress(forUserBookId userBookId: Int) -> Int? {
+      let progress = AppGroup.defaults.integer(forKey: "lastProgress_\(userBookId)")
+      return progress > 0 ? progress : nil
+  }
+  
+  /// Checks if progress has changed and updates timestamp if needed
+  private static func updateTimestampIfProgressChanged(forUserBookId userBookId: Int, currentProgress: Int) {
+      guard currentProgress > 0 else { return }
+      
+      let lastProgress = getLastKnownProgress(forUserBookId: userBookId)
+      
+      if let lastProgress = lastProgress, lastProgress != currentProgress {
+          // Progress has changed since last fetch - update timestamp
+          saveLocalProgressTimestamp(forUserBookId: userBookId)
+          print("📈 Progress changed for userBookId \(userBookId): \(lastProgress) → \(currentProgress), updating timestamp")
+      }
+      
+      // Save current progress for next comparison
+      saveLastKnownProgress(forUserBookId: userBookId, progress: currentProgress)
+  }
+  
   private static func fetchAndResizeImage(from urlString: String) async -> Data? {
       guard let url = URL(string: urlString) else { return nil }
       if let cached = ImageCache.shared.imageData(forKey: urlString) { return cached }
@@ -745,7 +786,7 @@ class HardcoverService {
       request.setValue(HardcoverConfig.headerValue(for: apiKey), forHTTPHeaderField: "Authorization")
       
       let booksQuery = """
-      { "query": "{ user_books(where: {user_id: {_eq: \(userId)}, status_id: {_eq: 2}}, order_by: {updated_at: desc}, limit: 10) { id book_id status_id edition_id privacy_setting_id rating updated_at user_book_reads(order_by: {id: asc}) { id started_at finished_at progress_pages progress_seconds edition_id } book { id title contributions { author { name } } image { url } } edition { id title isbn_10 isbn_13 pages audio_seconds publisher { name } image { url } } } }" }
+      { "query": "{ user_books(where: {user_id: {_eq: \(userId)}, status_id: {_eq: 2}}, limit: 20) { id book_id status_id edition_id privacy_setting_id rating updated_at user_book_reads(order_by: {id: desc}) { id started_at finished_at progress_pages progress_seconds edition_id } book { id title contributions { author { name } } image { url } } edition { id title isbn_10 isbn_13 pages audio_seconds publisher { name } image { url } } } }" }
       """
       request.httpBody = booksQuery.data(using: .utf8)
       
@@ -758,11 +799,60 @@ class HardcoverService {
               }
               return []
           }
-          guard let userBooks = gqlResponse.data?.user_books else {
+          guard var userBooks = gqlResponse.data?.user_books else {
               print("❌ GraphQL API: No user books data returned")
               return []
           }
-          print("✅ Successfully fetched \(userBooks.count) books from GraphQL")
+          
+          // Sort based on user preference
+          let sortOrder = AppGroup.defaults.string(forKey: "CurrentlyReadingSortOrder") ?? "recentlyUpdated"
+          
+          if sortOrder == "recentlyAdded" {
+              // Sort by user_books.id (when book was added to reading list)
+              userBooks.sort { book1, book2 in
+                  let id1 = book1.id ?? 0
+                  let id2 = book2.id ?? 0
+                  return id1 > id2
+              }
+          } else {
+              // Sort by local progress timestamp if available, otherwise use user_books.updated_at
+              userBooks.sort { book1, book2 in
+                  // Get local timestamps
+                  let localTime1 = book1.id.flatMap { getLocalProgressTimestamp(forUserBookId: $0) } ?? 0
+                  let localTime2 = book2.id.flatMap { getLocalProgressTimestamp(forUserBookId: $0) } ?? 0
+                  
+                  // If both have local timestamps, compare those
+                  if localTime1 > 0 && localTime2 > 0 {
+                      return localTime1 > localTime2
+                  }
+                  
+                  // If only one has local timestamp, it should come first
+                  if localTime1 > 0 { return true }
+                  if localTime2 > 0 { return false }
+                  
+                  // Otherwise fall back to API's updated_at
+                  let apiUpdated1 = book1.updatedAt ?? ""
+                  let apiUpdated2 = book2.updatedAt ?? ""
+                  return apiUpdated1 > apiUpdated2
+              }
+          }
+          
+          // Take only top 10 after sorting
+          userBooks = Array(userBooks.prefix(10))
+          
+          print("✅ Successfully fetched and sorted \(userBooks.count) books from GraphQL (sort: \(sortOrder))")
+          print("📋 Sorted order:")
+          for (index, book) in userBooks.enumerated() {
+              if sortOrder == "recentlyAdded" {
+                  let bookId = book.id ?? 0
+                  print("  \(index + 1). '\(book.book?.title ?? "?")' (id: \(bookId))")
+              } else {
+                  let localTime = book.id.flatMap { getLocalProgressTimestamp(forUserBookId: $0) }
+                  let apiUpdated = book.updatedAt ?? "N/A"
+                  let source = localTime != nil ? "local: \(Date(timeIntervalSince1970: localTime!))" : "api: \(apiUpdated)"
+                  print("  \(index + 1). '\(book.book?.title ?? "?")' (\(source))")
+              }
+          }
           
           var books: [BookProgress] = []
           for userBook in userBooks {
@@ -785,7 +875,7 @@ class HardcoverService {
               var currentMinute = 0
               var progress = 0.0
               if let userBookReads = userBook.userBookReads, !userBookReads.isEmpty,
-                 let latestRead = userBookReads.last {
+                 let latestRead = userBookReads.first {  // Changed from .last to .first since we now sort DESC
                   if isAudiobook {
                       // For audiobooks, use progress_seconds
                       if let progressSeconds = latestRead.progressSeconds {
@@ -802,6 +892,12 @@ class HardcoverService {
                               progress = Double(progressPages) / Double(totalPages)
                           }
                       }
+                  }
+                  
+                  // Check if progress changed since last fetch and update timestamp if needed
+                  if let userId = userBook.id {
+                      let currentProgressValue = isAudiobook ? latestRead.progressSeconds ?? 0 : latestRead.progressPages ?? 0
+                      updateTimestampIfProgressChanged(forUserBookId: userId, currentProgress: currentProgressValue)
                   }
               }
               
@@ -1011,6 +1107,8 @@ class HardcoverService {
           let success = await updateExistingBookRead(readId: latestReadId, page: page, editionId: editionId, isAudiobook: isAudiobook)
           if success {
               print("✅ Successfully updated existing read")
+              // Save local timestamp for sorting
+              saveLocalProgressTimestamp(forUserBookId: userBookId)
               return true
           }
           print("⚠️ Failed to update existing read, will try creating new one")
@@ -1020,7 +1118,12 @@ class HardcoverService {
       
       // If update failed or no existing read, create new one
       print("📝 Creating new book read")
-      return await createNewBookRead(userBookId: userBookId, page: page, editionId: editionId, isAudiobook: isAudiobook)
+      let success = await createNewBookRead(userBookId: userBookId, page: page, editionId: editionId, isAudiobook: isAudiobook)
+      if success {
+          // Save local timestamp for sorting
+          saveLocalProgressTimestamp(forUserBookId: userBookId)
+      }
+      return success
   }
   
   private static func fetchAnyReadId(userBookId: Int) async -> Int? {
@@ -1719,7 +1822,7 @@ class HardcoverService {
         guard !HardcoverConfig.apiKey.isEmpty else { return [] }
         
         // Get current user's username first
-        guard let username = await getCurrentUsername() else {
+        guard let username = await getCurrentUsername(apiKey: HardcoverConfig.apiKey) else {
             print("❌ Could not get current username for goals")
             return []
         }
@@ -1729,12 +1832,12 @@ class HardcoverService {
         return await fetchUserReadingGoals(username: username)
     }
     
-    private static func getCurrentUsername() async -> String? {
+    private static func getCurrentUsername(apiKey: String) async -> String? {
         guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return nil }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
+        request.setValue(HardcoverConfig.headerValue(for: apiKey), forHTTPHeaderField: "Authorization")
         
         let query = """
         query {
