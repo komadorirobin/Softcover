@@ -86,7 +86,7 @@ struct QuoteWidgetView: View {
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.bottom, family == .systemSmall ? 8 : 12)
+            .padding(.bottom, family == .systemSmall ? 8 : 10)
             
             // Quote text - with flexible spacing
             Text(entry.quote)
@@ -110,10 +110,10 @@ struct QuoteWidgetView: View {
                         .foregroundColor(.white.opacity(0.7))
                         .lineLimit(1)
                 }
-                .padding(.top, family == .systemSmall ? 8 : 14)
+                .padding(.top, family == .systemSmall ? 8 : 12)
             }
         }
-        .padding(family == .systemSmall ? 12 : 14)
+        .padding(family == .systemSmall ? 12 : 16)
         .containerBackground(for: .widget) {
             LinearGradient(
                 colors: [Color(red: 0.1, green: 0.1, blue: 0.15), Color(red: 0.15, green: 0.1, blue: 0.2)],
