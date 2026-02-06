@@ -174,6 +174,18 @@ struct ApiKeySettingsView: View {
                                 .foregroundColor(.secondary)
                         }
                     }
+                    
+                    Link(destination: URL(string: "https://buymeacoffee.com/komadorirobin")!) {
+                        HStack {
+                            Image(systemName: "cup.and.saucer.fill")
+                                .foregroundColor(.orange)
+                            Text("Buy Me a Coffee")
+                            Spacer()
+                            Image(systemName: "arrow.up.right.square")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
                 }
                 
                 Section(header: Text("Data Source", comment: "Data source label")) {
