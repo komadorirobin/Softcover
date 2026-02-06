@@ -92,8 +92,8 @@ struct QuoteWidgetView: View {
                 Text(entry.quote)
                     .font(.caption)
                     .foregroundColor(.white)
-                    .lineLimit(4)
-                    .minimumScaleFactor(0.8)
+                    .lineLimit(8)
+                    .minimumScaleFactor(0.5)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 
                 if !entry.bookTitle.isEmpty {
@@ -137,8 +137,10 @@ struct QuoteWidgetView: View {
                 Text(entry.quote)
                     .font(.callout)
                     .foregroundColor(.white)
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(6)
+                    .minimumScaleFactor(0.5)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment:
+ .topLeading)
                 
                 Spacer(minLength: 12)
                 
