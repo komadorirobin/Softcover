@@ -871,6 +871,9 @@
         }
       }
     },
+    "Buy Me a Coffee" : {
+
+    },
     "Cancel" : {
       "comment" : "Cancel button\nCancel remove",
       "localizations" : {

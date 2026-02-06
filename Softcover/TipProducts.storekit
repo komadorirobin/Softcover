@@ -1,0 +1,56 @@
+{
+  "identifier" : "3B8A1C2D-F4E5-4A6B-9C7D-E8F9A0B1C2D3",
+  "type" : "local",
+  "version" : 3,
+  "products" : [
+    {
+      "displayPrice" : "9",
+      "familyShareable" : false,
+      "internalID" : "tip_small_001",
+      "localizations" : [
+        {
+          "description" : "A small tip to support Softcover development.",
+          "displayName" : "Small Tip",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "komadori.softcover.tip.small",
+      "referenceName" : "Small Tip",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "29",
+      "familyShareable" : false,
+      "internalID" : "tip_medium_001",
+      "localizations" : [
+        {
+          "description" : "A generous tip to support Softcover development.",
+          "displayName" : "Medium Tip",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "komadori.softcover.tip.medium",
+      "referenceName" : "Medium Tip",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "69",
+      "familyShareable" : false,
+      "internalID" : "tip_large_001",
+      "localizations" : [
+        {
+          "description" : "An amazing tip to support Softcover development. You're the best!",
+          "displayName" : "Large Tip",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "komadori.softcover.tip.large",
+      "referenceName" : "Large Tip",
+      "type" : "Consumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "softcover_app",
+    "_developerTeamID" : "XXXXXXXXXX"
+  }
+}

@@ -175,13 +175,15 @@ struct ApiKeySettingsView: View {
                         }
                     }
                     
-                    Link(destination: URL(string: "https://buymeacoffee.com/komadorirobin")!) {
+                    NavigationLink {
+                        TipJarView()
+                    } label: {
                         HStack {
-                            Image(systemName: "cup.and.saucer.fill")
-                                .foregroundColor(.orange)
-                            Text("Buy Me a Coffee")
+                            Image(systemName: "heart.circle.fill")
+                                .foregroundColor(.pink)
+                            Text("Tip Jar")
                             Spacer()
-                            Image(systemName: "arrow.up.right.square")
+                            Image(systemName: "chevron.right")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }

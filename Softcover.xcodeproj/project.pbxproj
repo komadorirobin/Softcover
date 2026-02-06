@@ -99,6 +99,7 @@
 				AppGroup.swift,
 				BarcodeScannerView.swift,
 				FinishedBookEntry.swift,
+				TipJarView.swift,
 			);
 			target = CB73FB772E583D6B00B36269 /* ReadingProgressWidgetExtension */;
 		};
@@ -595,7 +596,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Softcover;
-						INFOPLIST_KEY_NSCameraUsageDescription = "Softcover uses the camera to scan book barcodes (ISBN).";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Softcover uses the camera to scan book barcodes (ISBN).";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -628,7 +629,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Softcover;
-						INFOPLIST_KEY_NSCameraUsageDescription = "Softcover uses the camera to scan book barcodes (ISBN).";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Softcover uses the camera to scan book barcodes (ISBN).";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -733,7 +734,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ReadingProgressWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Softcover;
-						INFOPLIST_KEY_NSCameraUsageDescription = "Softcover uses the camera to scan book barcodes (ISBN).";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Softcover uses the camera to scan book barcodes (ISBN).";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -765,7 +766,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ReadingProgressWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Softcover;
-						INFOPLIST_KEY_NSCameraUsageDescription = "Softcover uses the camera to scan book barcodes (ISBN).";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Softcover uses the camera to scan book barcodes (ISBN).";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
