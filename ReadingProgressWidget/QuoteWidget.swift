@@ -132,7 +132,7 @@ struct QuoteWidgetView: View {
                     }
                     .buttonStyle(.plain)
                 }
-                .padding(.bottom, 8)
+                .padding(.bottom, 2)
                 
                 Text(entry.quote)
                     .font(.callout)
@@ -142,7 +142,7 @@ struct QuoteWidgetView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment:
  .topLeading)
                 
-                Spacer(minLength: 12)
+                Spacer(minLength: 6)
                 
                 if !entry.bookTitle.isEmpty {
                     HStack(alignment: .top, spacing: 8) {
@@ -165,7 +165,8 @@ struct QuoteWidgetView: View {
                     }
                 }
             }
-            .padding(16)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
             .containerBackground(for: .widget) {
                 LinearGradient(
                     colors: [Color(red: 0.1, green: 0.1, blue: 0.15), Color(red: 0.15, green: 0.1, blue: 0.2)],
