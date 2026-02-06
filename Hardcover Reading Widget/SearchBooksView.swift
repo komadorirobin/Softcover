@@ -118,6 +118,7 @@ struct SearchBooksView: View {
     @State private var showingQuickAddEditionSheet = false
     @State private var isLoadingQuickAddEditions = false
     @State private var showingApiSettings = false
+    @State private var showingBarcodeScanner = false
 
     @AppStorage("SkipEditionPickerOnAdd", store: AppGroup.defaults) private var skipEditionPickerOnAdd: Bool = false
 
@@ -130,13 +131,25 @@ struct SearchBooksView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 12) {
-                // Search type picker
-                Picker("Search Type", selection: $searchType) {
-                    ForEach(SearchType.allCases, id: \.self) { type in
-                        Text(type.rawValue).tag(type)
+                // Search type picker + barcode scan button
+                HStack(spacing: 10) {
+                    Picker("Search Type", selection: $searchType) {
+                        ForEach(SearchType.allCases, id: \.self) { type in
+                            Text(type.rawValue).tag(type)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    if searchType == .books {
+                        Button {
+                            showingBarcodeScanner = true
+                        } label: {
+                            Image(systemName: "barcode.viewfinder")
+                                .font(.title2)
+                                .foregroundColor(.accentColor)
+                        }
                     }
                 }
-                .pickerStyle(.segmented)
                 .padding(.horizontal)
                 .padding(.top)
                 .onChange(of: searchType) { oldValue, newValue in
@@ -327,6 +340,15 @@ struct SearchBooksView: View {
         .sheet(isPresented: $showingApiSettings) {
             ApiKeySettingsView { _ in
                 // No specific action needed
+            }
+        }
+        .sheet(isPresented: $showingBarcodeScanner) {
+            BarcodeScannerView { scannedCode in
+                showingBarcodeScanner = false
+                // Put the scanned ISBN into the search field and trigger search
+                searchType = .books
+                query = scannedCode
+                Task { await runSearch() }
             }
         }
     }
