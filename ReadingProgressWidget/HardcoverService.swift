@@ -1101,12 +1101,16 @@ class HardcoverService {
       }
       
       // First, try to find the latest user_book_read for this user_book
-      if let latestReadId = await fetchLatestReadId(userBookId: userBookId) {
-          // Update the existing read
-          print("📝 Updating existing read ID: \(latestReadId)")
-          let success = await updateExistingBookRead(readId: latestReadId, page: page, editionId: editionId, isAudiobook: isAudiobook)
+      if let latestRead = await fetchLatestReadId(userBookId: userBookId) {
+          // Update the existing read, passing started_at so Hardcover generates
+          // the correct "Is X% done with" activity feed entry (fixes #8).
+          let startedAtDisplay = latestRead.startedAt ?? "nil"
+          print("📝 Updating existing read ID: \(latestRead.id), startedAt: \(startedAtDisplay)")
+          let success = await updateExistingBookRead(readId: latestRead.id, page: page, editionId: editionId, isAudiobook: isAudiobook, startedAt: latestRead.startedAt)
           if success {
               print("✅ Successfully updated existing read")
+              // Touch user_book to trigger activity feed entry
+              await touchUserBook(userBookId: userBookId)
               // Save local timestamp for sorting
               saveLocalProgressTimestamp(forUserBookId: userBookId)
               return true
@@ -1120,6 +1124,8 @@ class HardcoverService {
       print("📝 Creating new book read")
       let success = await createNewBookRead(userBookId: userBookId, page: page, editionId: editionId, isAudiobook: isAudiobook)
       if success {
+          // Touch user_book to trigger activity feed entry
+          await touchUserBook(userBookId: userBookId)
           // Save local timestamp for sorting
           saveLocalProgressTimestamp(forUserBookId: userBookId)
       }
@@ -1166,7 +1172,7 @@ class HardcoverService {
       }
   }
   
-  private static func fetchLatestReadId(userBookId: Int) async -> Int? {
+  private static func fetchLatestReadId(userBookId: Int) async -> (id: Int, startedAt: String?)? {
       guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return nil }
       var request = URLRequest(url: url)
       request.httpMethod = "POST"
@@ -1204,15 +1210,17 @@ class HardcoverService {
               print("⚠️ No ongoing read found (finished_at is null)")
               return nil
           }
-          print("✅ Found ongoing read ID: \(readId)")
-          return readId
+          let startedAt = latest["started_at"] as? String
+          let startedAtDisplay = startedAt ?? "nil"
+          print("✅ Found ongoing read ID: \(readId), startedAt: \(startedAtDisplay)")
+          return (id: readId, startedAt: startedAt)
       } catch {
           print("❌ fetchLatestReadId error: \(error)")
           return nil
       }
   }
   
-  private static func updateExistingBookRead(readId: Int, page: Int, editionId: Int?, isAudiobook: Bool = false) async -> Bool {
+  private static func updateExistingBookRead(readId: Int, page: Int, editionId: Int?, isAudiobook: Bool = false, startedAt: String? = nil) async -> Bool {
       guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return false }
       var request = URLRequest(url: url)
       request.httpMethod = "POST"
@@ -1227,6 +1235,9 @@ class HardcoverService {
       }
       if let eid = editionId {
           datesReadDict["edition_id"] = eid
+      }
+      if let sa = startedAt {
+          datesReadDict["started_at"] = sa
       }
       
       let mutation = """
@@ -1272,6 +1283,46 @@ class HardcoverService {
       }
   }
   
+  /// Touches the user_book record by setting user_date to today.
+  /// This triggers an activity feed entry. Combined with started_at
+  /// in the read update, it produces "Is X% done with" (fixes #8).
+  private static func touchUserBook(userBookId: Int) async {
+      guard !HardcoverConfig.apiKey.isEmpty else { return }
+      guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return }
+      var request = URLRequest(url: url)
+      request.httpMethod = "POST"
+      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+      request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
+  
+      let df = DateFormatter()
+      df.calendar = Calendar(identifier: .gregorian)
+      df.locale = Locale(identifier: "en_US_POSIX")
+      df.timeZone = TimeZone(secondsFromGMT: 0)
+      df.dateFormat = "yyyy-MM-dd"
+      let today = df.string(from: Date())
+
+      let body: [String: Any] = [
+          "query": """
+          mutation ($id: Int!, $object: UserBookUpdateInput!) {
+            update_user_book(id: $id, object: $object) {
+              error
+              user_book { id status_id }
+            }
+          }
+          """,
+          "variables": ["id": userBookId, "object": ["user_date": today]]
+      ]
+      do {
+          request.httpBody = try JSONSerialization.data(withJSONObject: body)
+          let (data, _) = try await URLSession.shared.data(for: request)
+          if let raw = String(data: data, encoding: .utf8) {
+              print("touchUserBook response: \(raw)")
+          }
+      } catch {
+          print("touchUserBook error: \(error)")
+      }
+  }
+
   private static func createNewBookRead(userBookId: Int, page: Int, editionId: Int?, isAudiobook: Bool = false) async -> Bool {
       guard !HardcoverConfig.apiKey.isEmpty else { return false }
       guard page >= 0 else { return false }
@@ -2337,9 +2388,9 @@ extension HardcoverService {
         if !statusOK { return false }
         
         // Try to update existing read first
-        if let readId = await fetchLatestReadId(userBookId: userBookId) {
-            print("📖 Found existing read ID: \(readId), updating finished_at")
-            let updated = await updateReadFinishedAt(readId: readId, finishedAt: today)
+        if let latestRead = await fetchLatestReadId(userBookId: userBookId) {
+            print("📖 Found existing read ID: \(latestRead.id), updating finished_at")
+            let updated = await updateReadFinishedAt(readId: latestRead.id, finishedAt: today)
             if updated {
                 print("✅ Successfully updated existing read")
                 return true
