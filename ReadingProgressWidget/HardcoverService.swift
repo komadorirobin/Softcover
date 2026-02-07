@@ -4156,6 +4156,7 @@ extension HardcoverService {
         }
         
         struct QuoteBook: Codable {
+            let id: Int?
             let title: String
             let contributions: [Contribution]
             
@@ -4169,14 +4170,18 @@ extension HardcoverService {
         }
         
         struct JournalEntry: Codable {
+            let id: Int?
             let entry: String
             let event: String
             let objectType: String?
+            let bookId: Int?
             
             enum CodingKeys: String, CodingKey {
+                case id
                 case entry
                 case event
                 case objectType = "object_type"
+                case bookId = "book_id"
             }
         }
     }
@@ -4211,9 +4216,11 @@ extension HardcoverService {
               }
             }
             reading_journals(where: {event: {_eq: "quote"}}) {
+              id
               entry
               event
               object_type
+              book_id
             }
           }
         }
@@ -4276,12 +4283,13 @@ extension HardcoverService {
             // This maintains compatibility with existing widget code
             var allQuotes: [ReadingJournalQuote] = []
             for (index, userBook) in userBooks.enumerated() {
+                let bookIdFromBook = userBook.book.id ?? 0
                 for (journalIndex, journal) in userBook.readingJournals.enumerated() {
                     // Create a ReadingJournalQuote from the journal entry
                     let quote = ReadingJournalQuote(
-                        id: index * 1000 + journalIndex, // Generate unique IDs
+                        id: journal.id ?? (index * 1000 + journalIndex), // Use real ID when available
                         entry: journal.entry,
-                        bookId: 0, // Not needed for widget display
+                        bookId: journal.bookId ?? bookIdFromBook, // Use real book ID
                         createdAt: "", // Not needed for widget display
                         book: ReadingJournalQuote.QuoteBook(
                             title: userBook.book.title,

@@ -51,6 +51,13 @@ struct BookDetailView: View {
     @State private var finishedDate: Date?
     @State private var isLoadingFinishedStatus = false
     
+    // Quotes state
+    @State private var quotes: [Quote] = []
+    @State private var isLoadingQuotes = false
+    @State private var showQuotesView = false
+    /// When set via deep link, the quotes view will open and scroll to this quote
+    @State var highlightQuoteId: Int? = nil
+    
     init(book: BookProgress, showFinishAction: Bool = true, allowStandaloneReviewButton: Bool = true, isOwnBook: Bool = true) {
         self.book = book
         self.showFinishAction = showFinishAction
@@ -133,6 +140,11 @@ struct BookDetailView: View {
                     yourRatingSection
                     
                     descriptionSection
+                    
+                    // Quotes section
+                    if isOwnBook {
+                        quotesSection
+                    }
                     
                     reviewsSection
                     
@@ -221,8 +233,36 @@ struct BookDetailView: View {
                     ReadingDatesView(userBookId: userBookId, editionId: book.editionId)
                 }
             }
+            .sheet(isPresented: $showQuotesView) {
+                if let id = book.bookId {
+                    BookQuotesView(
+                        bookId: id,
+                        bookTitle: book.title,
+                        editionId: book.editionId,
+                        totalPages: book.totalPages > 0 ? book.totalPages : nil,
+                        highlightQuoteId: highlightQuoteId
+                    )
+                }
+            }
             // Ladda genres & moods när vyn visas
             .task { await reloadTaxonomies() }
+            // Ladda quotes för boken
+            .task {
+                if isOwnBook, let id = book.bookId {
+                    await MainActor.run { isLoadingQuotes = true }
+                    let fetched = await HardcoverService.fetchQuotesForBook(bookId: id)
+                    await MainActor.run {
+                        quotes = fetched
+                        isLoadingQuotes = false
+                    }
+                }
+            }
+            // Öppna quotes-vyn automatiskt om vi har ett highlightQuoteId (deep link)
+            .onAppear {
+                if highlightQuoteId != nil {
+                    showQuotesView = true
+                }
+            }
             // Ladda beskrivning om den saknas i modellen
             .task {
                 if descriptionText == nil,
@@ -630,6 +670,96 @@ struct BookDetailView: View {
                     .foregroundColor(.secondary)
             }
             .padding(.top, 4)
+        }
+    }
+    
+    // MARK: - Quotes Section
+    
+    @ViewBuilder
+    private var quotesSection: some View {
+        if let bookId = book.bookId {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Quotes")
+                        .font(.headline)
+                    Spacer()
+                    if isLoadingQuotes {
+                        ProgressView()
+                            .controlSize(.small)
+                    }
+                    Button {
+                        showQuotesView = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text("View All")
+                                .font(.subheadline)
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                        }
+                    }
+                }
+                
+                if quotes.isEmpty && !isLoadingQuotes {
+                    Button {
+                        showQuotesView = true
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "quote.opening")
+                                .foregroundColor(.secondary)
+                            Text("Add your first quote…")
+                                .foregroundColor(.secondary)
+                                .font(.subheadline)
+                            Spacer()
+                            Image(systemName: "plus.circle")
+                                .foregroundColor(.accentColor)
+                        }
+                        .padding(12)
+                        .background(Color(UIColor.secondarySystemBackground))
+                        .cornerRadius(10)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    VStack(spacing: 0) {
+                        ForEach(quotes.prefix(3)) { quote in
+                            Button {
+                                highlightQuoteId = quote.id
+                                showQuotesView = true
+                            } label: {
+                                HStack(alignment: .top, spacing: 8) {
+                                    Image(systemName: "quote.opening")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                        .padding(.top, 3)
+                                    
+                                    Text(quote.entry)
+                                        .font(.subheadline)
+                                        .foregroundColor(.primary)
+                                        .lineLimit(3)
+                                        .multilineTextAlignment(.leading)
+                                    
+                                    Spacer(minLength: 0)
+                                }
+                                .padding(.vertical, 8)
+                            }
+                            .buttonStyle(.plain)
+                            
+                            if quote.id != quotes.prefix(3).last?.id {
+                                Divider()
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
+                    .background(Color(UIColor.secondarySystemBackground))
+                    .cornerRadius(10)
+                    
+                    if quotes.count > 3 {
+                        Text("\(quotes.count - 3) more quote\(quotes.count - 3 == 1 ? "" : "s")…")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
         }
     }
     

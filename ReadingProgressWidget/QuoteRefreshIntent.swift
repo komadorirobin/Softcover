@@ -4,10 +4,11 @@ import WidgetKit
 struct QuoteRefreshIntent: AppIntent {
     static var title: LocalizedStringResource = "Refresh Quote"
     static var description = IntentDescription("Get a new random quote")
-    
+
     func perform() async throws -> some IntentResult {
-        // Reload all quote widgets
-        WidgetCenter.shared.reloadTimelines(ofKind: "QuoteWidget")
+        // WidgetKit automatically reloads the timeline after a Button(intent:)
+        // completes, so no manual reloadTimelines call is needed here.
+        // Calling it explicitly would cause a double-update.
         return .result()
     }
 }

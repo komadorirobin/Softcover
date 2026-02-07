@@ -26,6 +26,10 @@ struct ContentView: View {
     @State private var selectedTab = 0
     // NEW: Onboarding
     @State private var hasCheckedOnboarding = false
+    // NEW: Quote deep link
+    @State private var deepLinkQuoteId: Int? = nil
+    @State private var deepLinkBookId: Int? = nil
+    @State private var showQuoteDeepLinkSheet = false
     
     var body: some View {
         ZStack {
@@ -114,7 +118,19 @@ struct ContentView: View {
             .sheet(item: $selectedBookForDetails) { book in
                 BookDetailView(book: book)
             }
-            // Handle deep links from widgets (softcover://upcoming and softcover://goals)
+            // NEW: Quote deep link sheet
+            .sheet(isPresented: $showQuoteDeepLinkSheet) {
+                if let bookId = deepLinkBookId {
+                    BookQuotesView(
+                        bookId: bookId,
+                        bookTitle: "",
+                        editionId: nil,
+                        totalPages: nil,
+                        highlightQuoteId: deepLinkQuoteId
+                    )
+                }
+            }
+            // Handle deep links from widgets (softcover://upcoming, softcover://goals, softcover://quote)
             .onOpenURL { url in
                 guard url.scheme?.lowercased() == "softcover" else { return }
                 let host = url.host?.lowercased()
@@ -126,6 +142,30 @@ struct ContentView: View {
                 }
                 if host == "upcoming" || path.contains("/upcoming") {
                     selectedTab = 1 // Want to Read tab (now includes upcoming releases filter)
+                    return
+                }
+                if host == "quote" || path.contains("/quote") {
+                    // Parse quoteId and bookId from query parameters
+                    let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+                    let quoteIdStr = components?.queryItems?.first(where: { $0.name == "quoteId" })?.value
+                    let bookIdStr = components?.queryItems?.first(where: { $0.name == "bookId" })?.value
+
+                    if let quoteId = quoteIdStr.flatMap({ Int($0) }),
+                       let bookId = bookIdStr.flatMap({ Int($0) }) {
+                        // Dismiss any currently open sheets first
+                        selectedBookForEdition = nil
+                        showingApiSettings = false
+                        selectedBookForDetails = nil
+                        showQuoteDeepLinkSheet = false
+
+                        deepLinkQuoteId = quoteId
+                        deepLinkBookId = bookId
+
+                        // Small delay so SwiftUI finishes dismissing the old sheet
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                            showQuoteDeepLinkSheet = true
+                        }
+                    }
                     return
                 }
             }
