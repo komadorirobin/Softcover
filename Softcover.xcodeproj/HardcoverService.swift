@@ -108,7 +108,8 @@ struct UserBookBook: Codable {
     let editions: [Edition]? // include editions for release dates
     
     enum CodingKeys: String, CodingKey {
-        case id, title, contributions, image, editions
+        case id, title, image, editions
+        case contributions = "cached_contributors"
     }
 }
 
@@ -347,6 +348,11 @@ struct HydratedBook: Codable, Identifiable {
     let title: String
     let contributions: [BookContribution]?
     let image: BookImage?
+    
+    enum CodingKeys: String, CodingKey {
+        case id, title, image
+        case contributions = "cached_contributors"
+    }
 }
 
 // MARK: - Image Cache
@@ -455,7 +461,7 @@ class HardcoverService {
           book {
             id
             title
-            contributions { author { name } }
+            cached_contributors
             image { url }
           }
           edition {
@@ -630,7 +636,7 @@ class HardcoverService {
       request.setValue(HardcoverConfig.headerValue(for: apiKey), forHTTPHeaderField: "Authorization")
       
       let booksQuery = """
-      { "query": "{ user_books(where: {user_id: {_eq: \(userId)}, status_id: {_eq: 2}}, order_by: {id: desc}, limit: 10) { id book_id status_id edition_id privacy_setting_id rating user_book_reads(order_by: {id: asc}) { id started_at finished_at progress_pages edition_id } book { id title contributions { author { name } } image { url } } edition { id title isbn_10 isbn_13 pages publisher { name } image { url } } } }" }
+      { "query": "{ user_books(where: {user_id: {_eq: \(userId)}, status_id: {_eq: 2}}, order_by: {id: desc}, limit: 10) { id book_id status_id edition_id privacy_setting_id rating user_book_reads(order_by: {id: asc}) { id started_at finished_at progress_pages edition_id } book { id title cached_contributors image { url } } edition { id title isbn_10 isbn_13 pages publisher { name } image { url } } } }" }
       """
       request.httpBody = booksQuery.data(using: .utf8)
       
@@ -986,7 +992,7 @@ class HardcoverService {
         books(where: { id: { _in: $ids }}) {
           id
           title
-          contributions { author { name } }
+          cached_contributors
           image { url }
         }
       }
@@ -1428,7 +1434,7 @@ class HardcoverService {
               book {
                 id
                 title
-                contributions { author { name } }
+                cached_contributors
                 image { url }
               }
               edition {
@@ -1486,7 +1492,7 @@ class HardcoverService {
                 let displayTitle = (editionTitle?.isEmpty == false) ? editionTitle! : bookTitle
                 
                 var author = "Unknown Author"
-                if let contributions = bookDict?["contributions"] as? [[String: Any]],
+                if let contributions = bookDict?["cached_contributors"] as? [[String: Any]],
                    let first = contributions.first,
                    let a = (first["author"] as? [String: Any])?["name"] as? String,
                    !a.isEmpty {
@@ -1781,7 +1787,7 @@ extension HardcoverService {
             book {
               id
               title
-              contributions { author { name } }
+              cached_contributors
               image { url }
               editions(where: { release_date: { _is_null: false } }) {
                 id
@@ -1912,7 +1918,7 @@ extension HardcoverService {
             book {
               id
               title
-              contributions { author { name } }
+              cached_contributors
               image { url }
               editions(where: { release_date: { _is_null: false } }) {
                 id
@@ -2025,7 +2031,7 @@ extension HardcoverService {
           books(order_by: { users_count: desc_nulls_last }, limit: $limit) {
             id
             title
-            contributions { author { name } }
+            cached_contributors
             image { url }
           }
         }
@@ -2049,7 +2055,7 @@ extension HardcoverService {
                 guard let id = row["id"] as? Int else { continue }
                 let title = (row["title"] as? String) ?? "Unknown Title"
                 var author = "Unknown Author"
-                if let contribs = row["contributions"] as? [[String: Any]],
+                if let contribs = row["cached_contributors"] as? [[String: Any]],
                    let first = contribs.first,
                    let a = (first["author"] as? [String: Any])?["name"] as? String,
                    !a.isEmpty {
@@ -2082,7 +2088,7 @@ extension HardcoverService {
             id
             title
             description
-            contributions { author { name } }
+            cached_contributors
             image { url }
           }
         }
@@ -2107,7 +2113,7 @@ extension HardcoverService {
             
             let title = (first["title"] as? String) ?? "Unknown Title"
             let author: String = {
-                if let contribs = first["contributions"] as? [[String: Any]],
+                if let contribs = first["cached_contributors"] as? [[String: Any]],
                    let firstC = contribs.first,
                    let a = (firstC["author"] as? [String: Any])?["name"] as? String,
                    !a.isEmpty {

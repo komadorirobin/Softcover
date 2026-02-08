@@ -34,7 +34,7 @@ struct BookQuotesView: View {
                     quotesListView
                 }
             }
-            .navigationTitle("Quotes")
+            .navigationTitle(bookTitle.isEmpty ? "Quotes" : "Quotes — \(bookTitle)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

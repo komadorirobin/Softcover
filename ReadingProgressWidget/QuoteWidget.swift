@@ -83,7 +83,8 @@ struct QuoteEntry: TimelineEntry {
     /// Deep link URL for opening this specific quote in the app
     var deepLinkURL: URL? {
         guard let quoteId = quoteId, let bookId = bookId else { return nil }
-        return URL(string: "softcover://quote?quoteId=\(quoteId)&bookId=\(bookId)")
+        let encodedTitle = bookTitle.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        return URL(string: "softcover://quote?quoteId=\(quoteId)&bookId=\(bookId)&bookTitle=\(encodedTitle)")
     }
 }
 

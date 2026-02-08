@@ -27,9 +27,13 @@ struct ContentView: View {
     // NEW: Onboarding
     @State private var hasCheckedOnboarding = false
     // NEW: Quote deep link
-    @State private var deepLinkQuoteId: Int? = nil
-    @State private var deepLinkBookId: Int? = nil
-    @State private var showQuoteDeepLinkSheet = false
+    struct QuoteDeepLink: Identifiable {
+        let id = UUID()
+        let quoteId: Int
+        let bookId: Int
+        let bookTitle: String
+    }
+    @State private var quoteDeepLink: QuoteDeepLink? = nil
     
     var body: some View {
         ZStack {
@@ -119,16 +123,14 @@ struct ContentView: View {
                 BookDetailView(book: book)
             }
             // NEW: Quote deep link sheet
-            .sheet(isPresented: $showQuoteDeepLinkSheet) {
-                if let bookId = deepLinkBookId {
-                    BookQuotesView(
-                        bookId: bookId,
-                        bookTitle: "",
-                        editionId: nil,
-                        totalPages: nil,
-                        highlightQuoteId: deepLinkQuoteId
-                    )
-                }
+            .sheet(item: $quoteDeepLink) { link in
+                BookQuotesView(
+                    bookId: link.bookId,
+                    bookTitle: link.bookTitle,
+                    editionId: nil,
+                    totalPages: nil,
+                    highlightQuoteId: link.quoteId
+                )
             }
             // Handle deep links from widgets (softcover://upcoming, softcover://goals, softcover://quote)
             .onOpenURL { url in
@@ -149,6 +151,7 @@ struct ContentView: View {
                     let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
                     let quoteIdStr = components?.queryItems?.first(where: { $0.name == "quoteId" })?.value
                     let bookIdStr = components?.queryItems?.first(where: { $0.name == "bookId" })?.value
+                    let bookTitleStr = components?.queryItems?.first(where: { $0.name == "bookTitle" })?.value?.removingPercentEncoding ?? ""
 
                     if let quoteId = quoteIdStr.flatMap({ Int($0) }),
                        let bookId = bookIdStr.flatMap({ Int($0) }) {
@@ -156,16 +159,13 @@ struct ContentView: View {
                         selectedBookForEdition = nil
                         showingApiSettings = false
                         selectedBookForDetails = nil
-                        showQuoteDeepLinkSheet = false
-
-                        deepLinkQuoteId = quoteId
-                        deepLinkBookId = bookId
+                        quoteDeepLink = nil
 
                         // Small delay so SwiftUI finishes dismissing the old sheet
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                            showQuoteDeepLinkSheet = true
+                            quoteDeepLink = QuoteDeepLink(quoteId: quoteId, bookId: bookId, bookTitle: bookTitleStr)
                         }
-                    }
+                        }
                     return
                 }
             }

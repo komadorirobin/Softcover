@@ -217,6 +217,30 @@ struct ProfileView: View {
                                     .padding(.horizontal)
                                     .background(Color(UIColor.secondarySystemGroupedBackground))
                                 }
+                                
+                                Divider()
+                                    .padding(.leading, 46)
+                                    .background(Color(UIColor.secondarySystemGroupedBackground))
+                                
+                                NavigationLink {
+                                    FeedView()
+                                } label: {
+                                    HStack {
+                                        Image(systemName: "newspaper.fill")
+                                            .foregroundColor(.teal)
+                                            .frame(width: 30)
+                                        Text("Feed")
+                                            .font(.body)
+                                            .foregroundColor(.primary)
+                                        Spacer()
+                                        Image(systemName: "chevron.right")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    .padding(.vertical, 16)
+                                    .padding(.horizontal)
+                                    .background(Color(UIColor.secondarySystemGroupedBackground))
+                                }
                             }
                             .background(Color(UIColor.secondarySystemGroupedBackground))
                             .cornerRadius(10)
