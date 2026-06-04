@@ -373,17 +373,85 @@ private struct DynamicCodingKey: CodingKey {
 }
 
 // MARK: - Search GraphQL Models
-struct GraphQLSearchResponse: Codable {
+struct GraphQLSearchResponse: Decodable {
     let data: SearchData?
     let errors: [GraphQLError]?
 }
 
-struct SearchData: Codable {
+struct SearchData: Decodable {
     let search: SearchResult?
 }
 
-struct SearchResult: Codable {
-    let ids: [String]?
+struct SearchResult: Decodable {
+    let ids: [Int]?
+    let results: [SearchBookResult]?
+
+    enum CodingKeys: String, CodingKey {
+        case ids
+        case results
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        if let intIds = try? container.decode([Int].self, forKey: .ids) {
+            ids = intIds
+        } else if let stringIds = try? container.decode([String].self, forKey: .ids) {
+            ids = stringIds.compactMap(Int.init)
+        } else {
+            ids = nil
+        }
+        results = try? container.decode([SearchBookResult].self, forKey: .results)
+    }
+}
+
+struct SearchBookResult: Decodable {
+    let id: Int
+    let title: String
+    let authorNames: [String]
+    let imageUrl: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case title
+        case authorNames = "author_names"
+        case image
+        case cachedImage = "cached_image"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        if let intId = try? container.decode(Int.self, forKey: .id) {
+            id = intId
+        } else if let stringId = try? container.decode(String.self, forKey: .id),
+                  let intId = Int(stringId) {
+            id = intId
+        } else {
+            throw DecodingError.dataCorruptedError(forKey: .id, in: container, debugDescription: "Expected numeric book id")
+        }
+
+        let rawTitle = (try? container.decode(String.self, forKey: .title)) ?? "Unknown Title"
+        title = rawTitle.decodedHTMLEntities
+        authorNames = (try? container.decode([String].self, forKey: .authorNames)) ?? []
+
+        if let image = try? container.decode(SearchResultImage.self, forKey: .image) {
+            imageUrl = image.url
+        } else if let cachedImage = try? container.decode(SearchResultImage.self, forKey: .cachedImage) {
+            imageUrl = cachedImage.url
+        } else if let image = try? container.decode(String.self, forKey: .image), !image.isEmpty {
+            imageUrl = image
+        } else {
+            imageUrl = nil
+        }
+    }
+
+    var hydratedBook: HydratedBook {
+        let authorName = authorNames.first
+        return HydratedBook(id: id, title: title, authorName: authorName, imageUrl: imageUrl)
+    }
+}
+
+struct SearchResultImage: Decodable {
+    let url: String?
 }
 
 struct GraphQLBooksHydrateResponse: Codable {
@@ -400,6 +468,21 @@ struct HydratedBook: Codable, Identifiable {
     let title: String
     let contributions: [BookContribution]?
     let image: BookImage?
+
+    init(id: Int, title: String, authorName: String?, imageUrl: String?) {
+        self.id = id
+        self.title = title.decodedHTMLEntities
+        if let authorName, !authorName.isEmpty {
+            self.contributions = [BookContribution(author: BookAuthor(name: authorName))]
+        } else {
+            self.contributions = nil
+        }
+        if let imageUrl, !imageUrl.isEmpty {
+            self.image = BookImage(url: imageUrl)
+        } else {
+            self.image = nil
+        }
+    }
     
     enum CodingKeys: String, CodingKey {
         case id, title, image
@@ -1423,6 +1506,7 @@ class HardcoverService {
       query ($query: String!, $page: Int!) {
         search(query: $query, per_page: 25, page: $page, query_type: \"Book\") {
           ids
+          results
         }
       }
       """
@@ -1441,9 +1525,10 @@ class HardcoverService {
               errors.forEach { print("❌ GraphQL Search Error: \($0.message)") }
               return []
           }
-          guard let idsStr = resp.data?.search?.ids else { return [] }
-          let ids = idsStr.compactMap { Int($0) }
-          guard !ids.isEmpty else { return [] }
+          if let resultBooks = resp.data?.search?.results?.map(\.hydratedBook), !resultBooks.isEmpty {
+              return resultBooks
+          }
+          guard let ids = resp.data?.search?.ids, !ids.isEmpty else { return [] }
           return await hydrateBooksByIds(ids)
       } catch {
           print("❌ GraphQL Search Error: \(error)")
