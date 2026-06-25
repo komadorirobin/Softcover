@@ -103,6 +103,13 @@
 			);
 			target = CB73FB772E583D6B00B36269 /* ReadingProgressWidgetExtension */;
 		};
+		CB11DE112F00000100ABCDEF /* Exceptions for "Hardcover Reading Widget" folder in "Softcover" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = CB73FB492E583D0300B36269 /* Softcover */;
+		};
 		CB73D33B2E5A74F200A71301 /* Exceptions for "ReadingProgressWidget" folder in "Softcover" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -119,6 +126,7 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				CB6860152E5C4130005B3AE6 /* Exceptions for "Hardcover Reading Widget" folder in "ReadingProgressWidgetExtension" target */,
+				CB11DE112F00000100ABCDEF /* Exceptions for "Hardcover Reading Widget" folder in "Softcover" target */,
 			);
 			path = "Hardcover Reading Widget";
 			sourceTree = "<group>";
@@ -595,6 +603,7 @@
 				DEVELOPMENT_TEAM = 7G6FEZ22K2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Hardcover Reading Widget/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Softcover;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Softcover uses the camera to scan book barcodes (ISBN).";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -628,6 +637,7 @@
 				DEVELOPMENT_TEAM = 7G6FEZ22K2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Hardcover Reading Widget/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Softcover;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Softcover uses the camera to scan book barcodes (ISBN).";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
