@@ -14,18 +14,38 @@ struct QuoteRefreshIntent: AppIntent {
 }
 
 struct QuoteUpdateIntervalIntent: WidgetConfigurationIntent {
-    static var title: LocalizedStringResource = "Update Interval"
-    static var description = IntentDescription("How often to show a new quote")
+    static var title: LocalizedStringResource = "Quote Widget"
+    static var description = IntentDescription("Choose the quote appearance and update interval")
     
     @Parameter(title: "Update Every", default: .fourHours)
     var updateInterval: UpdateInterval?
+
+    @Parameter(title: "Color Theme", default: .classic)
+    var colorTheme: QuoteColorTheme?
+
+    @Parameter(title: "Font", default: .system)
+    var font: QuoteFont?
+
+    @Parameter(title: "Background", default: .gradient)
+    var background: QuoteBackground?
     
-    init(updateInterval: UpdateInterval? = .fourHours) {
+    init(
+        updateInterval: UpdateInterval? = .fourHours,
+        colorTheme: QuoteColorTheme = .classic,
+        font: QuoteFont = .system,
+        background: QuoteBackground = .gradient
+    ) {
         self.updateInterval = updateInterval
+        self.colorTheme = colorTheme
+        self.font = font
+        self.background = background
     }
     
     init() {
         self.updateInterval = .fourHours
+        self.colorTheme = .classic
+        self.font = .system
+        self.background = .gradient
     }
 }
 

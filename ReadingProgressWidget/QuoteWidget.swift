@@ -98,112 +98,130 @@ struct QuoteEntry: TimelineEntry {
 struct QuoteWidgetView: View {
     var entry: QuoteEntry
     @Environment(\.widgetFamily) var family
-    
+    @Environment(\.widgetRenderingMode) var renderingMode
+    @Environment(\.showsWidgetContainerBackground) var showsBackground
+
+    // Older widget configurations don't contain appearance parameters.
+    private var theme: QuoteColorTheme { entry.configuration.colorTheme ?? .classic }
+    private var fontDesign: Font.Design { (entry.configuration.font ?? .system).design }
+    private var foregroundColor: Color {
+        renderingMode == .fullColor && showsBackground ? theme.textColor : .primary
+    }
+
     var body: some View {
+        content
+            .foregroundStyle(foregroundColor)
+            .containerBackground(for: .widget) {
+                if (entry.configuration.background ?? .gradient) == .solid {
+                    theme.backgroundColor
+                } else {
+                    LinearGradient(
+                        colors: [theme.backgroundColor, theme.gradientEndColor],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                }
+            }
+    }
+
+    @ViewBuilder
+    private var content: some View {
         if family == .systemSmall {
-            // Small widget - original layout
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
-                    Image(systemName: "quote.opening")
-                        .font(.system(size: 18))
-                        .foregroundColor(.white.opacity(0.8))
-                    
+                    quoteIcon(size: 18)
                     Spacer()
-                    
-                    Button(intent: QuoteRefreshIntent()) {
-                        Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 13))
-                            .foregroundColor(.white.opacity(0.7))
-                    }
-                    .buttonStyle(.plain)
+                    refreshButton(size: 13)
                 }
                 .padding(.bottom, 6)
-                
+
                 Text(entry.quote)
-                    .font(.caption)
-                    .foregroundColor(.white)
+                    .font(.system(.caption, design: fontDesign))
                     .lineLimit(8)
                     .minimumScaleFactor(0.5)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                
+
                 if !entry.bookTitle.isEmpty {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(entry.bookTitle)
-                            .font(.caption2)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.white.opacity(0.9))
-                            .lineLimit(1)
-                        
-                        Text(entry.authorName)
-                            .font(.caption2)
-                            .foregroundColor(.white.opacity(0.7))
-                            .lineLimit(1)
-                    }
-                    .padding(.top, 6)
+                    attribution(style: .caption2)
+                        .padding(.top, 6)
                 }
             }
             .padding(12)
-            .containerBackground(for: .widget) {
-                LinearGradient(
-                    colors: [Color(red: 0.1, green: 0.1, blue: 0.15), Color(red: 0.15, green: 0.1, blue: 0.2)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+        } else if family == .systemLarge {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    quoteIcon(size: 28)
+                    Spacer()
+                    refreshButton(size: 17)
+                }
+
+                Text(entry.quote)
+                    .font(.system(.title3, design: fontDesign))
+                    .lineLimit(14)
+                    .minimumScaleFactor(0.65)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+
+                if !entry.bookTitle.isEmpty {
+                    attribution(style: .subheadline, lineLimit: 2)
+                }
             }
+            .padding(16)
         } else {
-            // Medium widget - quote icon at bottom
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
                     Spacer()
-                    Button(intent: QuoteRefreshIntent()) {
-                        Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 15))
-                            .foregroundColor(.white.opacity(0.7))
-                    }
-                    .buttonStyle(.plain)
+                    refreshButton(size: 15)
                 }
                 .padding(.bottom, 2)
-                
+
                 Text(entry.quote)
-                    .font(.callout)
-                    .foregroundColor(.white)
+                    .font(.system(.callout, design: fontDesign))
                     .lineLimit(6)
                     .minimumScaleFactor(0.5)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment:
- .topLeading)
-                
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+
                 Spacer(minLength: 6)
-                
+
                 if !entry.bookTitle.isEmpty {
                     HStack(alignment: .top, spacing: 8) {
-                        Image(systemName: "quote.opening")
-                            .font(.system(size: 22))
-                            .foregroundColor(.white.opacity(0.8))
-                        
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(entry.bookTitle)
-                                .font(.caption)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.white.opacity(0.9))
-                                .lineLimit(1)
-                            
-                            Text(entry.authorName)
-                                .font(.caption)
-                                .foregroundColor(.white.opacity(0.7))
-                                .lineLimit(1)
-                        }
+                        quoteIcon(size: 22)
+                        attribution(style: .caption)
                     }
                 }
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
-            .containerBackground(for: .widget) {
-                LinearGradient(
-                    colors: [Color(red: 0.1, green: 0.1, blue: 0.15), Color(red: 0.15, green: 0.1, blue: 0.2)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            }
+        }
+    }
+
+    private func quoteIcon(size: CGFloat) -> some View {
+        Image(systemName: "quote.opening")
+            .font(.system(size: size))
+            .foregroundStyle(foregroundColor.opacity(0.8))
+            .accessibilityHidden(true)
+    }
+
+    private func refreshButton(size: CGFloat) -> some View {
+        Button(intent: QuoteRefreshIntent()) {
+            Image(systemName: "arrow.clockwise")
+                .font(.system(size: size))
+                .foregroundStyle(foregroundColor.opacity(0.7))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Refresh Quote")
+    }
+
+    private func attribution(style: Font.TextStyle, lineLimit: Int = 1) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(entry.bookTitle)
+                .font(.system(style, design: fontDesign, weight: .semibold))
+                .foregroundStyle(foregroundColor.opacity(0.9))
+                .lineLimit(lineLimit)
+
+            Text(entry.authorName)
+                .font(.system(style, design: fontDesign))
+                .foregroundStyle(foregroundColor.opacity(0.7))
+                .lineLimit(lineLimit)
         }
     }
 }
@@ -218,7 +236,7 @@ struct QuoteWidget: Widget {
         }
         .configurationDisplayName("Reading Quote")
         .description("Display a random quote from your Reading Journal")
-        .supportedFamilies([.systemSmall, .systemMedium])
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
 }
 
@@ -256,5 +274,28 @@ struct QuoteWidget: Widget {
         quoteId: 1,
         bookId: 100,
         configuration: QuoteUpdateIntervalIntent()
+    )
+}
+
+#Preview(as: .systemLarge) {
+    QuoteWidget()
+} timeline: {
+    QuoteEntry(
+        date: Date(),
+        quote: "It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife.",
+        bookTitle: "Pride and Prejudice",
+        authorName: "Jane Austen",
+        quoteId: 1,
+        bookId: 100,
+        configuration: QuoteUpdateIntervalIntent(colorTheme: .paper, font: .serif, background: .solid)
+    )
+    QuoteEntry(
+        date: Date(),
+        quote: "The only way out of the labyrinth of suffering is to forgive.",
+        bookTitle: "Looking for Alaska",
+        authorName: "John Green",
+        quoteId: 2,
+        bookId: 200,
+        configuration: QuoteUpdateIntervalIntent(colorTheme: .forest, font: .rounded)
     )
 }
