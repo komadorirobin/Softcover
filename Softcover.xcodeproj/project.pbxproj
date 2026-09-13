@@ -77,7 +77,6 @@
 		CB73FB7A2E583D6B00B36269 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		CB73FB7C2E583D6B00B36269 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		CBA693332E729BC300A554DE /* HardcoverService+Reviews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HardcoverService+Reviews.swift"; sourceTree = "<group>"; };
-		CBC20A872E7713B900CF8813 /* SearchBooksView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchBooksView.swift; sourceTree = "<group>"; };
 		CBD7D0B22E782366009B4512 /* TestsBookReadStatusTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestsBookReadStatusTests.swift; sourceTree = "<group>"; };
 		CBE946DF2E5EE5AB0018EEA1 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		CBFA1D7F2E633D3A002E60A5 /* Softcover.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Softcover.entitlements; sourceTree = "<group>"; };
@@ -114,6 +113,12 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				BookProgress.swift,
+				HardcoverNetwork.swift,
+				HardcoverModels.swift,
+				LibraryAPI.swift,
+				WidgetSync.swift,
+				WidgetReaders.swift,
+				HardcoverGoalPage.swift,
 				Config.plist,
 				HardcoverService.swift,
 			);
@@ -204,7 +209,6 @@
 				CB3A5E2D2E6B171600D54E31 /* WantToReadView.swift */,
 				CBA693332E729BC300A554DE /* HardcoverService+Reviews.swift */,
 				CB5BE0052E76020700228680 /* HardcoverService+WantToRead.swift */,
-				CBC20A872E7713B900CF8813 /* SearchBooksView.swift */,
 				CBD7D0B22E782366009B4512 /* TestsBookReadStatusTests.swift */,
 			);
 			sourceTree = "<group>";
@@ -599,7 +603,7 @@
 				CODE_SIGN_ENTITLEMENTS = Softcover.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 202609121231;
+				CURRENT_PROJECT_VERSION = 202609130922;
 				DEVELOPMENT_TEAM = 7G6FEZ22K2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -633,7 +637,7 @@
 				CODE_SIGN_ENTITLEMENTS = Softcover.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 202609121231;
+				CURRENT_PROJECT_VERSION = 202609130922;
 				DEVELOPMENT_TEAM = 7G6FEZ22K2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -710,7 +714,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = "Hardcover Reading Widget";
+				TEST_TARGET_NAME = Softcover;
 			};
 			name = Debug;
 		};
@@ -727,7 +731,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = "Hardcover Reading Widget";
+				TEST_TARGET_NAME = Softcover;
 			};
 			name = Release;
 		};
@@ -739,7 +743,7 @@
 				CODE_SIGN_ENTITLEMENTS = ReadingProgressWidgetExtension.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 202609121231;
+				CURRENT_PROJECT_VERSION = 202609130922;
 				DEVELOPMENT_TEAM = 7G6FEZ22K2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ReadingProgressWidget/Info.plist;
@@ -771,7 +775,7 @@
 				CODE_SIGN_ENTITLEMENTS = ReadingProgressWidgetExtension.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 202609121231;
+				CURRENT_PROJECT_VERSION = 202609130922;
 				DEVELOPMENT_TEAM = 7G6FEZ22K2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ReadingProgressWidget/Info.plist;

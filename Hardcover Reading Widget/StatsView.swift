@@ -1,16 +1,27 @@
 import SwiftUI
 
 struct StatsView: View {
+    let highlightGoalID: Int?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var didRevealGoal = false
     @State private var readingStats: HardcoverService.ReadingStats?
     @State private var readingGoals: [ReadingGoal] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
-    @State private var loadingTask: Task<Void, Never>?
+    @State private var generation = UUID()
+
+    init(highlightGoalID: Int? = nil) {
+        self.highlightGoalID = highlightGoalID
+    }
     
     var body: some View {
+        ScrollViewReader { proxy in
         ScrollView {
             VStack(spacing: 24) {
-                if isLoading {
+                if let errorMessage, readingStats != nil || !readingGoals.isEmpty {
+                    InlineLoadError(message: errorMessage) { Task { await loadData() } }.padding(.horizontal)
+                }
+                if isLoading && readingStats == nil && readingGoals.isEmpty {
                     VStack(spacing: 20) {
                         ProgressView()
                             .scaleEffect(1.5)
@@ -20,7 +31,7 @@ struct StatsView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.top, 100)
-                } else if let error = errorMessage {
+                } else if let error = errorMessage, readingStats == nil && readingGoals.isEmpty {
                     VStack(spacing: 20) {
                         Image(systemName: "exclamationmark.triangle")
                             .font(.system(size: 50))
@@ -90,6 +101,16 @@ struct StatsView: View {
                             
                             ForEach(readingGoals, id: \.id) { goal in
                                 ReadingGoalCard(goal: goal)
+                                    .id(goal.id)
+                                    .overlay {
+                                        if goal.id == highlightGoalID {
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .stroke(Color.accentColor, lineWidth: 2)
+                                                .padding(.horizontal)
+                                                .allowsHitTesting(false)
+                                        }
+                                    }
+                                    .accessibilityAddTraits(goal.id == highlightGoalID ? .isSelected : [])
                             }
                         }
                     }
@@ -119,61 +140,43 @@ struct StatsView: View {
         .refreshable {
             await loadData()
         }
-        .onAppear {
-            // Only load data if we don't have any yet or if not currently loading
-            if readingGoals.isEmpty && readingStats == nil && loadingTask == nil {
-                Task {
-                    await loadData()
-                }
-            }
+        .task { if readingGoals.isEmpty && readingStats == nil { await loadData() } }
+        .onReceive(NotificationCenter.default.publisher(for: .hardcoverAccountDidChange)) { _ in
+            generation = UUID(); readingStats = nil; readingGoals = []; didRevealGoal = false
+            Task { await loadData() }
+        }
+        .task(id: readingGoals.map(\.id)) {
+            guard !didRevealGoal, let goalID = highlightGoalID,
+                  readingGoals.contains(where: { $0.id == goalID }) else { return }
+            await Task.yield()
+            guard !Task.isCancelled else { return }
+            if reduceMotion { proxy.scrollTo(goalID, anchor: .center) }
+            else { withAnimation(.easeInOut(duration: 0.25)) { proxy.scrollTo(goalID, anchor: .center) } }
+            didRevealGoal = true
+        }
         }
     }
-    
-    private func loadData() async {
-        // Cancel any existing loading task
-        loadingTask?.cancel()
-        
-        loadingTask = Task {
-            await MainActor.run {
-                isLoading = true
-                errorMessage = nil
-            }
-            
-            do {
-                // Load reading goals and stats in parallel
-                async let goals = HardcoverService.fetchReadingGoals()
-                async let stats = HardcoverService.fetchReadingStats(year: nil)
-                
-                let loadedGoals = await goals
-                let loadedStats = await stats
-                
-                // Check if task was cancelled before updating UI
-                guard !Task.isCancelled else { return }
-                
-                await MainActor.run {
-                    readingGoals = loadedGoals
-                    readingStats = loadedStats
-                    isLoading = false
-                }
-                
-                print("✅ Loaded \(loadedGoals.count) reading goals and stats: \(loadedStats != nil)")
-                // Debug: Print goal details
-                for goal in loadedGoals {
-                    print("📊 Goal ID \(goal.id): \(goal.goal) \(goal.metric), progress: \(goal.progress), description: \(goal.description ?? "nil")")
-                }
-                
-            } catch {
-                guard !Task.isCancelled else { return }
-                
-                await MainActor.run {
-                    errorMessage = "Failed to load reading data: \(error.localizedDescription)"
-                    isLoading = false
-                }
-                print("❌ Error loading stats: \(error)")
-            }
+
+    @MainActor private func loadData() async {
+        let request = UUID()
+        let account = HardcoverConfig.authorizationHeaderValue
+        generation = request
+        isLoading = true; errorMessage = nil
+        defer { if request == generation { isLoading = false } }
+        do {
+            let goals = try await HardcoverReadScope.checked { await HardcoverService.fetchReadingGoals() }
+            try Task.checkCancellation()
+            guard generation == request, account == HardcoverConfig.authorizationHeaderValue else { return }
+            readingGoals = goals
+            let stats = try await HardcoverReadScope.checked { await HardcoverService.fetchReadingStats(year: nil) }
+            try Task.checkCancellation()
+            guard generation == request, account == HardcoverConfig.authorizationHeaderValue else { return }
+            guard let stats else { throw HardcoverNetworkError.invalidResponse }
+            readingStats = stats
+        } catch {
+            guard !Task.isCancelled, generation == request else { return }
+            errorMessage = error.localizedDescription
         }
-        
-        await loadingTask?.value
     }
 }
 
@@ -216,7 +219,7 @@ struct ReadingGoalCard: View {
                         }
                     }
                     
-                    Text(goal.percentComplete >= 1.0 ? "Completed!" : "Complete")
+                    Text(goal.percentComplete >= 1.0 ? LocalizedStringKey("Completed!") : LocalizedStringKey("Complete"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }

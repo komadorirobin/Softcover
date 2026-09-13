@@ -37,7 +37,7 @@ extension HardcoverService {
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await HardcoverHTTP.shared.data(for: request)
             
             if let httpResponse = response as? HTTPURLResponse {
                 print("📡 Follow response status: \(httpResponse.statusCode)")
@@ -63,7 +63,7 @@ extension HardcoverService {
                     }
                     
                     // Check if followed_users exists (it's an object, not array!)
-                    if let followedUser = insertResult["followed_users"] as? [String: Any] {
+                    if insertResult["followed_users"] is [String: Any] {
                         print("✅ Successfully followed user ID \(userId)")
                         return true
                     }
@@ -112,7 +112,7 @@ extension HardcoverService {
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await HardcoverHTTP.shared.data(for: request)
             
             if let httpResponse = response as? HTTPURLResponse {
                 print("📡 Unfollow response status: \(httpResponse.statusCode)")
@@ -151,11 +151,6 @@ extension HardcoverService {
             return false
         }
         
-        guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else {
-            print("❌ Invalid URL")
-            return false
-        }
-        
         // First, get the user's ID
         guard let userId = await getUserId(username: username) else {
             print("❌ Could not find user ID for @\(username)")
@@ -170,11 +165,6 @@ extension HardcoverService {
     static func unfollowUser(username: String) async -> Bool {
         guard !HardcoverConfig.apiKey.isEmpty else {
             print("❌ No API key configured")
-            return false
-        }
-        
-        guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else {
-            print("❌ Invalid URL")
             return false
         }
         
@@ -216,7 +206,7 @@ extension HardcoverService {
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             
             if let jsonString = String(data: data, encoding: .utf8) {
                 print("🔍 getUserId response: \(String(jsonString.prefix(500)))")

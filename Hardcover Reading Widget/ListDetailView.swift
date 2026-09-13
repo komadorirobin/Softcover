@@ -6,11 +6,13 @@ struct ListDetailView: View {
     @State private var books: [ListBook] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var generation = UUID()
+    @State private var retryTask: Task<Void, Never>?
     
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
-                if isLoading {
+                if isLoading && books.isEmpty {
                     VStack(spacing: 20) {
                         ProgressView()
                             .scaleEffect(1.5)
@@ -20,7 +22,7 @@ struct ListDetailView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.top, 100)
-                } else if let error = errorMessage {
+                } else if let error = errorMessage, books.isEmpty {
                     VStack(spacing: 20) {
                         Image(systemName: "exclamationmark.triangle")
                             .font(.system(size: 50))
@@ -32,7 +34,8 @@ struct ListDetailView: View {
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                         Button("Try Again") {
-                            Task { await loadBooks() }
+                            retryTask?.cancel()
+                            retryTask = Task { await loadBooks() }
                         }
                         .buttonStyle(.borderedProminent)
                     }
@@ -124,27 +127,42 @@ struct ListDetailView: View {
         .task {
             await loadBooks()
         }
+        .refreshable { await loadBooks() }
+        .safeAreaInset(edge: .top) {
+            if let errorMessage, !books.isEmpty {
+                InlineLoadError(message: errorMessage) {
+                    retryTask?.cancel()
+                    retryTask = Task { await loadBooks() }
+                }.padding().background(.regularMaterial)
+            }
+        }
+        .onDisappear {
+            retryTask?.cancel(); generation = UUID(); isLoading = false
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .hardcoverAccountDidChange)) { _ in
+            retryTask?.cancel(); generation = UUID(); books = []; errorMessage = nil
+            retryTask = Task { await loadBooks() }
+        }
     }
     
-    private func loadBooks() async {
-        isLoading = true
-        errorMessage = nil
-        
-        // Fetch books from the list
-        guard let slug = list.slug else {
-            await MainActor.run {
-                self.books = []
-                self.isLoading = false
-                self.errorMessage = "List slug not available"
+    @MainActor private func loadBooks() async {
+        let request = UUID()
+        let account = HardcoverConfig.authorizationHeaderValue
+        generation = request
+        isLoading = true; errorMessage = nil
+        defer { if generation == request { isLoading = false } }
+        do {
+            try Task.checkCancellation()
+            guard let slug = list.slug, !slug.isEmpty else { throw HardcoverNetworkError.invalidResponse }
+            let fetched = try await HardcoverReadScope.checked {
+                await HardcoverService.fetchListBooks(username: username, listSlug: slug)
             }
-            return
-        }
-        
-        let fetchedBooks = await HardcoverService.fetchListBooks(username: username, listSlug: slug)
-        
-        await MainActor.run {
-            self.books = fetchedBooks
-            self.isLoading = false
+            try Task.checkCancellation()
+            guard generation == request, account == HardcoverConfig.authorizationHeaderValue else { return }
+            books = fetched
+        } catch {
+            guard !Task.isCancelled, generation == request, account == HardcoverConfig.authorizationHeaderValue else { return }
+            errorMessage = error.localizedDescription
         }
     }
 }

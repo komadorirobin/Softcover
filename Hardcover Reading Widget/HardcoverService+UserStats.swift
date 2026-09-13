@@ -36,7 +36,7 @@ extension HardcoverService {
         req.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
         
         do {
-            let (data, _) = try await URLSession.shared.data(for: req)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: req)
             
             guard let html = String(data: data, encoding: .utf8) else {
                 print("❌ Could not decode HTML")
@@ -84,16 +84,12 @@ extension HardcoverService {
         
         do {
         // First try to decode to see what structure we have
-        if let jsonObject = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+        if let jsonObject = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
            let props = jsonObject["props"] as? [String: Any] {
             print("📊 Props keys: \(props.keys.joined(separator: ", "))")
             
             if let stats = props["stats"] as? [String: Any] {
                 print("📈 Stats keys: \(stats.keys.joined(separator: ", "))")
-                
-                // Extract stats directly from the stats object
-                let booksRead = stats["booksRead"] as? Int
-                let pagesRead = stats["pagesRead"] as? Int
                 
                 // Check if there's a summary object
                 if let summary = stats["summary"] as? [String: Any] {
@@ -111,7 +107,6 @@ extension HardcoverService {
                 print("👤 User keys: \(user.keys.joined(separator: ", "))")
             }
         }            // Try to decode as stats page first
-            let pageData = try? JSONDecoder().decode(InertiaStatsPageData.self, from: jsonData)
             let userPageData = try? JSONDecoder().decode(InertiaUserPageData.self, from: jsonData)
             
             // Extract stats from the props

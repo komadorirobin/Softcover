@@ -57,108 +57,58 @@ struct UserIdEntry: Codable {
 extension HardcoverService {
     /// Fetch the list of users the current user is following
     static func fetchFollowing() async -> [FriendUser] {
-        guard !HardcoverConfig.apiKey.isEmpty else {
-            print("❌ No API key available")
+        do {
+            let identity = try await LibraryAPI.identity()
+            return await fetchFollowing(for: identity.username)
+        } catch {
+            HardcoverReadScope.failure?.record(error)
             return []
         }
-        
-        // Get username from defaults
-        let username = AppGroup.defaults.string(forKey: "HardcoverUsername") ?? ""
-        guard !username.isEmpty else {
-            print("❌ No username available")
-            return []
-        }
-        
-        return await fetchFollowing(for: username)
     }
     
     /// Fetch the list of users a specific user is following
     static func fetchFollowing(for username: String) async -> [FriendUser] {
-        guard !HardcoverConfig.apiKey.isEmpty else {
-            print("❌ No API key available")
-            return []
-        }
-        
-        guard let url = URL(string: "https://hardcover.app/@\(username)/network/following") else {
-            print("❌ Invalid URL")
-            return []
-        }
-        
-        var req = URLRequest(url: url)
-        req.httpMethod = "GET"
-        req.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
-        
         do {
-            let (data, _) = try await URLSession.shared.data(for: req)
-            
-            guard let html = String(data: data, encoding: .utf8) else {
-                print("❌ Could not decode HTML")
-                return []
-            }
-            
-            // Extract JSON from data-page attribute
-            if let users = extractUsersFromHTML(html) {
-                print("✅ Fetched \(users.count) following users from HTML for @\(username)")
-                return users
-            }
-            
-            return []
+            guard !HardcoverConfig.apiKey.isEmpty else { throw HardcoverNetworkError.signIn }
+            guard let url = URL(string: "https://hardcover.app/@\(username)/network/following") else { throw HardcoverNetworkError.invalidResponse }
+            var request = URLRequest(url: url)
+            request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
+            try Task.checkCancellation()
+            guard let html = String(data: data, encoding: .utf8),
+                  let users = extractUsersFromHTML(html) else { throw HardcoverNetworkError.invalidResponse }
+            return users
         } catch {
-            print("❌ Failed to fetch following: \(error)")
+            HardcoverReadScope.failure?.record(error)
             return []
         }
     }
     
     /// Fetch the list of users following the current user
     static func fetchFollowers() async -> [FriendUser] {
-        guard !HardcoverConfig.apiKey.isEmpty else {
-            print("❌ No API key available")
+        do {
+            let identity = try await LibraryAPI.identity()
+            return await fetchFollowers(for: identity.username)
+        } catch {
+            HardcoverReadScope.failure?.record(error)
             return []
         }
-        
-        // Get username from defaults
-        let username = AppGroup.defaults.string(forKey: "HardcoverUsername") ?? ""
-        guard !username.isEmpty else {
-            print("❌ No username available")
-            return []
-        }
-        
-        return await fetchFollowers(for: username)
     }
     
     /// Fetch the list of users following a specific user
     static func fetchFollowers(for username: String) async -> [FriendUser] {
-        guard !HardcoverConfig.apiKey.isEmpty else {
-            print("❌ No API key available")
-            return []
-        }
-        
-        guard let url = URL(string: "https://hardcover.app/@\(username)/network/followers") else {
-            print("❌ Invalid URL")
-            return []
-        }
-        
-        var req = URLRequest(url: url)
-        req.httpMethod = "GET"
-        req.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
-        
         do {
-            let (data, _) = try await URLSession.shared.data(for: req)
-            
-            guard let html = String(data: data, encoding: .utf8) else {
-                print("❌ Could not decode HTML")
-                return []
-            }
-            
-            // Extract JSON from data-page attribute
-            if let users = extractUsersFromHTML(html) {
-                print("✅ Fetched \(users.count) followers from HTML for @\(username)")
-                return users
-            }
-            
-            return []
+            guard !HardcoverConfig.apiKey.isEmpty else { throw HardcoverNetworkError.signIn }
+            guard let url = URL(string: "https://hardcover.app/@\(username)/network/followers") else { throw HardcoverNetworkError.invalidResponse }
+            var request = URLRequest(url: url)
+            request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
+            try Task.checkCancellation()
+            guard let html = String(data: data, encoding: .utf8),
+                  let users = extractUsersFromHTML(html) else { throw HardcoverNetworkError.invalidResponse }
+            return users
         } catch {
-            print("❌ Failed to fetch followers: \(error)")
+            HardcoverReadScope.failure?.record(error)
             return []
         }
     }

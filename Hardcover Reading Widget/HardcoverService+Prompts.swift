@@ -89,9 +89,10 @@ struct CachedPromptImage: Codable, Equatable {
 
 extension HardcoverService {
     /// Fetch answered prompts for the current user with progressive loading
-    static func fetchAnsweredPrompts(onPromptLoaded: @escaping (PromptAnswer) -> Void) async -> [PromptAnswer] {
+    static func fetchAnsweredPrompts(onPromptLoaded: @escaping @MainActor (PromptAnswer) -> Void) async -> [PromptAnswer] {
         guard let profile = await fetchUserProfile() else {
             print("❌ Could not fetch user profile")
+            HardcoverReadScope.failure?.record(HardcoverNetworkError.invalidResponse)
             return []
         }
         return await fetchAnsweredPrompts(forUserId: profile.id, onPromptLoaded: onPromptLoaded)
@@ -101,20 +102,23 @@ extension HardcoverService {
     static func fetchAnsweredPrompts() async -> [PromptAnswer] {
         guard let profile = await fetchUserProfile() else {
             print("❌ Could not fetch user profile")
+            HardcoverReadScope.failure?.record(HardcoverNetworkError.invalidResponse)
             return []
         }
         return await fetchAnsweredPrompts(forUserId: profile.id, onPromptLoaded: { _ in })
     }
     
     /// Fetch answered prompts for a specific user by username with progressive loading
-    static func fetchAnsweredPrompts(forUsername username: String, onPromptLoaded: @escaping (PromptAnswer) -> Void) async -> [PromptAnswer] {
+    static func fetchAnsweredPrompts(forUsername username: String, onPromptLoaded: @escaping @MainActor (PromptAnswer) -> Void) async -> [PromptAnswer] {
         guard !HardcoverConfig.apiKey.isEmpty else {
             print("❌ No API key available")
+            HardcoverReadScope.failure?.record(HardcoverNetworkError.invalidResponse)
             return []
         }
         
         guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else {
             print("❌ Invalid API URL")
+            HardcoverReadScope.failure?.record(HardcoverNetworkError.invalidResponse)
             return []
         }
         
@@ -148,13 +152,14 @@ extension HardcoverService {
         
         guard let httpBody = try? JSONSerialization.data(withJSONObject: body) else {
             print("❌ Failed to serialize request body")
+            HardcoverReadScope.failure?.record(HardcoverNetworkError.invalidResponse)
             return []
         }
         
         req.httpBody = httpBody
         
         do {
-            let (data, response) = try await URLSession.shared.data(for: req)
+            let (data, response) = try await HardcoverHTTP.shared.data(for: req)
             
             if let httpResponse = response as? HTTPURLResponse {
                 print("📥 Prompts HTTP Status: \(httpResponse.statusCode)")
@@ -173,7 +178,7 @@ extension HardcoverService {
                 
                 // Convert back to data and decode
                 let answersData = try JSONSerialization.data(withJSONObject: promptAnswers)
-                var answers = try decoder.decode([PromptAnswer].self, from: answersData)
+                let answers = try decoder.decode([PromptAnswer].self, from: answersData)
                 
                 // Remove duplicates based on promptId
                 var uniqueAnswers: [PromptAnswer] = []
@@ -190,6 +195,7 @@ extension HardcoverService {
                 
                 // Return prompts immediately without preview books
                 for answer in uniqueAnswers {
+                    guard !Task.isCancelled else { return [] }
                     await MainActor.run {
                         onPromptLoaded(answer)
                     }
@@ -198,6 +204,7 @@ extension HardcoverService {
                 // Fetch preview books for each prompt asynchronously
                 await withTaskGroup(of: (Int, [PromptBook]?).self) { group in
                     for (index, answer) in uniqueAnswers.enumerated() {
+                        if Task.isCancelled { group.cancelAll(); break }
                         group.addTask {
                             let userAnswers = await fetchPromptAnswers(
                                 promptId: answer.promptId,
@@ -210,10 +217,12 @@ extension HardcoverService {
                     }
                     
                     for await (index, books) in group {
+                        if Task.isCancelled { group.cancelAll(); break }
                         if let books = books {
                             uniqueAnswers[index].previewBooks = books
+                            let updatedAnswer = uniqueAnswers[index]
                             await MainActor.run {
-                                onPromptLoaded(uniqueAnswers[index])
+                                onPromptLoaded(updatedAnswer)
                             }
                         }
                     }
@@ -222,11 +231,14 @@ extension HardcoverService {
                 return uniqueAnswers
             } else {
                 print("❌ Could not parse GraphQL response")
+                HardcoverReadScope.failure?.record(HardcoverNetworkError.invalidResponse)
                 return []
             }
             
         } catch {
+            HardcoverReadScope.failure?.record(error)
             print("❌ Error fetching prompts: \(error)")
+            HardcoverReadScope.failure?.record(HardcoverNetworkError.invalidResponse)
             return []
         }
     }
@@ -237,14 +249,16 @@ extension HardcoverService {
     }
     
     /// Fetch answered prompts for a specific user ID (old GraphQL method, kept for current user)
-    private static func fetchAnsweredPrompts(forUserId userId: Int, onPromptLoaded: @escaping (PromptAnswer) -> Void) async -> [PromptAnswer] {
+    private static func fetchAnsweredPrompts(forUserId userId: Int, onPromptLoaded: @escaping @MainActor (PromptAnswer) -> Void) async -> [PromptAnswer] {
         guard !HardcoverConfig.apiKey.isEmpty else {
             print("❌ No API key available")
+            HardcoverReadScope.failure?.record(HardcoverNetworkError.invalidResponse)
             return []
         }
         
         guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else {
             print("❌ Invalid API URL")
+            HardcoverReadScope.failure?.record(HardcoverNetworkError.invalidResponse)
             return []
         }
         
@@ -274,13 +288,14 @@ extension HardcoverService {
         
         guard let httpBody = try? JSONSerialization.data(withJSONObject: body) else {
             print("❌ Failed to serialize request body")
+            HardcoverReadScope.failure?.record(HardcoverNetworkError.invalidResponse)
             return []
         }
         
         req.httpBody = httpBody
         
         do {
-            let (data, response) = try await URLSession.shared.data(for: req)
+            let (data, response) = try await HardcoverHTTP.shared.data(for: req)
             
             if let httpResponse = response as? HTTPURLResponse {
                 print("📥 Prompts HTTP Status: \(httpResponse.statusCode)")
@@ -299,7 +314,7 @@ extension HardcoverService {
                 
                 // Convert back to data and decode
                 let answersData = try JSONSerialization.data(withJSONObject: promptAnswers)
-                var answers = try decoder.decode([PromptAnswer].self, from: answersData)
+                let answers = try decoder.decode([PromptAnswer].self, from: answersData)
                 
                 // Remove duplicates based on promptId (database may return one row per book)
                 var uniqueAnswers: [PromptAnswer] = []
@@ -314,6 +329,7 @@ extension HardcoverService {
                 
                 // Return prompts immediately without preview books
                 for answer in uniqueAnswers {
+                    guard !Task.isCancelled else { return [] }
                     await MainActor.run {
                         onPromptLoaded(answer)
                     }
@@ -328,6 +344,7 @@ extension HardcoverService {
                 // Fetch preview books for each prompt asynchronously
                 await withTaskGroup(of: (Int, [PromptBook]?).self) { group in
                     for (index, answer) in uniqueAnswers.enumerated() {
+                        if Task.isCancelled { group.cancelAll(); break }
                         group.addTask {
                             let userAnswers = await fetchPromptAnswers(
                                 promptId: answer.promptId,
@@ -340,10 +357,12 @@ extension HardcoverService {
                     }
                     
                     for await (index, books) in group {
+                        if Task.isCancelled { group.cancelAll(); break }
                         if let books = books {
                             uniqueAnswers[index].previewBooks = books
+                            let updatedAnswer = uniqueAnswers[index]
                             await MainActor.run {
-                                onPromptLoaded(uniqueAnswers[index])
+                                onPromptLoaded(updatedAnswer)
                             }
                         }
                     }
@@ -354,10 +373,13 @@ extension HardcoverService {
             }
             
             print("⚠️ No prompt answers found in response")
+            HardcoverReadScope.failure?.record(HardcoverNetworkError.invalidResponse)
             return []
             
         } catch {
+            HardcoverReadScope.failure?.record(error)
             print("❌ Error fetching prompts: \(error)")
+            HardcoverReadScope.failure?.record(HardcoverNetworkError.invalidResponse)
             return []
         }
     }
@@ -390,7 +412,7 @@ extension HardcoverService {
         req.httpBody = httpBody
         
         do {
-            let (data, _) = try await URLSession.shared.data(for: req)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: req)
             
             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let dataDict = json["data"] as? [String: Any],
@@ -410,11 +432,13 @@ extension HardcoverService {
     static func fetchPromptAnswers(promptId: Int, userId: Int, username: String, slug: String) async -> [UserPromptAnswer] {
         guard !HardcoverConfig.apiKey.isEmpty else {
             print("❌ No API key available")
+            HardcoverReadScope.failure?.record(HardcoverNetworkError.invalidResponse)
             return []
         }
         
         guard let url = URL(string: "https://hardcover.app/@\(username)/prompts/\(slug)") else {
             print("❌ Invalid URL")
+            HardcoverReadScope.failure?.record(HardcoverNetworkError.invalidResponse)
             return []
         }
         
@@ -423,7 +447,7 @@ extension HardcoverService {
         req.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
         
         do {
-            let (data, response) = try await URLSession.shared.data(for: req)
+            let (data, response) = try await HardcoverHTTP.shared.data(for: req)
             
             if let httpResponse = response as? HTTPURLResponse {
                 print("📥 HTML Response Status: \(httpResponse.statusCode)")
@@ -431,12 +455,14 @@ extension HardcoverService {
             
             guard let html = String(data: data, encoding: .utf8) else {
                 print("❌ Could not decode HTML")
+                HardcoverReadScope.failure?.record(HardcoverNetworkError.invalidResponse)
                 return []
             }
             
             // Extract JSON from data-page attribute
             guard let dataPageStart = html.range(of: "data-page=\"{") else {
                 print("❌ Could not find data-page attribute")
+                HardcoverReadScope.failure?.record(HardcoverNetworkError.invalidResponse)
                 return []
             }
             
@@ -467,6 +493,7 @@ extension HardcoverService {
             
             guard let jsonEnd = jsonEnd else {
                 print("❌ Could not find matching closing brace")
+                HardcoverReadScope.failure?.record(HardcoverNetworkError.invalidResponse)
                 return []
             }
             
@@ -479,6 +506,7 @@ extension HardcoverService {
             
             guard let jsonData = jsonString.data(using: .utf8) else {
                 print("❌ Could not convert to data")
+                HardcoverReadScope.failure?.record(HardcoverNetworkError.invalidResponse)
                 return []
             }
             
@@ -489,6 +517,7 @@ extension HardcoverService {
                 } else {
                     print(jsonString)
                 }
+                HardcoverReadScope.failure?.record(HardcoverNetworkError.invalidResponse)
                 return []
             }
             
@@ -496,6 +525,7 @@ extension HardcoverService {
             
             guard let props = pageData["props"] as? [String: Any] else {
                 print("❌ No props found")
+                HardcoverReadScope.failure?.record(HardcoverNetworkError.invalidResponse)
                 return []
             }
             
@@ -503,6 +533,7 @@ extension HardcoverService {
             
             guard let prompt = props["prompt"] as? [String: Any] else {
                 print("❌ No prompt found")
+                HardcoverReadScope.failure?.record(HardcoverNetworkError.invalidResponse)
                 return []
             }
             
@@ -510,6 +541,7 @@ extension HardcoverService {
             
             guard let promptBooks = prompt["promptBooks"] as? [[String: Any]] else {
                 print("❌ No promptBooks found")
+                HardcoverReadScope.failure?.record(HardcoverNetworkError.invalidResponse)
                 return []
             }
             
@@ -556,7 +588,9 @@ extension HardcoverService {
             return [answer]
             
         } catch {
+            HardcoverReadScope.failure?.record(error)
             print("❌ Error fetching prompt HTML: \(error)")
+            HardcoverReadScope.failure?.record(HardcoverNetworkError.invalidResponse)
             return []
         }
     }

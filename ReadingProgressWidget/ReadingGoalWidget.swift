@@ -4,6 +4,7 @@ import SwiftUI
 struct ReadingGoalEntry: TimelineEntry {
     let date: Date
     let goal: ReadingGoal?
+    var failed = false
 }
 
 struct ReadingGoalProvider: TimelineProvider {
@@ -31,38 +32,26 @@ struct ReadingGoalProvider: TimelineProvider {
             return
         }
         Task {
-            let goal = await fetchRelevantGoal()
-            completion(ReadingGoalEntry(date: Date(), goal: goal))
+            let loaded = await WidgetReaders.goals()
+            completion(ReadingGoalEntry(date: loaded.date, goal: relevantGoal(in: loaded.value), failed: loaded.failed))
         }
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<ReadingGoalEntry>) -> Void) {
         Task {
-            let goal = await fetchRelevantGoal()
-            let entry = ReadingGoalEntry(date: Date(), goal: goal)
-
-            let next: Date
-            if HardcoverConfig.apiKey.isEmpty || goal == nil {
-                next = Calendar.current.date(byAdding: .minute, value: 5, to: Date())!
-            } else {
-                next = Calendar.current.date(byAdding: .minute, value: 30, to: Date())!
-            }
+            let loaded = await WidgetReaders.goals()
+            let entry = ReadingGoalEntry(date: loaded.date, goal: relevantGoal(in: loaded.value), failed: loaded.failed)
+            let interval: TimeInterval = HardcoverConfig.apiKey.isEmpty ? 21600 : (loaded.failed ? 900 : 3600)
+            let next = Date().addingTimeInterval(interval)
             completion(Timeline(entries: [entry], policy: .after(next)))
         }
     }
 
-    private func fetchRelevantGoal() async -> ReadingGoal? {
-        let goals = await HardcoverService.fetchReadingGoals()
+    private func relevantGoal(in goals: [ReadingGoal]) -> ReadingGoal? {
         guard !goals.isEmpty else { return nil }
 
-        let today = Date()
-        let df = DateFormatter()
-        df.calendar = Calendar(identifier: .gregorian)
-        df.locale = Locale(identifier: "en_US_POSIX")
-        df.timeZone = TimeZone(secondsFromGMT: 0)
-        df.dateFormat = "yyyy-MM-dd"
-
-        func parse(_ s: String) -> Date? { df.date(from: s) }
+        let today = ReleaseDate.parse(ReleaseDate.string(Date())) ?? Date()
+        func parse(_ s: String) -> Date? { ReleaseDate.parse(s) }
 
         if let active = goals.first(where: { g in
             guard let s = parse(g.startDate), let e = parse(g.endDate) else { return false }
@@ -105,7 +94,7 @@ struct ReadingGoalWidgetEntryView: View {
                     Image(systemName: "target")
                         .font(.title2)
                         .foregroundColor(.secondary)
-                    Text("No Reading Goal")
+                    Text(entry.failed ? String(localized: "Could not load reading goal") : String(localized: "No Reading Goal"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -113,7 +102,7 @@ struct ReadingGoalWidgetEntryView: View {
             }
         }
         .containerBackground(.fill.tertiary, for: .widget)
-        .widgetURL(URL(string: "softcover://goals"))
+        .widgetURL(WidgetDeepLink.goal(id: entry.goal?.id))
     }
 }
 

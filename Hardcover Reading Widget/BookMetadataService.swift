@@ -84,7 +84,7 @@ struct BookMetadataService {
         let body: [String: Any] = ["query": query, "variables": ["id": bookId]]
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let errs = root["errors"] as? [[String: Any]], !errs.isEmpty {
                 return nil
@@ -116,7 +116,7 @@ struct BookMetadataService {
         let body: [String: Any] = ["query": query, "variables": ["id": userBookId]]
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let errs = root["errors"] as? [[String: Any]], !errs.isEmpty {
                 return nil
@@ -153,7 +153,7 @@ struct BookMetadataService {
         let body: [String: Any] = ["query": query, "variables": ["id": bookId]]
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let errs = root["errors"] as? [[String: Any]], !errs.isEmpty {
                 return nil
@@ -184,7 +184,7 @@ struct BookMetadataService {
         let body: [String: Any] = ["query": query, "variables": ["id": editionId]]
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let errs = root["errors"] as? [[String: Any]], !errs.isEmpty {
                 return nil
@@ -217,7 +217,7 @@ struct BookMetadataService {
         let body: [String: Any] = ["query": query, "variables": ["id": userBookId]]
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let errs = root["errors"] as? [[String: Any]], !errs.isEmpty {
                 return nil
@@ -255,7 +255,7 @@ struct BookMetadataService {
         let body: [String: Any] = ["query": query, "variables": ["id": bookId]]
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let errs = root["errors"] as? [[String: Any]], !errs.isEmpty {
                 return nil
@@ -286,7 +286,7 @@ struct BookMetadataService {
         let body: [String: Any] = ["query": query, "variables": ["id": editionId]]
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let errs = root["errors"] as? [[String: Any]], !errs.isEmpty {
                 return nil
@@ -319,7 +319,7 @@ struct BookMetadataService {
         let body: [String: Any] = ["query": query, "variables": ["id": userBookId]]
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let errs = root["errors"] as? [[String: Any]], !errs.isEmpty {
                 return nil
@@ -356,7 +356,7 @@ struct BookMetadataService {
         
         var userId: Int?
         do {
-            let (data, _) = try await URLSession.shared.data(for: meRequest)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: meRequest)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let dataDict = root["data"] as? [String: Any],
                let meArr = dataDict["me"] as? [[String: Any]],
@@ -399,7 +399,7 @@ struct BookMetadataService {
             ]
             do {
                 request.httpBody = try JSONSerialization.data(withJSONObject: body)
-                let (data, _) = try await URLSession.shared.data(for: request)
+                let (data, _) = try await HardcoverHTTP.shared.data(for: request)
                 if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let errs = root["errors"] as? [[String: Any]],
                    !errs.isEmpty {
@@ -437,7 +437,7 @@ struct BookMetadataService {
         
         var userId: Int?
         do {
-            let (data, _) = try await URLSession.shared.data(for: meRequest)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: meRequest)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let dataDict = root["data"] as? [String: Any],
                let meArr = dataDict["me"] as? [[String: Any]],
@@ -514,7 +514,7 @@ struct BookMetadataService {
             ]
             do {
                 request.httpBody = try JSONSerialization.data(withJSONObject: body)
-                let (data, _) = try await URLSession.shared.data(for: request)
+                let (data, _) = try await HardcoverHTTP.shared.data(for: request)
                 if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let errs = root["errors"] as? [[String: Any]],
                    !errs.isEmpty {

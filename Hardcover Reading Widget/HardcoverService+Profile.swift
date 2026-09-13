@@ -103,7 +103,7 @@ extension HardcoverService {
         req.httpBody = httpBody
         
         do {
-            let (data, response) = try await URLSession.shared.data(for: req)
+            let (data, response) = try await HardcoverHTTP.shared.data(for: req)
             
             if let httpResponse = response as? HTTPURLResponse {
                 print("📡 Profile API response status: \(httpResponse.statusCode)")

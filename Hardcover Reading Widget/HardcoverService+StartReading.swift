@@ -45,7 +45,7 @@ extension HardcoverService {
         let body = "{ \"query\": \"{ me { id username } }\" }"
         req.httpBody = body.data(using: .utf8)
         do {
-            let (data, _) = try await URLSession.shared.data(for: req)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: req)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let errs = root["errors"] as? [[String: Any]], !errs.isEmpty {
                 return nil
@@ -86,7 +86,7 @@ extension HardcoverService {
         ]
         do {
             req.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: req)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: req)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let errs = root["errors"] as? [[String: Any]], !errs.isEmpty {
                 return nil
@@ -123,7 +123,7 @@ extension HardcoverService {
         ]
         do {
             req.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: req)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: req)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 if let errors = root["errors"] as? [[String: Any]], !errors.isEmpty { return false }
                 if let dataDict = root["data"] as? [String: Any],
@@ -172,7 +172,7 @@ extension HardcoverService {
         ]
         do {
             req.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: req)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: req)
             
             // Log the response
             if let responseString = String(data: data, encoding: .utf8) {

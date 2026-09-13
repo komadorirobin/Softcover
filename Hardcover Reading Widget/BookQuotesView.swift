@@ -21,20 +21,24 @@ struct BookQuotesView: View {
     @State private var showDeleteConfirmation = false
     @State private var isDeleting = false
     @State private var errorMessage: String?
+    @State private var loadGeneration = UUID()
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         NavigationStack {
             Group {
-                if isLoading {
+                if isLoading && quotes.isEmpty {
                     ProgressView("Loading quotes…")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if quotes.isEmpty && errorMessage != nil {
+                    InlineLoadError(message: errorMessage!) { Task { await loadQuotes() } }.padding()
                 } else if quotes.isEmpty {
                     emptyStateView
                 } else {
                     quotesListView
                 }
             }
-            .navigationTitle(bookTitle.isEmpty ? "Quotes" : "Quotes — \(bookTitle)")
+            .navigationTitle("Quotes")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -60,7 +64,7 @@ struct BookQuotesView: View {
                 ) { success in
                     if success {
                         Task { await loadQuotes() }
-                        WidgetCenter.shared.reloadTimelines(ofKind: "QuoteWidget")
+                        WidgetSync.quotesChanged()
                     }
                 }
             }
@@ -75,7 +79,7 @@ struct BookQuotesView: View {
                 ) { success in
                     if success {
                         Task { await loadQuotes() }
-                        WidgetCenter.shared.reloadTimelines(ofKind: "QuoteWidget")
+                        WidgetSync.quotesChanged()
                     }
                 }
             }
@@ -126,6 +130,9 @@ struct BookQuotesView: View {
     private var quotesListView: some View {
         ScrollViewReader { proxy in
             List {
+                if let error = errorMessage {
+                    InlineLoadError(message: error) { Task { await loadQuotes() } }
+                }
                 ForEach(quotes) { quote in
                     QuoteRowView(
                         quote: quote,
@@ -143,7 +150,7 @@ struct BookQuotesView: View {
             .onAppear {
                 if let targetId = highlightQuoteId {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        withAnimation {
+                        withAnimation(reduceMotion ? nil : .default) {
                             proxy.scrollTo(targetId, anchor: .center)
                         }
                     }
@@ -163,13 +170,18 @@ struct BookQuotesView: View {
 
     // MARK: - Data Loading
 
-    private func loadQuotes() async {
-        await MainActor.run { isLoading = true }
-        let fetched = await HardcoverService.fetchQuotesForBook(bookId: bookId)
-        await MainActor.run {
+    @MainActor private func loadQuotes() async {
+        let token = UUID(), account = HardcoverConfig.authorizationHeaderValue
+        loadGeneration = token
+        isLoading = true
+        errorMessage = nil
+        defer { if loadGeneration == token { isLoading = false } }
+        do {
+            let fetched = try await HardcoverReadScope.checked { await HardcoverService.fetchQuotesForBook(bookId: bookId) }
+            guard token == loadGeneration, account == HardcoverConfig.authorizationHeaderValue else { return }
             quotes = fetched
-            isLoading = false
-        }
+        } catch is CancellationError { }
+        catch { if token == loadGeneration, account == HardcoverConfig.authorizationHeaderValue { errorMessage = error.localizedDescription } }
     }
 
     private func performDelete(quoteId: Int) async {
@@ -181,7 +193,7 @@ struct BookQuotesView: View {
                 isDeleting = false
                 deletingQuote = nil
             }
-            WidgetCenter.shared.reloadTimelines(ofKind: "QuoteWidget")
+            WidgetSync.quotesChanged()
         } else {
             await MainActor.run {
                 isDeleting = false

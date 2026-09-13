@@ -3,6 +3,7 @@ import Foundation
 extension String {
     /// Decodes HTML entities like &#x27; (apostrophe), &amp; (ampersand), etc.
     var decodedHTMLEntities: String {
+        guard contains("&") || contains("<") else { return self }
         guard let data = self.data(using: .utf8) else { return self }
         
         let options: [NSAttributedString.DocumentReadingOptionKey: Any] = [

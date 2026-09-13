@@ -6,7 +6,9 @@ struct ApiKeySettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var apiKey: String = ""
     @State private var detectedUsername: String = ""
-    @State private var isFetchingUsername = false
+    @State private var isSaving = false
+    @State private var saveError: String?
+    @State private var saveTask: Task<Void, Never>?
     @State private var showSaved = false
     @State private var showPasteWarning = false
     @State private var showDeveloperProfile = false
@@ -47,12 +49,13 @@ struct ApiKeySettingsView: View {
                     }
                 }
                 
-                Section(header: Text("API Key", comment: "Settings section title")) {
-                    TextField("Paste your API key", text: $apiKey, axis: .vertical)
+                Section(header: Text("Account")) {
+                    LabeledContent("Username", value: detectedUsername.isEmpty ? "-" : "@\(detectedUsername)")
+                    SecureField("Paste your API key", text: $apiKey)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .font(.system(.body, design: .monospaced))
-                        .lineLimit(3, reservesSpace: true)
+                        .disabled(isSaving)
                     
                     HStack {
                         PasteButton(payloadType: String.self) { strings in
@@ -72,16 +75,22 @@ struct ApiKeySettingsView: View {
                         }
                         .foregroundColor(.red)
                     }
+                    .disabled(isSaving)
+                    if let saveError {
+                        Text(saveError).font(.callout).foregroundStyle(.red)
+                    }
                 }
                 
                 // Egen liten sektion för att få fullbreddsseparatorer
                 Section {
                     Button(action: save) {
-                        Text("Save Settings")
-                            .frame(maxWidth: .infinity, alignment: .center)
+                        HStack {
+                            if isSaving { ProgressView() }
+                            Text("Save Settings")
+                        }.frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(isSaving || apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
                 
                 Section(header: Text("Where do I find the key?")) {
@@ -128,28 +137,13 @@ struct ApiKeySettingsView: View {
                     }
                     .onChange(of: currentlyReadingSortOrder) { _, _ in
                         // Reload widgets when sort order changes
-                        WidgetCenter.shared.reloadAllTimelines()
+                        WidgetSync.libraryChanged(statuses: [2])
                     }
                     Text("Choose how your currently reading books are sorted in both the app and widgets. \"Recently Updated\" shows books you've most recently updated progress on. \"Recently Added\" shows books in the order you added them to your reading list.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
                 
-                Section(header: Text("Account")) {
-                    HStack {
-                        Text("Username")
-                        Spacer()
-                        if isFetchingUsername {
-                            ProgressView()
-                        } else if detectedUsername.isEmpty {
-                            Text("—")
-                                .foregroundColor(.secondary)
-                        } else {
-                            Text("@\(detectedUsername)")
-                                .fontWeight(.semibold)
-                        }
-                    }
-                }
                 
                 Section(header: Text("About", comment: "About section title")) {
                     VStack(alignment: .leading, spacing: 8) {
@@ -209,10 +203,12 @@ struct ApiKeySettingsView: View {
             .navigationTitle("API Settings")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }
+                    Button("Close") { dismiss() }.disabled(isSaving)
                 }
             }
             .onAppear { loadExistingAndRefreshUsername() }
+            .onDisappear { saveTask?.cancel() }
+            .interactiveDismissDisabled(isSaving)
             .alert("Saved", isPresented: $showSaved) {
                 Button("OK") { dismiss() }
             } message: {
@@ -240,38 +236,38 @@ struct ApiKeySettingsView: View {
     }
     
     private func loadExistingAndRefreshUsername() {
-        if let key = AppGroup.defaults.string(forKey: "HardcoverAPIKey") {
-            apiKey = key
-        }
+        apiKey = AppGroup.defaults.string(forKey: "HardcoverAPIKey") ?? ""
         detectedUsername = AppGroup.defaults.string(forKey: "HardcoverUsername") ?? ""
-        
-        if !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            Task { await refreshUsername() }
-        }
     }
-    
-    private func refreshUsername() async {
-        await MainActor.run { isFetchingUsername = true }
-        await HardcoverService.refreshUsernameFromAPI()
-        let u = AppGroup.defaults.string(forKey: "HardcoverUsername") ?? ""
-        await MainActor.run {
-            detectedUsername = u
-            isFetchingUsername = false
-        }
-    }
-    
-    private func save() {
+
+    @MainActor private func save() {
+        guard !isSaving else { return }
         let normalizedKey = HardcoverConfig.normalize(apiKey)
-        AppGroup.defaults.set(normalizedKey, forKey: "HardcoverAPIKey")
-        
-        Task {
-            await refreshUsername()
-            WidgetCenter.shared.reloadAllTimelines()
-            await MainActor.run {
+        guard !normalizedKey.isEmpty else { return }
+        let previousKey = HardcoverConfig.apiKey
+        isSaving = true
+        saveError = nil
+        saveTask = Task {
+            defer { isSaving = false }
+            do {
+                let user = try await LibraryAPI.identity(
+                    authorization: HardcoverConfig.headerValue(for: normalizedKey), fresh: true)
+                try Task.checkCancellation()
+                guard HardcoverConfig.apiKey == previousKey else { throw HardcoverNetworkError.accountChanged }
+                // No account or cached data is replaced until the candidate token is verified.
+                AppGroup.defaults.set(normalizedKey, forKey: "HardcoverAPIKey")
+                AppGroup.defaults.set(user.username, forKey: "HardcoverUsername")
+                detectedUsername = user.username
+                await HardcoverHTTP.shared.invalidate()
+                LibrarySnapshot.clear()
+                WidgetSync.accountChanged()
+                NotificationCenter.default.post(name: .hardcoverAccountDidChange, object: nil)
                 onSaved?(normalizedKey)
                 showSaved = true
+            } catch {
+                guard !Task.isCancelled else { return }
+                saveError = error.localizedDescription
             }
         }
     }
 }
-

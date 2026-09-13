@@ -5,10 +5,12 @@ struct PromptDetailView: View {
     @State private var answers: [UserPromptAnswer] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var generation = UUID()
+    @State private var retryTask: Task<Void, Never>?
     
     var body: some View {
         Group {
-            if isLoading {
+            if isLoading && answers.isEmpty {
                 VStack(spacing: 20) {
                     ProgressView()
                         .scaleEffect(1.5)
@@ -17,7 +19,7 @@ struct PromptDetailView: View {
                         .foregroundColor(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let error = errorMessage {
+            } else if let error = errorMessage, answers.isEmpty {
                 VStack(spacing: 20) {
                     Image(systemName: "exclamationmark.triangle")
                         .font(.system(size: 50))
@@ -29,7 +31,8 @@ struct PromptDetailView: View {
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
                     Button("Try Again") {
-                        Task { await loadAnswers() }
+                        retryTask?.cancel()
+                        retryTask = Task { await loadAnswers() }
                     }
                     .buttonStyle(.borderedProminent)
                 }
@@ -83,31 +86,48 @@ struct PromptDetailView: View {
         .task {
             await loadAnswers()
         }
+        .refreshable { await loadAnswers() }
+        .safeAreaInset(edge: .top) {
+            if let errorMessage, !answers.isEmpty {
+                InlineLoadError(message: errorMessage) {
+                    retryTask?.cancel()
+                    retryTask = Task { await loadAnswers() }
+                }.padding().background(.regularMaterial)
+            }
+        }
+        .onDisappear {
+            retryTask?.cancel(); generation = UUID(); isLoading = false
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .hardcoverAccountDidChange)) { _ in
+            retryTask?.cancel(); generation = UUID(); answers = []; errorMessage = nil
+            retryTask = Task { await loadAnswers() }
+        }
     }
     
-    private func loadAnswers() async {
-        isLoading = true
-        errorMessage = nil
-        
-        // Get username for this userId
-        guard let username = await HardcoverService.fetchUsername(forUserId: promptAnswer.userId) else {
-            await MainActor.run {
-                self.errorMessage = "Could not fetch username"
-                self.isLoading = false
+    @MainActor private func loadAnswers() async {
+        let request = UUID()
+        let account = HardcoverConfig.authorizationHeaderValue
+        generation = request
+        isLoading = true; errorMessage = nil
+        defer { if generation == request { isLoading = false } }
+        do {
+            try Task.checkCancellation()
+            let username = try await HardcoverReadScope.checked {
+                await HardcoverService.fetchUsername(forUserId: promptAnswer.userId)
             }
-            return
-        }
-        
-        let fetchedAnswers = await HardcoverService.fetchPromptAnswers(
-            promptId: promptAnswer.prompt.id,
-            userId: promptAnswer.userId,
-            username: username,
-            slug: promptAnswer.prompt.slug
-        )
-        
-        await MainActor.run {
-            self.answers = fetchedAnswers
-            self.isLoading = false
+            try Task.checkCancellation()
+            guard generation == request, account == HardcoverConfig.authorizationHeaderValue else { return }
+            guard let username, !username.isEmpty else { throw HardcoverNetworkError.invalidResponse }
+            let fetched = try await HardcoverReadScope.checked {
+                await HardcoverService.fetchPromptAnswers(promptId: promptAnswer.prompt.id, userId: promptAnswer.userId,
+                                                         username: username, slug: promptAnswer.prompt.slug)
+            }
+            try Task.checkCancellation()
+            guard generation == request, account == HardcoverConfig.authorizationHeaderValue else { return }
+            answers = fetched
+        } catch {
+            guard !Task.isCancelled, generation == request, account == HardcoverConfig.authorizationHeaderValue else { return }
+            errorMessage = error.localizedDescription
         }
     }
 }

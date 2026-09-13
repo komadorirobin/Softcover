@@ -128,6 +128,7 @@ extension HardcoverService {
     static func fetchFeed(offset: Int = 0, limit: Int = 20) async -> [FeedActivity] {
         guard !HardcoverConfig.apiKey.isEmpty else {
             print("❌ [Feed] No API key available")
+            HardcoverReadScope.failure?.record(HardcoverNetworkError.signIn)
             return []
         }
         
@@ -156,25 +157,16 @@ extension HardcoverService {
     static func fetchAllActivity(offset: Int = 0, limit: Int = 20) async -> [FeedActivity] {
         guard !HardcoverConfig.apiKey.isEmpty else {
             print("❌ [Feed] No API key available")
+            HardcoverReadScope.failure?.record(HardcoverNetworkError.signIn)
             return []
         }
         
         return await fetchActivities(forUserIds: nil, offset: offset, limit: limit)
     }
     
-    /// Fetch activities optionally filtered by user IDs.
-    /// First tries GraphQL, falls back to scraping the feed page.
+    /// Use the same offset-based source for every page and filter.
     private static func fetchActivities(forUserIds userIds: [Int]?, offset: Int, limit: Int) async -> [FeedActivity] {
-        if userIds != nil {
-            // "Your Feed" — always use GraphQL with user ID filtering
-            // (HTML /feed page doesn't authenticate via Bearer token)
-            return await fetchActivitiesViaGraphQL(forUserIds: userIds, offset: offset, limit: limit)
-        } else {
-            // "All Activity" — try HTML first for richer data, then GraphQL
-            let feedActivities = await fetchFeedFromHTML(path: "/feed/all", offset: offset, limit: limit)
-            if !feedActivities.isEmpty { return feedActivities }
-            return await fetchActivitiesViaGraphQL(forUserIds: nil, offset: offset, limit: limit)
-        }
+        await fetchActivitiesViaGraphQL(forUserIds: userIds, offset: offset, limit: limit)
     }
     
     // MARK: - Feed from HTML (Inertia.js)
@@ -197,7 +189,7 @@ extension HardcoverService {
         req.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
         
         do {
-            let (data, response) = try await URLSession.shared.data(for: req)
+            let (data, response) = try await HardcoverHTTP.shared.data(for: req)
             
             if let httpResponse = response as? HTTPURLResponse {
                 print("📡 [Feed] HTML response status: \(httpResponse.statusCode)")
@@ -444,7 +436,7 @@ extension HardcoverService {
         req.httpBody = httpBody
         
         do {
-            let (data, response) = try await URLSession.shared.data(for: req)
+            let (data, response) = try await HardcoverHTTP.shared.data(for: req)
             
             if let httpResponse = response as? HTTPURLResponse {
                 print("📡 [Feed] API response status: \(httpResponse.statusCode)")
@@ -457,18 +449,21 @@ extension HardcoverService {
             
             guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
                 print("❌ [Feed] Failed to parse JSON")
+                HardcoverReadScope.failure?.record(HardcoverNetworkError.invalidResponse)
                 return []
             }
             
             // Check for errors
-            if let errors = json["errors"] as? [[String: Any]] {
+            if let errors = json["errors"] as? [[String: Any]], !errors.isEmpty {
                 let messages = errors.compactMap { $0["message"] as? String }
                 print("❌ [Feed] GraphQL errors: \(messages.joined(separator: ", "))")
+                HardcoverReadScope.failure?.record(HardcoverNetworkError.graphQL(messages.joined(separator: ", ")))
                 return []
             }
             
             guard let dataObj = json["data"] as? [String: Any],
                   let activities = dataObj["activities"] as? [[String: Any]] else {
+                HardcoverReadScope.failure?.record(HardcoverNetworkError.invalidResponse)
                 print("⚠️ [Feed] No activities in response")
                 if let jsonStr = String(data: data, encoding: .utf8) {
                     print("📦 [Feed] Raw response: \(jsonStr.prefix(500))")
@@ -491,6 +486,10 @@ extension HardcoverService {
             let userMap = await fetchUserInfoBatch(userIds: Array(userIds))
             
             var parsed = activities.compactMap { parseActivity($0, userMap: userMap) }
+            guard parsed.count == activities.count else {
+                HardcoverReadScope.failure?.record(HardcoverNetworkError.invalidResponse)
+                return []
+            }
             
             // Batch-fetch book details for activities that have a bookId but no title
             let missingBookIds = Set(parsed.compactMap { activity -> Int? in
@@ -744,7 +743,7 @@ extension HardcoverService {
         req.httpBody = httpBody
         
         do {
-            let (data, _) = try await URLSession.shared.data(for: req)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: req)
             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let dataObj = json["data"] as? [String: Any],
                let me = dataObj["me"] as? [[String: Any]],
@@ -796,7 +795,7 @@ extension HardcoverService {
         req.httpBody = httpBody
         
         do {
-            let (data, _) = try await URLSession.shared.data(for: req)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: req)
             guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let dataObj = json["data"] as? [String: Any],
                   let books = dataObj["books"] as? [[String: Any]] else {
@@ -858,7 +857,7 @@ extension HardcoverService {
         req.httpBody = httpBody
         
         do {
-            let (data, _) = try await URLSession.shared.data(for: req)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: req)
             guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let dataObj = json["data"] as? [String: Any],
                   let users = dataObj["users"] as? [[String: Any]] else {

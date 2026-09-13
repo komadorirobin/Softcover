@@ -5,6 +5,8 @@ struct PromptsView: View {
     @State private var prompts: [PromptAnswer] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var generation = UUID()
+    @State private var retryTask: Task<Void, Never>?
     
     init(username: String? = nil) {
         self.username = username
@@ -12,7 +14,7 @@ struct PromptsView: View {
     
     var body: some View {
         Group {
-            if isLoading {
+            if isLoading && prompts.isEmpty {
                 VStack(spacing: 20) {
                     ProgressView()
                         .scaleEffect(1.5)
@@ -21,7 +23,7 @@ struct PromptsView: View {
                         .foregroundColor(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let error = errorMessage {
+            } else if let error = errorMessage, prompts.isEmpty {
                 VStack(spacing: 20) {
                     Image(systemName: "exclamationmark.triangle")
                         .font(.system(size: 50))
@@ -33,7 +35,8 @@ struct PromptsView: View {
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
                     Button("Try Again") {
-                        Task { await loadPrompts() }
+                        retryTask?.cancel()
+                        retryTask = Task { await loadPrompts() }
                     }
                     .buttonStyle(.borderedProminent)
                 }
@@ -74,46 +77,50 @@ struct PromptsView: View {
         .task {
             await loadPrompts()
         }
-    }
-    
-    private func loadPrompts() async {
-        isLoading = true
-        errorMessage = nil
-        prompts = [] // Clear existing prompts
-        
-        let fetchedPrompts: [PromptAnswer]
-        if let username = username {
-            // Fetch with progressive loading
-            fetchedPrompts = await HardcoverService.fetchAnsweredPrompts(forUsername: username) { promptAnswer in
-                // Add or update prompt as it loads
-                if let index = self.prompts.firstIndex(where: { $0.id == promptAnswer.id }) {
-                    // Update existing prompt (e.g., with preview books)
-                    self.prompts[index] = promptAnswer
-                } else {
-                    // Add new prompt
-                    self.prompts.append(promptAnswer)
-                }
-            }
-        } else {
-            // Fetch with progressive loading
-            fetchedPrompts = await HardcoverService.fetchAnsweredPrompts { promptAnswer in
-                // Add or update prompt as it loads
-                if let index = self.prompts.firstIndex(where: { $0.id == promptAnswer.id }) {
-                    // Update existing prompt (e.g., with preview books)
-                    self.prompts[index] = promptAnswer
-                } else {
-                    // Add new prompt
-                    self.prompts.append(promptAnswer)
-                }
+        .refreshable { await loadPrompts() }
+        .safeAreaInset(edge: .top) {
+            if let errorMessage, !prompts.isEmpty {
+                InlineLoadError(message: errorMessage) {
+                    retryTask?.cancel()
+                    retryTask = Task { await loadPrompts() }
+                }.padding().background(.regularMaterial)
             }
         }
-        
-        await MainActor.run {
-            // Final update in case callback didn't catch everything
-            if self.prompts.isEmpty && !fetchedPrompts.isEmpty {
-                self.prompts = fetchedPrompts
+        .onDisappear {
+            retryTask?.cancel(); generation = UUID(); isLoading = false
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .hardcoverAccountDidChange)) { _ in
+            retryTask?.cancel(); generation = UUID(); prompts = []; errorMessage = nil
+            retryTask = Task { await loadPrompts() }
+        }
+    }
+    
+    @MainActor private func loadPrompts() async {
+        let request = UUID()
+        let account = HardcoverConfig.authorizationHeaderValue
+        generation = request
+        isLoading = true; errorMessage = nil
+        defer { if generation == request { isLoading = false } }
+
+        let received: @MainActor (PromptAnswer) -> Void = { answer in
+            guard !Task.isCancelled, generation == request, account == HardcoverConfig.authorizationHeaderValue else { return }
+            if let index = prompts.firstIndex(where: { $0.id == answer.id }) { prompts[index] = answer }
+            else { prompts.append(answer) }
+        }
+        do {
+            try Task.checkCancellation()
+            let fetched = try await HardcoverReadScope.checked {
+                if let username {
+                    return await HardcoverService.fetchAnsweredPrompts(forUsername: username, onPromptLoaded: received)
+                }
+                return await HardcoverService.fetchAnsweredPrompts(onPromptLoaded: received)
             }
-            self.isLoading = false
+            try Task.checkCancellation()
+            guard generation == request, account == HardcoverConfig.authorizationHeaderValue else { return }
+            prompts = fetched
+        } catch {
+            guard !Task.isCancelled, generation == request, account == HardcoverConfig.authorizationHeaderValue else { return }
+            errorMessage = error.localizedDescription
         }
     }
 }

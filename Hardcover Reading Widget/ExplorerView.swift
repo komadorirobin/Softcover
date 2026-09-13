@@ -1,80 +1,68 @@
 import SwiftUI
 
+extension Notification.Name {
+    static let hardcoverAccountDidChange = Notification.Name("HardcoverAccountDidChange")
+}
+
 struct ExplorerView: View {
     @State private var selectedSection = 0
     @State private var showingApiSettings = false
     let onDone: (Bool) -> Void
-    
-    private var sectionInfoText: String {
-        switch selectedSection {
-        case 0:
-            return "A list of what books are read the most on Hardcover."
-        case 1:
-            return "A list of what books are most anticipated on Hardcover."
-        case 2:
-            return "Lists are organized collections of books created by anyone. Create a list and maybe it'll get featured!"
-        default:
-            return ""
-        }
-    }
-    
+
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(spacing: 0) {
-                    // Segmented picker at the top
-                    Picker("Section", selection: $selectedSection) {
-                        Text("Trending").tag(0)
-                        Text("Upcoming").tag(1)
-                        Text("Lists").tag(2)
-                    }
-                    .pickerStyle(.segmented)
-                    .padding()
-                    
-                    // Info text based on selection
-                    VStack(spacing: 4) {
-                        Text(sectionInfoText)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal)
-                            .padding(.bottom, 8)
-                    }
-                    
-                    // Content based on selection
-                    switch selectedSection {
-                    case 0:
-                        TrendingBooksView(onDone: onDone)
-                    case 1:
-                        CommunityUpcomingView()
-                    case 2:
-                        CommunityListsView()
-                    default:
-                        EmptyView()
-                    }
+        NavigationStack {
+            VStack(spacing: 0) {
+                Picker("Section", selection: $selectedSection) {
+                    Text("Trending").tag(0)
+                    Text("Upcoming").tag(1)
+                    Text("Lists").tag(2)
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+
+                // Preserve each section's results, filters and scroll position.
+                ZStack {
+                    TrendingBooksView(isActive: selectedSection == 0, onDone: onDone)
+                        .opacity(selectedSection == 0 ? 1 : 0)
+                        .allowsHitTesting(selectedSection == 0)
+                        .accessibilityHidden(selectedSection != 0)
+                    CommunityUpcomingView(isActive: selectedSection == 1)
+                        .opacity(selectedSection == 1 ? 1 : 0)
+                        .allowsHitTesting(selectedSection == 1)
+                        .accessibilityHidden(selectedSection != 1)
+                    CommunityListsView(isActive: selectedSection == 2)
+                        .opacity(selectedSection == 2 ? 1 : 0)
+                        .allowsHitTesting(selectedSection == 2)
+                        .accessibilityHidden(selectedSection != 2)
                 }
             }
             .navigationTitle("Explore")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button { 
-                        showingApiSettings = true 
-                    } label: { 
-                        Image(systemName: "gearshape") 
-                    }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Settings", systemImage: "gearshape") { showingApiSettings = true }
                 }
             }
-            .sheet(isPresented: $showingApiSettings) {
-                ApiKeySettingsView { _ in
-                    // Refresh if needed
-                }
-            }
+            .sheet(isPresented: $showingApiSettings) { ApiKeySettingsView() }
         }
-        .navigationViewStyle(.stack)
     }
 }
 
-#Preview {
-    ExplorerView(onDone: { _ in })
+
+struct ExploreLoadFeedback: View {
+    let isLoading: Bool
+    let error: String?
+    let isEmpty: Bool
+    let emptyTitle: LocalizedStringKey
+    let retry: () -> Void
+
+    var body: some View {
+        if isLoading { ProgressView().frame(maxWidth: .infinity).padding() }
+        if let error {
+            InlineLoadError(message: error, retry: retry).padding()
+        } else if isEmpty && !isLoading {
+            ContentUnavailableView(emptyTitle, systemImage: "books.vertical")
+        }
+    }
 }

@@ -6,11 +6,15 @@ struct OtherUserStatsView: View {
     @State private var readingGoals: [ReadingGoal] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var generation = UUID()
     
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
-                if isLoading {
+                if let errorMessage, stats != nil {
+                    InlineLoadError(message: errorMessage) { Task { await loadStats() } }.padding(.horizontal)
+                }
+                if isLoading && stats == nil {
                     VStack(spacing: 20) {
                         ProgressView()
                             .scaleEffect(1.5)
@@ -20,7 +24,7 @@ struct OtherUserStatsView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.top, 100)
-                } else if let error = errorMessage {
+                } else if let error = errorMessage, stats == nil {
                     VStack(spacing: 20) {
                         Image(systemName: "exclamationmark.triangle")
                             .font(.system(size: 50))
@@ -191,27 +195,29 @@ struct OtherUserStatsView: View {
         .task {
             await loadStats()
         }
+        .refreshable { await loadStats() }
     }
     
-    private func loadStats() async {
-        isLoading = true
-        errorMessage = nil
-        
-        // Load stats and goals in parallel
-        async let fetchedStats = HardcoverService.fetchUserStats(username: username)
-        async let fetchedGoals = HardcoverService.fetchUserReadingGoals(username: username)
-        
-        let (loadedStats, loadedGoals) = await (fetchedStats, fetchedGoals)
-        
-        if let loadedStats = loadedStats {
+    @MainActor private func loadStats() async {
+        let request = UUID()
+        let account = HardcoverConfig.authorizationHeaderValue
+        generation = request
+        isLoading = true; errorMessage = nil
+        defer { if request == generation { isLoading = false } }
+        do {
+            let loadedStats = try await HardcoverReadScope.checked { await HardcoverService.fetchUserStats(username: username) }
+            try Task.checkCancellation()
+            guard request == generation, account == HardcoverConfig.authorizationHeaderValue else { return }
+            guard let loadedStats else { throw HardcoverNetworkError.invalidResponse }
             stats = loadedStats
-        } else {
-            errorMessage = "Could not load statistics"
+            let loadedGoals = try await HardcoverReadScope.checked { await HardcoverService.fetchUserReadingGoals(username: username) }
+            try Task.checkCancellation()
+            guard request == generation, account == HardcoverConfig.authorizationHeaderValue else { return }
+            readingGoals = loadedGoals
+        } catch {
+            guard !Task.isCancelled, request == generation else { return }
+            errorMessage = error.localizedDescription
         }
-        
-        readingGoals = loadedGoals
-        
-        isLoading = false
     }
 }
 
@@ -233,7 +239,7 @@ struct StatCard: View {
             Text(value)
                 .font(.system(size: 32, weight: .bold))
             
-            Text(title)
+            Text(LocalizedStringKey(title))
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
@@ -281,7 +287,7 @@ struct GoalCardView: View {
                         }
                     }
                     
-                    Text(goal.percentComplete >= 1.0 ? "Completed!" : "Complete")
+                    Text(goal.percentComplete >= 1.0 ? LocalizedStringKey("Completed!") : LocalizedStringKey("Complete"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -297,7 +303,7 @@ struct GoalCardView: View {
                     
                     Rectangle()
                         .fill(progressColor)
-                        .frame(width: geometry.size.width * goal.percentComplete, height: 8)
+                        .frame(width: geometry.size.width * min(max(goal.percentComplete, 0), 1), height: 8)
                         .cornerRadius(4)
                 }
             }

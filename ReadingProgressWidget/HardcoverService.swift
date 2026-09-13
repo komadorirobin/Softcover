@@ -3,511 +3,6 @@ import UIKit
 import ImageIO
 import MobileCoreServices
 
-// MARK: - GraphQL Models
-struct GraphQLMeResponse: Codable {
-    let data: MeData?
-    let errors: [GraphQLError]?
-    
-    enum CodingKeys: String, CodingKey { case data, errors }
-    init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        self.data = try c.decodeIfPresent(MeData.self, forKey: .data)
-        self.errors = try c.decodeIfPresent([GraphQLError].self, forKey: .errors)
-    }
-}
-
-struct GraphQLUserBooksResponse: Codable {
-    let data: UserBooksData?
-    let errors: [GraphQLError]?
-}
-
-struct GraphQLEditionsResponse: Codable {
-    let data: EditionsData?
-    let errors: [GraphQLError]?
-}
-
-struct GraphQLUpdateEditionResponse: Codable {
-    let data: UpdateEditionData?
-    let errors: [GraphQLError]?
-}
-
-struct GraphQLError: Codable {
-    let message: String
-}
-
-struct MeData: Codable {
-    let me: [MeUser]?
-}
-
-struct MeUser: Codable {
-    let id: Int
-    let username: String
-}
-
-struct UserBooksData: Codable {
-    let user_books: [UserBook]?
-}
-
-struct EditionsData: Codable {
-    let editions: [Edition]?
-}
-
-struct UpdateEditionData: Codable {
-    let update_user_books: UpdateUserBooksResult?
-}
-
-struct UpdateUserBooksResult: Codable {
-    let affected_rows: Int
-}
-
-struct UserBook: Codable {
-    let id: Int?
-    let bookId: Int?
-    let statusId: Int?
-    let editionId: Int?
-    let privacySettingId: Int?
-    let rating: Double?
-    let updatedAt: String?
-    let userBookReads: [UserBookRead]?
-    let book: UserBookBook?
-    let edition: Edition?
-    
-    enum CodingKeys: String, CodingKey {
-        case id
-        case bookId = "book_id"
-        case statusId = "status_id"
-        case editionId = "edition_id"
-        case privacySettingId = "privacy_setting_id"
-        case rating
-        case updatedAt = "updated_at"
-        case userBookReads = "user_book_reads"
-        case book
-        case edition
-    }
-}
-
-struct UserBookRead: Codable {
-    let id: Int?
-    let startedAt: String?
-    let finishedAt: String?
-    let progressPages: Int?
-    let progressSeconds: Int?
-    let editionId: Int?
-    
-    enum CodingKeys: String, CodingKey {
-        case id
-        case startedAt = "started_at"
-        case finishedAt = "finished_at"
-        case progressPages = "progress_pages"
-        case progressSeconds = "progress_seconds"
-        case editionId = "edition_id"
-    }
-}
-
-struct UserBookBook: Codable {
-    let id: Int?
-    let title: String
-    let contributions: [BookContribution]?
-    let image: BookImage?
-    let editions: [Edition]? // include editions for release dates
-    
-    enum CodingKeys: String, CodingKey {
-        case id, title, image, editions
-        case contributions = "cached_contributors"
-    }
-}
-
-struct BookImage: Codable {
-    let url: String?
-}
-
-struct BookContribution: Codable {
-    let author: BookAuthor?
-}
-
-struct BookAuthor: Codable {
-    let name: String?
-}
-
-struct Edition: Codable, Identifiable {
-    let id: Int
-    let title: String?
-    let isbn10: String?
-    let isbn13: String?
-    let asin: String?
-    let pages: Int?
-    let audioSeconds: Int?
-    let publisher: Publisher?
-    let image: EditionImage?
-    let releaseDate: String? // release_date (date)
-    
-    enum CodingKeys: String, CodingKey {
-        case id
-        case title
-        case isbn10 = "isbn_10"
-        case isbn13 = "isbn_13"
-        case asin
-        case pages
-        case audioSeconds = "audio_seconds"
-        case publisher
-        case image
-        case releaseDate = "release_date"
-    }
-    
-    var displayTitle: String {
-        return title ?? "Unknown Edition"
-    }
-    
-    var isAudiobook: Bool {
-        return audioSeconds != nil && audioSeconds! > 0
-    }
-    
-    var totalMinutes: Int {
-        guard let seconds = audioSeconds else { return 0 }
-        return seconds / 60
-    }
-    
-    var totalUnits: Int {
-        return isAudiobook ? totalMinutes : (pages ?? 0)
-    }
-    
-    var displayInfo: String {
-        var info: [String] = []
-        if let pub = publisher?.name {
-            info.append(pub)
-        }
-        if isAudiobook {
-            let minutes = totalMinutes
-            if minutes > 0 {
-                let hours = minutes / 60
-                let mins = minutes % 60
-                if hours > 0 {
-                    info.append("\(hours)h \(mins)m")
-                } else {
-                    info.append("\(mins)m")
-                }
-            }
-        } else if let pageCount = pages {
-            info.append("\(pageCount) pages")
-        }
-        return info.joined(separator: " • ")
-    }
-}
-
-struct Publisher: Codable {
-    let id: Int?
-    let name: String?
-}
-
-struct EditionImage: Codable {
-    let url: String?
-}
-
-// MARK: - Goal Activity GraphQL Models
-struct GraphQLActivitiesResponse: Codable {
-    let data: ActivitiesData?
-    let errors: [GraphQLError]?
-}
-
-struct ActivitiesData: Codable {
-    let activities: [Activity]?
-}
-
-struct Activity: Codable {
-    let id: Int?
-    let event: String
-    let data: ActivityData?
-    let created_at: String?
-    
-    enum CodingKeys: String, CodingKey {
-        case id, event, data
-        case created_at = "created_at"
-    }
-}
-
-struct ActivityData: Codable {
-    let goal: ReadingGoal?
-}
-
-// Robust decoding for both camelCase and snake_case, and string/number coercion.
-struct ReadingGoal: Codable {
-    let id: Int
-    let goal: Int
-    let metric: String
-    let endDate: String
-    let progress: Int
-    let startDate: String
-    let conditions: [String: String]?
-    let description: String?
-    let percentComplete: Double
-    let privacySettingId: Int
-    let archived: Bool
-    
-    init(
-        id: Int,
-        goal: Int,
-        metric: String,
-        endDate: String,
-        progress: Int,
-        startDate: String,
-        conditions: [String: String]?,
-        description: String?,
-        percentComplete: Double,
-        privacySettingId: Int,
-        archived: Bool = false
-    ) {
-        self.id = id
-        self.goal = goal
-        self.metric = metric
-        self.endDate = endDate
-        self.progress = progress
-        self.startDate = startDate
-        self.conditions = conditions
-        self.description = description
-        self.percentComplete = percentComplete
-        self.privacySettingId = privacySettingId
-        self.archived = archived
-    }
-    
-    init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: DynamicCodingKey.self)
-        
-        func intValue(_ keys: [String], default def: Int? = nil) throws -> Int {
-            for k in keys {
-                if let v = try? c.decode(Int.self, forKey: DynamicCodingKey(k)) { return v }
-                if let s = try? c.decode(String.self, forKey: DynamicCodingKey(k)) {
-                    // Try Int first (for "13"), then Double (for "13.0")
-                    if let v = Int(s) { return v }
-                    if let d = Double(s) { return Int(d) }
-                }
-                if let d = try? c.decode(Double.self, forKey: DynamicCodingKey(k)) { return Int(d) }
-            }
-            if let def = def { return def }
-            throw DecodingError.keyNotFound(DynamicCodingKey(keys.first ?? "unknown"), .init(codingPath: decoder.codingPath, debugDescription: "Missing int for keys \(keys)"))
-        }
-        func doubleValue(_ keys: [String], default def: Double? = nil) throws -> Double {
-            for k in keys {
-                if let v = try? c.decode(Double.self, forKey: DynamicCodingKey(k)) { return v }
-                if let i = try? c.decode(Int.self, forKey: DynamicCodingKey(k)) { return Double(i) }
-                if let s = try? c.decode(String.self, forKey: DynamicCodingKey(k)), let v = Double(s) { return v }
-            }
-            if let def = def { return def }
-            throw DecodingError.keyNotFound(DynamicCodingKey(keys.first ?? "unknown"), .init(codingPath: decoder.codingPath, debugDescription: "Missing double for keys \(keys)"))
-        }
-        func stringValue(_ keys: [String], default def: String? = nil) throws -> String {
-            for k in keys {
-                if let v = try? c.decode(String.self, forKey: DynamicCodingKey(k)), !v.isEmpty { return v }
-                if let i = try? c.decode(Int.self, forKey: DynamicCodingKey(k)) { return String(i) }
-                if let d = try? c.decode(Double.self, forKey: DynamicCodingKey(k)) { return String(d) }
-            }
-            if let def = def { return def }
-            throw DecodingError.keyNotFound(DynamicCodingKey(keys.first ?? "unknown"), .init(codingPath: decoder.codingPath, debugDescription: "Missing string for keys \(keys)"))
-        }
-        func dictStringString(_ keys: [String]) -> [String: String]? {
-            for k in keys {
-                if let v = try? c.decode([String: String].self, forKey: DynamicCodingKey(k)) { return v }
-            }
-            return nil
-        }
-        func optionalString(_ keys: [String]) -> String? {
-            for k in keys {
-                if let v = try? c.decode(String.self, forKey: DynamicCodingKey(k)) { return v }
-            }
-            return nil
-        }
-        
-        let id = try intValue(["id"])
-        let goal = try intValue(["goal"])
-        let metric = try stringValue(["metric"])
-        let startDate = try stringValue(["startDate", "start_date"])
-        let endDate = try stringValue(["endDate", "end_date"])
-        
-        // Progress can be Int, Double, or String (from HTML scraping)
-        let progress = try intValue(["progress"], default: 0)
-        
-        let description = optionalString(["description", "name", "title"])
-        let conditions = dictStringString(["conditions"])
-        let privacy = (try? intValue(["privacySettingId", "privacy_setting_id"])) ?? 1
-        
-        // Try calculatedProgress (HTML scraping) or percentComplete (GraphQL) or compute fallback
-        // HTML returns calculatedProgress as 0-100, GraphQL returns percentComplete as 0-1
-        let percent: Double
-        if let calc = try? doubleValue(["calculatedProgress", "calculated_progress"]) {
-            // HTML scraping: 0-100 scale
-            percent = min(1.0, max(0.0, calc / 100.0))
-        } else if let p = try? doubleValue(["percentComplete", "percent_complete"]) {
-            // GraphQL: 0-1 scale
-            percent = min(1.0, max(0.0, p))
-        } else {
-            // Fallback: compute from progress/goal
-            let denom = max(1, goal)
-            percent = min(1.0, max(0.0, Double(progress) / Double(denom)))
-        }
-        
-        // Check if archived (default to false for backward compatibility)
-        let archived = (try? c.decode(Bool.self, forKey: DynamicCodingKey("archived"))) ?? false
-        
-        self.init(
-            id: id,
-            goal: goal,
-            metric: metric,
-            endDate: endDate,
-            progress: progress,
-            startDate: startDate,
-            conditions: conditions,
-            description: description,
-            percentComplete: percent,
-            privacySettingId: privacy,
-            archived: archived
-        )
-    }
-}
-
-// Helper to read arbitrary keys
-private struct DynamicCodingKey: CodingKey {
-    var stringValue: String
-    var intValue: Int?
-    init(_ string: String) { self.stringValue = string; self.intValue = nil }
-    init?(stringValue: String) { self.init(stringValue) }
-    init?(intValue: Int) { self.stringValue = "\(intValue)"; self.intValue = intValue }
-}
-
-// MARK: - Search GraphQL Models
-struct GraphQLSearchResponse: Decodable {
-    let data: SearchData?
-    let errors: [GraphQLError]?
-}
-
-struct SearchData: Decodable {
-    let search: SearchResult?
-}
-
-struct SearchResult: Decodable {
-    let ids: [Int]?
-    let results: [SearchBookResult]?
-
-    enum CodingKeys: String, CodingKey {
-        case ids
-        case results
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        if let intIds = try? container.decode([Int].self, forKey: .ids) {
-            ids = intIds
-        } else if let stringIds = try? container.decode([String].self, forKey: .ids) {
-            ids = stringIds.compactMap(Int.init)
-        } else {
-            ids = nil
-        }
-        results = try? container.decode([SearchBookResult].self, forKey: .results)
-    }
-}
-
-struct SearchBookResult: Decodable {
-    let id: Int
-    let title: String
-    let authorNames: [String]
-    let imageUrl: String?
-
-    enum CodingKeys: String, CodingKey {
-        case id
-        case title
-        case authorNames = "author_names"
-        case image
-        case cachedImage = "cached_image"
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        if let intId = try? container.decode(Int.self, forKey: .id) {
-            id = intId
-        } else if let stringId = try? container.decode(String.self, forKey: .id),
-                  let intId = Int(stringId) {
-            id = intId
-        } else {
-            throw DecodingError.dataCorruptedError(forKey: .id, in: container, debugDescription: "Expected numeric book id")
-        }
-
-        let rawTitle = (try? container.decode(String.self, forKey: .title)) ?? "Unknown Title"
-        title = rawTitle.decodedHTMLEntities
-        authorNames = (try? container.decode([String].self, forKey: .authorNames)) ?? []
-
-        if let image = try? container.decode(SearchResultImage.self, forKey: .image) {
-            imageUrl = image.url
-        } else if let cachedImage = try? container.decode(SearchResultImage.self, forKey: .cachedImage) {
-            imageUrl = cachedImage.url
-        } else if let image = try? container.decode(String.self, forKey: .image), !image.isEmpty {
-            imageUrl = image
-        } else {
-            imageUrl = nil
-        }
-    }
-
-    var hydratedBook: HydratedBook {
-        let authorName = authorNames.first
-        return HydratedBook(id: id, title: title, authorName: authorName, imageUrl: imageUrl)
-    }
-}
-
-struct SearchResultImage: Decodable {
-    let url: String?
-}
-
-struct GraphQLBooksHydrateResponse: Codable {
-    let data: BooksHydrateData?
-    let errors: [GraphQLError]?
-}
-
-struct BooksHydrateData: Codable {
-    let books: [HydratedBook]?
-}
-
-struct HydratedBook: Codable, Identifiable {
-    let id: Int
-    let title: String
-    let contributions: [BookContribution]?
-    let image: BookImage?
-
-    init(id: Int, title: String, authorName: String?, imageUrl: String?) {
-        self.id = id
-        self.title = title.decodedHTMLEntities
-        if let authorName, !authorName.isEmpty {
-            self.contributions = [BookContribution(author: BookAuthor(name: authorName))]
-        } else {
-            self.contributions = nil
-        }
-        if let imageUrl, !imageUrl.isEmpty {
-            self.image = BookImage(url: imageUrl)
-        } else {
-            self.image = nil
-        }
-    }
-    
-    enum CodingKeys: String, CodingKey {
-        case id, title, image
-        case contributions = "cached_contributors"
-    }
-    
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(Int.self, forKey: .id)
-        let rawTitle = try container.decode(String.self, forKey: .title)
-        title = rawTitle.decodedHTMLEntities
-        contributions = try container.decodeIfPresent([BookContribution].self, forKey: .contributions)
-        image = try container.decodeIfPresent(BookImage.self, forKey: .image)
-    }
-    
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(id, forKey: .id)
-        try container.encode(title, forKey: .title)
-        try container.encodeIfPresent(contributions, forKey: .contributions)
-        try container.encodeIfPresent(image, forKey: .image)
-    }
-}
-
-// MARK: - Image Cache
 class ImageCache {
     static let shared = ImageCache()
     private let cache = NSCache<NSString, NSData>()
@@ -578,122 +73,34 @@ struct HardcoverConfig {
 class HardcoverService {
   
   static func fetchCurrentlyReading(forWidget: Bool = false) async -> [BookProgress] {
-      guard !HardcoverConfig.apiKey.isEmpty else {
-          print("❌ No API key configured")
-          return []
-      }
-      let books = await fetchBooksFromGraphQL(apiKey: HardcoverConfig.apiKey, forWidget: forWidget)
-      ImageCache.shared.clearCache()
-      return books
-  }
-  
-  // NEW: Fetch Want to Read list (status_id = 1)
-  static func fetchWantToRead(limit: Int, forWidget: Bool = false) async -> [BookProgress] {
       guard !HardcoverConfig.apiKey.isEmpty else { return [] }
-      guard let userId = await fetchUserId(apiKey: HardcoverConfig.apiKey) else { return [] }
-      guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return [] }
-      
-      var request = URLRequest(url: url)
-      request.httpMethod = "POST"
-      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-      request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
-      
-      let query = """
-      query ($userId: Int!, $limit: Int!) {
-        user_books(
-          where: { user_id: { _eq: $userId }, status_id: { _eq: 1 } },
-          order_by: { updated_at: desc },
-          limit: $limit
-        ) {
-          id
-          book_id
-          status_id
-          edition_id
-          rating
-          updated_at
-          book {
-            id
-            title
-            cached_contributors
-            image { url }
-          }
-          edition {
-            id
-            title
-            pages
-            audio_seconds
-            image { url }
-            release_date
-          }
-        }
+      if forWidget, let snapshot = LibrarySnapshot.load(status: 2, maxAge: 300), !snapshot.stale {
+          var books = Array(snapshot.books.prefix(10))
+          await loadImagesForWidgets(books: &books)
+          return books
       }
-      """
-      let body: [String: Any] = [
-          "query": query,
-          "variables": ["userId": userId, "limit": max(1, limit)]
-      ]
-      
       do {
-          request.httpBody = try JSONSerialization.data(withJSONObject: body)
-          let (data, _) = try await URLSession.shared.data(for: request)
-          let resp = try JSONDecoder().decode(GraphQLUserBooksResponse.self, from: data)
-          if let errs = resp.errors, !errs.isEmpty { return [] }
-          guard let rows = resp.data?.user_books else { return [] }
-          
-          var items: [BookProgress] = []
-          items.reserveCapacity(rows.count)
-          
-          // Build items WITHOUT images first (faster initial display)
-          for ub in rows {
-              guard let bookData = ub.book else { continue }
-              
-              // Title preference: edition title if present, else book title
-              let rawTitle = (ub.edition?.title?.isEmpty == false) ? ub.edition!.title! : bookData.title
-              let displayTitle = rawTitle.decodedHTMLEntities
-              let author = bookData.contributions?.first?.author?.name ?? "Unknown Author"
-              
-              let edition = ub.edition
-              let isAudiobook = edition?.isAudiobook ?? false
-              let totalPages = edition?.pages ?? 0
-              let totalMinutes = edition?.totalMinutes ?? 0
-              let releaseDate = edition?.releaseDate
-              
-              // Prefer edition image URL, else book image URL
-              var imageUrl: String? = nil
-              if let u = ub.edition?.image?.url, !u.isEmpty { imageUrl = u }
-              else if let u = bookData.image?.url, !u.isEmpty { imageUrl = u }
-              
-              // Check cache first, don't download now
-              let coverData: Data? = imageUrl.flatMap { ImageCache.shared.imageData(forKey: $0) }
-              
-              let item = BookProgress(
-                  id: "\(ub.id ?? 0)",
-                  title: displayTitle,
-                  author: author,
-                  coverImageData: coverData,
-                  coverImageUrl: imageUrl, // Save URL for lazy loading
-                  progress: 0.0,
-                  totalPages: totalPages,
-                  currentPage: 0,
-                  bookId: bookData.id,
-                  userBookId: ub.id,
-                  editionId: ub.editionId,
-                  originalTitle: bookData.title.decodedHTMLEntities,
-                  releaseDate: releaseDate,
-                  isAudiobook: isAudiobook,
-                  totalMinutes: totalMinutes,
-                  currentMinute: 0
-              )
-              items.append(item)
-          }
-          
-          // For widgets, download images that aren't cached
-          if forWidget {
-              await loadImagesForWidgets(books: &items)
-          }
-          
-          return items
+          let page = try await LibraryAPI.page(status: 2, limit: forWidget ? 10 : 50)
+          var books = page.books
+          if !forWidget { LibrarySnapshot.save(books, status: 2, complete: !page.hasMore) }
+          if forWidget { await loadImagesForWidgets(books: &books) }
+          return books
       } catch {
+          HardcoverReadScope.failure?.record(error)
+          var books = LibrarySnapshot.load(status: 2)?.books ?? []
+          if forWidget { books = Array(books.prefix(10)); await loadImagesForWidgets(books: &books) }
+          return books
+      }
+  }
+
+  static func fetchWantToRead(limit: Int, forWidget: Bool = false) async -> [BookProgress] {
+      do {
+          let page = try await LibraryAPI.page(status: 1, limit: limit)
+          var books = page.books
+          if forWidget { await loadImagesForWidgets(books: &books) }
+          return books
+      } catch {
+          HardcoverReadScope.failure?.record(error)
           return []
       }
   }
@@ -713,7 +120,7 @@ class HardcoverService {
       """
       request.httpBody = query.data(using: .utf8)
       do {
-          let (data, _) = try await URLSession.shared.data(for: request)
+          let (data, _) = try await HardcoverHTTP.shared.data(for: request)
           let gqlResponse = try JSONDecoder().decode(GraphQLMeResponse.self, from: data)
           if let errors = gqlResponse.errors, !errors.isEmpty {
               AppGroup.defaults.set("", forKey: "HardcoverUsername")
@@ -731,9 +138,9 @@ class HardcoverService {
   }
   
   // Helper function to load images for widgets
-  private static func loadImagesForWidgets(books: inout [BookProgress]) async {
+  static func loadImagesForWidgets(books: inout [BookProgress]) async {
       await withTaskGroup(of: (Int, Data?).self) { group in
-          for (index, book) in books.enumerated() {
+          for (index, book) in books.prefix(4).enumerated() {
               // Skip if already has image data
               if book.coverImageData != nil { continue }
               guard let urlString = book.coverImageUrl else { continue }
@@ -763,7 +170,7 @@ class HardcoverService {
       """
       request.httpBody = query.data(using: .utf8)
       do {
-          let (data, _) = try await URLSession.shared.data(for: request)
+          let (data, _) = try await HardcoverHTTP.shared.data(for: request)
           let gqlResponse = try JSONDecoder().decode(GraphQLMeResponse.self, from: data)
           if let errors = gqlResponse.errors, !errors.isEmpty {
               errors.forEach { print("❌ GraphQL User API Error: \($0.message)") }
@@ -858,195 +265,23 @@ class HardcoverService {
       return ui.jpegData(compressionQuality: compression)
   }
   
-  private static func fetchBooksFromGraphQL(apiKey: String, forWidget: Bool = false) async -> [BookProgress] {
-      guard let userId = await fetchUserId(apiKey: apiKey) else {
-          print("❌ Could not get user ID")
-          return []
-      }
-      
-      guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return [] }
-      var request = URLRequest(url: url)
-      request.httpMethod = "POST"
-      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-      request.setValue(HardcoverConfig.headerValue(for: apiKey), forHTTPHeaderField: "Authorization")
-      
-      let booksQuery = """
-      { "query": "{ user_books(where: {user_id: {_eq: \(userId)}, status_id: {_eq: 2}}, limit: 20) { id book_id status_id edition_id privacy_setting_id rating updated_at user_book_reads(order_by: {id: desc}) { id started_at finished_at progress_pages progress_seconds edition_id } book { id title cached_contributors image { url } } edition { id title isbn_10 isbn_13 pages audio_seconds publisher { name } image { url } } } }" }
-      """
-      request.httpBody = booksQuery.data(using: .utf8)
-      
-      do {
-          let (data, _) = try await URLSession.shared.data(for: request)
-          let gqlResponse = try JSONDecoder().decode(GraphQLUserBooksResponse.self, from: data)
-          if let errors = gqlResponse.errors {
-              for error in errors {
-                  print("❌ GraphQL Books API Error: \(error.message)")
-              }
-              return []
-          }
-          guard var userBooks = gqlResponse.data?.user_books else {
-              print("❌ GraphQL API: No user books data returned")
-              return []
-          }
-          
-          // Sort based on user preference
-          let sortOrder = AppGroup.defaults.string(forKey: "CurrentlyReadingSortOrder") ?? "recentlyUpdated"
-          
-          if sortOrder == "recentlyAdded" {
-              // Sort by user_books.id (when book was added to reading list)
-              userBooks.sort { book1, book2 in
-                  let id1 = book1.id ?? 0
-                  let id2 = book2.id ?? 0
-                  return id1 > id2
-              }
-          } else {
-              // Sort by local progress timestamp if available, otherwise use user_books.updated_at
-              userBooks.sort { book1, book2 in
-                  // Get local timestamps
-                  let localTime1 = book1.id.flatMap { getLocalProgressTimestamp(forUserBookId: $0) } ?? 0
-                  let localTime2 = book2.id.flatMap { getLocalProgressTimestamp(forUserBookId: $0) } ?? 0
-                  
-                  // If both have local timestamps, compare those
-                  if localTime1 > 0 && localTime2 > 0 {
-                      return localTime1 > localTime2
-                  }
-                  
-                  // If only one has local timestamp, it should come first
-                  if localTime1 > 0 { return true }
-                  if localTime2 > 0 { return false }
-                  
-                  // Otherwise fall back to API's updated_at
-                  let apiUpdated1 = book1.updatedAt ?? ""
-                  let apiUpdated2 = book2.updatedAt ?? ""
-                  return apiUpdated1 > apiUpdated2
-              }
-          }
-          
-          // Take only top 10 after sorting
-          userBooks = Array(userBooks.prefix(10))
-          
-          print("✅ Successfully fetched and sorted \(userBooks.count) books from GraphQL (sort: \(sortOrder))")
-          print("📋 Sorted order:")
-          for (index, book) in userBooks.enumerated() {
-              if sortOrder == "recentlyAdded" {
-                  let bookId = book.id ?? 0
-                  print("  \(index + 1). '\(book.book?.title ?? "?")' (id: \(bookId))")
-              } else {
-                  let localTime = book.id.flatMap { getLocalProgressTimestamp(forUserBookId: $0) }
-                  let apiUpdated = book.updatedAt ?? "N/A"
-                  let source = localTime != nil ? "local: \(Date(timeIntervalSince1970: localTime!))" : "api: \(apiUpdated)"
-                  print("  \(index + 1). '\(book.book?.title ?? "?")' (\(source))")
-              }
-          }
-          
-          var books: [BookProgress] = []
-          for userBook in userBooks {
-              guard let bookData = userBook.book else { continue }
-              let rawTitle: String
-              if let editionTitle = userBook.edition?.title, !editionTitle.isEmpty {
-                  rawTitle = editionTitle
-              } else {
-                  rawTitle = bookData.title
-              }
-              let displayTitle = rawTitle.decodedHTMLEntities
-              let author = bookData.contributions?.first?.author?.name ?? "Unknown Author"
-              
-              let edition = userBook.edition
-              let isAudiobook = edition?.isAudiobook ?? false
-              let totalPages = edition?.pages ?? 0
-              let totalMinutes = edition?.totalMinutes ?? 0
-              
-              var currentPage = 0
-              var currentMinute = 0
-              var progress = 0.0
-              if let userBookReads = userBook.userBookReads, !userBookReads.isEmpty,
-                 let latestRead = userBookReads.first {  // Changed from .last to .first since we now sort DESC
-                  if isAudiobook {
-                      // For audiobooks, use progress_seconds
-                      if let progressSeconds = latestRead.progressSeconds {
-                          currentMinute = progressSeconds / 60
-                          if totalMinutes > 0 {
-                              progress = Double(currentMinute) / Double(totalMinutes)
-                          }
-                      }
-                  } else {
-                      // For regular books, use progress_pages
-                      if let progressPages = latestRead.progressPages {
-                          currentPage = progressPages
-                          if totalPages > 0 {
-                              progress = Double(progressPages) / Double(totalPages)
-                          }
-                      }
-                  }
-                  
-                  // Check if progress changed since last fetch and update timestamp if needed
-                  if let userId = userBook.id {
-                      let currentProgressValue = isAudiobook ? latestRead.progressSeconds ?? 0 : latestRead.progressPages ?? 0
-                      updateTimestampIfProgressChanged(forUserBookId: userId, currentProgress: currentProgressValue)
-                  }
-              }
-              
-              // Get image URL (prefer edition, fallback to book)
-              let imageUrl: String?
-              if let editionImageUrl = userBook.edition?.image?.url, !editionImageUrl.isEmpty {
-                  imageUrl = editionImageUrl
-              } else if let bookImageUrl = bookData.image?.url, !bookImageUrl.isEmpty {
-                  imageUrl = bookImageUrl
-              } else {
-                  imageUrl = nil
-              }
-              
-              // OPTIMIZATION: Check cache only, don't download synchronously
-              let coverImageData: Data? = imageUrl.flatMap { ImageCache.shared.imageData(forKey: $0) }
-              
-              let book = BookProgress(
-                  id: "\(userBook.id ?? 0)",
-                  title: displayTitle,
-                  author: author,
-                  coverImageData: coverImageData,
-                  coverImageUrl: imageUrl, // Save URL for lazy loading
-                  progress: progress,
-                  totalPages: totalPages,
-                  currentPage: currentPage, // FIX: använd beräknad currentPage
-                  bookId: bookData.id,
-                  userBookId: userBook.id,
-                  editionId: userBook.editionId,
-                  originalTitle: bookData.title.decodedHTMLEntities,
-                  isAudiobook: isAudiobook,
-                  totalMinutes: totalMinutes,
-                  currentMinute: currentMinute
-              )
-              
-              books.append(book)
-          }
-          
-          // For widgets, download images that aren't cached
-          if forWidget {
-              await loadImagesForWidgets(books: &books)
-          }
-          
-          return books
-      } catch {
-          print("❌ GraphQL Books API Error: \(error)")
-          return []
-      }
-  }
   
   static func fetchEditions(for bookId: Int) async -> [Edition] {
-      guard !HardcoverConfig.apiKey.isEmpty else { return [] }
+      guard !HardcoverConfig.apiKey.isEmpty else { HardcoverReadScope.failure?.record(HardcoverNetworkError.signIn); return [] }
       guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return [] }
       var request = URLRequest(url: url)
       request.httpMethod = "POST"
       request.setValue("application/json", forHTTPHeaderField: "Content-Type")
       request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
       
-      let query = """
-      { "query": "{ editions(where: {book_id: {_eq: \(bookId)}, _or: [{reading_format_id: {_is_null: true}}, {reading_format_id: {_neq: 2}}]}, order_by: { users_count: desc_nulls_last }) { id title isbn_10 isbn_13 pages publisher { name } image { url } } }" }
-      """
-      request.httpBody = query.data(using: .utf8)
+      let query = LibraryAPI.editionsQuery
       
       do {
-          let (data, _) = try await URLSession.shared.data(for: request)
+          request.httpBody = try JSONSerialization.data(withJSONObject: [
+              "query": query,
+              "variables": ["bookId": bookId]
+          ])
+          let (data, _) = try await HardcoverHTTP.shared.data(for: request)
           let gqlResponse = try JSONDecoder().decode(GraphQLEditionsResponse.self, from: data)
           if let errors = gqlResponse.errors {
               for error in errors {
@@ -1054,9 +289,14 @@ class HardcoverService {
               }
               return []
           }
-          return gqlResponse.data?.editions ?? []
+          guard let editions = gqlResponse.data?.editions else {
+              HardcoverReadScope.failure?.record(HardcoverNetworkError.invalidResponse)
+              return []
+          }
+          return editions
       } catch {
           print("❌ GraphQL Editions API Error: \(error)")
+          HardcoverReadScope.failure?.record(error)
           return []
       }
   }
@@ -1099,7 +339,7 @@ class HardcoverService {
 
     do {
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await HardcoverHTTP.shared.data(for: request)
         if let http = response as? HTTPURLResponse { print("📥 insert_user_book HTTP Status: \(http.statusCode)") }
         if let raw = String(data: data, encoding: .utf8) { print("📥 insert_user_book Raw: \(raw)") }
         if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
@@ -1143,7 +383,7 @@ class HardcoverService {
       ]
       do {
           request.httpBody = try JSONSerialization.data(withJSONObject: readsQuery)
-          let (data, _) = try await URLSession.shared.data(for: request)
+          let (data, _) = try await HardcoverHTTP.shared.data(for: request)
           guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                 let dataDict = root["data"] as? [String: Any],
                 let reads = dataDict["user_book_reads"] as? [[String: Any]],
@@ -1162,7 +402,7 @@ class HardcoverService {
               "variables": ["id": readId, "edition": editionId]
           ]
           request.httpBody = try JSONSerialization.data(withJSONObject: updateQuery)
-          let (uData, _) = try await URLSession.shared.data(for: request)
+          let (uData, _) = try await HardcoverHTTP.shared.data(for: request)
           if let root2 = try JSONSerialization.jsonObject(with: uData) as? [String: Any],
              let errs = root2["errors"] as? [[String: Any]], !errs.isEmpty {
               return false
@@ -1239,7 +479,7 @@ class HardcoverService {
       
       do {
           request.httpBody = try JSONSerialization.data(withJSONObject: body)
-          let (data, _) = try await URLSession.shared.data(for: request)
+          let (data, _) = try await HardcoverHTTP.shared.data(for: request)
           
           guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                 let dataDict = json["data"] as? [String: Any],
@@ -1281,7 +521,7 @@ class HardcoverService {
       
       do {
           request.httpBody = try JSONSerialization.data(withJSONObject: body)
-          let (data, _) = try await URLSession.shared.data(for: request)
+          let (data, _) = try await HardcoverHTTP.shared.data(for: request)
           
           if let raw = String(data: data, encoding: .utf8) {
               print("📥 fetchLatestReadId response: \(raw)")
@@ -1344,7 +584,7 @@ class HardcoverService {
       
       do {
           request.httpBody = try JSONSerialization.data(withJSONObject: body)
-          let (data, response) = try await URLSession.shared.data(for: request)
+          let (data, response) = try await HardcoverHTTP.shared.data(for: request)
           if let http = response as? HTTPURLResponse { print("📥 Update user_book_read HTTP Status: \(http.statusCode)") }
           if let raw = String(data: data, encoding: .utf8) { print("📥 Update user_book_read Raw: \(raw)") }
           if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
@@ -1399,7 +639,7 @@ class HardcoverService {
       ]
       do {
           request.httpBody = try JSONSerialization.data(withJSONObject: body)
-          let (data, _) = try await URLSession.shared.data(for: request)
+          let (data, _) = try await HardcoverHTTP.shared.data(for: request)
           if let raw = String(data: data, encoding: .utf8) {
               print("touchUserBook response: \(raw)")
           }
@@ -1462,7 +702,7 @@ class HardcoverService {
       do {
           let body = try JSONSerialization.data(withJSONObject: bodyDict)
           request.httpBody = body
-          let (data, response) = try await URLSession.shared.data(for: request)
+          let (data, response) = try await HardcoverHTTP.shared.data(for: request)
           if let http = response as? HTTPURLResponse { print("📥 Insert user_book_read HTTP Status: \(http.statusCode)") }
           if let raw = String(data: data, encoding: .utf8) { print("📥 Insert user_book_read Raw: \(raw)") }
           if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
@@ -1519,7 +759,7 @@ class HardcoverService {
       ]
       do {
           request.httpBody = try JSONSerialization.data(withJSONObject: body)
-          let (data, _) = try await URLSession.shared.data(for: request)
+          let (data, _) = try await HardcoverHTTP.shared.data(for: request)
           let resp = try JSONDecoder().decode(GraphQLSearchResponse.self, from: data)
           if let errors = resp.errors, !errors.isEmpty {
               errors.forEach { print("❌ GraphQL Search Error: \($0.message)") }
@@ -1560,7 +800,7 @@ class HardcoverService {
       ]
       do {
           request.httpBody = try JSONSerialization.data(withJSONObject: body)
-          let (data, _) = try await URLSession.shared.data(for: request)
+          let (data, _) = try await HardcoverHTTP.shared.data(for: request)
           let resp = try JSONDecoder().decode(GraphQLBooksHydrateResponse.self, from: data)
           if let errors = resp.errors, !errors.isEmpty {
               errors.forEach { print("❌ GraphQL Hydrate Error: \($0.message)") }
@@ -1613,7 +853,7 @@ class HardcoverService {
 
       do {
           request.httpBody = try JSONSerialization.data(withJSONObject: body)
-          let (data, response) = try await URLSession.shared.data(for: request)
+          let (data, response) = try await HardcoverHTTP.shared.data(for: request)
           if let http = response as? HTTPURLResponse { print("📥 Insert user_book HTTP Status: \(http.statusCode)") }
           if let raw = String(data: data, encoding: .utf8) { print("📥 Insert user_book Raw: \(raw)") }
           if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
@@ -1661,7 +901,7 @@ class HardcoverService {
       ]
       do {
           request.httpBody = try JSONSerialization.data(withJSONObject: body)
-          let (data, _) = try await URLSession.shared.data(for: request)
+          let (data, _) = try await HardcoverHTTP.shared.data(for: request)
           if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
               if let errs = json["errors"] as? [[String: Any]], !errs.isEmpty { return false }
               if let dataDict = json["data"] as? [String: Any],
@@ -1691,7 +931,7 @@ class HardcoverService {
       ]
       do {
           request.httpBody = try JSONSerialization.data(withJSONObject: body)
-          let (data, _) = try await URLSession.shared.data(for: request)
+          let (data, _) = try await HardcoverHTTP.shared.data(for: request)
           if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
               if let errs = json["errors"] as? [[String: Any]], !errs.isEmpty { return false }
               if let dataDict = json["data"] as? [String: Any],
@@ -1724,7 +964,7 @@ class HardcoverService {
       ]
       do {
           request.httpBody = try JSONSerialization.data(withJSONObject: body)
-          let (data, _) = try await URLSession.shared.data(for: request)
+          let (data, _) = try await HardcoverHTTP.shared.data(for: request)
           if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
              let dataDict = root["data"] as? [String: Any],
              let userBooks = dataDict["user_books"] as? [[String: Any]],
@@ -1762,7 +1002,7 @@ class HardcoverService {
       ]
       do {
           request.httpBody = try JSONSerialization.data(withJSONObject: body)
-          let (data, _) = try await URLSession.shared.data(for: request)
+          let (data, _) = try await HardcoverHTTP.shared.data(for: request)
           let resp = try JSONDecoder().decode(GraphQLUserBooksResponse.self, from: data)
           if let errs = resp.errors, !errs.isEmpty { return nil }
           return resp.data?.user_books?.first
@@ -1798,7 +1038,7 @@ class HardcoverService {
       
       do {
           request.httpBody = try JSONSerialization.data(withJSONObject: body)
-          let (data, _) = try await URLSession.shared.data(for: request)
+          let (data, _) = try await HardcoverHTTP.shared.data(for: request)
           if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
              let dataDict = root["data"] as? [String: Any],
              let userBooks = dataDict["user_books"] as? [[String: Any]],
@@ -1826,7 +1066,7 @@ class HardcoverService {
       ]
       do {
           request.httpBody = try JSONSerialization.data(withJSONObject: body)
-          let (data, _) = try await URLSession.shared.data(for: request)
+          let (data, _) = try await HardcoverHTTP.shared.data(for: request)
           if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
              let dataDict = root["data"] as? [String: Any],
              let meArr = dataDict["me"] as? [[String: Any]],
@@ -1874,7 +1114,7 @@ class HardcoverService {
         ]
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
             if let errs = root["errors"] as? [[String: Any]], !errs.isEmpty {
                 return nil
@@ -1939,7 +1179,7 @@ class HardcoverService {
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let dataDict = root["data"] as? [String: Any],
                   let reads = dataDict["user_book_reads"] as? [[String: Any]] else {
@@ -1957,17 +1197,13 @@ class HardcoverService {
     }
     
     static func fetchReadingGoals() async -> [ReadingGoal] {
-        guard !HardcoverConfig.apiKey.isEmpty else { return [] }
-        
-        // Get current user's username first
-        guard let username = await getCurrentUsername(apiKey: HardcoverConfig.apiKey) else {
-            print("❌ Could not get current username for goals")
+        do {
+            let user = try await LibraryAPI.identity()
+            return await fetchUserReadingGoals(username: user.username)
+        } catch {
+            HardcoverReadScope.failure?.record(error)
             return []
         }
-        
-        // Use HTML scraping to get goals (same as other users)
-        // This ensures we respect the archived flag
-        return await fetchUserReadingGoals(username: username)
     }
     
     private static func getCurrentUsername(apiKey: String) async -> String? {
@@ -1990,7 +1226,7 @@ class HardcoverService {
         request.httpBody = bodyData
         
         do {
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let dataObj = json["data"] as? [String: Any],
                let me = dataObj["me"] as? [[String: Any]],
@@ -2034,7 +1270,7 @@ class HardcoverService {
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             
             if let jsonString = String(data: data, encoding: .utf8) {
                 print("📦 Direct goals query response: \(jsonString)")
@@ -2123,7 +1359,7 @@ class HardcoverService {
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             
             // DEBUG: Print raw JSON response
             if let jsonString = String(data: data, encoding: .utf8) {
@@ -2226,103 +1462,28 @@ class HardcoverService {
     // MARK: - Fetch Reading Goals for Other Users
     /// Fetch reading goals for a specific user by scraping their goals page
     static func fetchUserReadingGoals(username: String) async -> [ReadingGoal] {
-        guard !HardcoverConfig.apiKey.isEmpty else {
-            print("❌ No API key for fetchUserReadingGoals")
-            return []
-        }
-        
-        // Remove @ if present
-        let cleanUsername = username.hasPrefix("@") ? String(username.dropFirst()) : username
-        
-        // Fetch from goals page
-        guard let url = URL(string: "https://hardcover.app/@\(cleanUsername)/goals") else {
-            print("❌ Invalid URL")
-            return []
-        }
-        
-        var req = URLRequest(url: url)
-        req.httpMethod = "GET"
-        req.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
-        
         do {
-            let (data, _) = try await URLSession.shared.data(for: req)
-            
-            guard let html = String(data: data, encoding: .utf8) else {
-                print("❌ Could not decode HTML for @\(cleanUsername)")
-                return []
+            guard !HardcoverConfig.apiKey.isEmpty else { throw HardcoverNetworkError.signIn }
+            let cleanUsername = username.hasPrefix("@") ? String(username.dropFirst()) : username
+            guard let escaped = cleanUsername.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
+                  let url = URL(string: "https://hardcover.app/@\(escaped)/goals") else {
+                throw HardcoverNetworkError.invalidResponse
             }
-            
-            // Extract goals from Inertia.js data-page attribute
-            if let goals = extractGoalsFromHTML(html) {
-                print("✅ Fetched \(goals.count) goals for @\(cleanUsername)")
-                
-                // Filter out archived goals using the archived field from HTML
-                let activeGoals = goals.filter { !$0.archived }
-                
-                return activeGoals
-            }
-            
-            return []
+            var request = URLRequest(url: url)
+            request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
+            try Task.checkCancellation()
+            guard let html = String(data: data, encoding: .utf8),
+                  let goals = extractGoalsFromHTML(html) else { throw HardcoverNetworkError.invalidResponse }
+            return goals.filter { !$0.archived }
         } catch {
-            print("❌ Failed to fetch goals for @\(cleanUsername): \(error)")
+            HardcoverReadScope.failure?.record(error)
             return []
         }
     }
-    
-    /// Extract reading goals from Inertia.js data-page attribute
-    private static func extractGoalsFromHTML(_ html: String) -> [ReadingGoal]? {
-        // Find data-page attribute
-        guard let dataPageRange = html.range(of: "data-page=\"") else {
-            print("❌ Could not find data-page attribute in goals HTML")
-            return nil
-        }
-        
-        let startIndex = dataPageRange.upperBound
-        guard let endIndex = html[startIndex...].range(of: "\">")?.lowerBound else {
-            print("❌ Could not find end of data-page attribute")
-            return nil
-        }
-        
-        let jsonString = String(html[startIndex..<endIndex])
-            .replacingOccurrences(of: "&quot;", with: "\"")
-            .replacingOccurrences(of: "&amp;", with: "&")
-        
-        guard let jsonData = jsonString.data(using: .utf8) else {
-            print("❌ Could not convert JSON string to data")
-            return nil
-        }
-        
-        do {
-            // Parse the Inertia.js page data
-            if let jsonObject = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
-               let props = jsonObject["props"] as? [String: Any] {
-                
-                if let goalsArray = props["goals"] as? [[String: Any]] {
-                    var goals: [ReadingGoal] = []
-                    
-                    for goalDict in goalsArray {
-                        do {
-                            let goalData = try JSONSerialization.data(withJSONObject: goalDict)
-                            let goal = try JSONDecoder().decode(ReadingGoal.self, from: goalData)
-                            goals.append(goal)
-                        } catch {
-                            print("⚠️ Failed to decode goal: \(error)")
-                        }
-                    }
-                    
-                    return goals
-                } else {
-                    print("❌ Could not find goals array in props")
-                    return nil
-                }
-            } else {
-                print("❌ Could not parse page JSON or find props")
-                return nil
-            }
-        } catch {
-            print("❌ Failed to parse goals JSON: \(error)")
-            return nil
-        }
+
+    static func extractGoalsFromHTML(_ html: String) -> [ReadingGoal]? {
+        HardcoverGoalPage.decode(html)
     }
     
     // MARK: - Reading History
@@ -2383,7 +1544,7 @@ class HardcoverService {
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { return [] }
             if let errs = root["errors"] as? [[String: Any]], !errs.isEmpty { return [] }
             guard let dataDict = root["data"] as? [String: Any],
@@ -2537,7 +1698,7 @@ extension HardcoverService {
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 if let errs = root["errors"] as? [[String: Any]], !errs.isEmpty { return false }
                 if let dataDict = root["data"] as? [String: Any],
@@ -2579,7 +1740,7 @@ extension HardcoverService {
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 if let errs = root["errors"] as? [[String: Any]], !errs.isEmpty { return false }
                 if let dataDict = root["data"] as? [String: Any],
@@ -2624,7 +1785,7 @@ extension HardcoverService {
             let bodyData = try JSONSerialization.data(withJSONObject: body)
             request.httpBody = bodyData
             print("🌐 Sending updateUserBookRating request...")
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             print("📡 Received response data: \(data.count) bytes")
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 print("📄 Response JSON: \(root)")
@@ -2678,7 +1839,7 @@ extension HardcoverService {
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: fetchBody)
-            let (fetchData, _) = try await URLSession.shared.data(for: request)
+            let (fetchData, _) = try await HardcoverHTTP.shared.data(for: request)
             if let root = try JSONSerialization.jsonObject(with: fetchData) as? [String: Any],
                let dataDict = root["data"] as? [String: Any],
                let reads = dataDict["user_book_reads"] as? [[String: Any]],
@@ -2721,7 +1882,7 @@ extension HardcoverService {
         ]
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 if let errs = root["errors"] as? [[String: Any]], !errs.isEmpty {
                     print("❌ Update errors: \(errs)")
@@ -2762,7 +1923,7 @@ extension HardcoverService {
         ]
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 if let errs = root["errors"] as? [[String: Any]], !errs.isEmpty { return false }
                 if let dataDict = root["data"] as? [String: Any],
@@ -2803,7 +1964,7 @@ extension HardcoverService {
         let body: [String: Any] = ["query": mutation, "variables": vars]
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 if let errs = root["errors"] as? [[String: Any]], !errs.isEmpty { return false }
                 if let dataDict = root["data"] as? [String: Any],
@@ -2830,7 +1991,7 @@ extension HardcoverService {
 
 // MARK: - Upcoming Releases (Want to read -> future editions)
 extension HardcoverService {
-    struct UpcomingRelease: Identifiable {
+    struct UpcomingRelease: Identifiable, Sendable {
         let id: Int            // edition id
         let bookId: Int?
         let title: String
@@ -2905,12 +2066,13 @@ extension HardcoverService {
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             let resp = try JSONDecoder().decode(GraphQLUserBooksResponse.self, from: data)
             if let errs = resp.errors, !errs.isEmpty {
+                HardcoverReadScope.failure?.record(HardcoverNetworkError.graphQL(errs.map(\.message).joined(separator: "\n")))
                 return []
             }
-            guard let rows = resp.data?.user_books else { return [] }
+            guard let rows = resp.data?.user_books else { HardcoverReadScope.failure?.record(HardcoverNetworkError.invalidResponse); return [] }
             
             let today = Calendar.current.startOfDay(for: Date())
             var temps: [TempRelease] = []
@@ -2965,6 +2127,7 @@ extension HardcoverService {
             }
             return items
         } catch {
+            HardcoverReadScope.failure?.record(error)
             return []
         }
     }
@@ -2973,8 +2136,8 @@ extension HardcoverService {
 // MARK: - Recent Releases (Nyligen släppta böcker från Want to Read)
 extension HardcoverService {
     static func fetchRecentReleasesFromWantToRead(limit: Int = 10) async -> [HardcoverService.UpcomingRelease] {
-        guard !HardcoverConfig.apiKey.isEmpty else { return [] }
-        guard let userId = await fetchUserId(apiKey: HardcoverConfig.apiKey) else { return [] }
+        guard !HardcoverConfig.apiKey.isEmpty else { HardcoverReadScope.failure?.record(HardcoverNetworkError.signIn); return [] }
+        guard let userId = await fetchUserId(apiKey: HardcoverConfig.apiKey) else { HardcoverReadScope.failure?.record(HardcoverNetworkError.invalidResponse); return [] }
         guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return [] }
         
         var request = URLRequest(url: url)
@@ -3018,14 +2181,7 @@ extension HardcoverService {
             "variables": ["userId": userId, "statusId": 1]
         ]
         
-        func parseDate(_ s: String) -> Date? {
-            let df = DateFormatter()
-            df.calendar = Calendar(identifier: .gregorian)
-            df.locale = Locale(identifier: "en_US_POSIX")
-            df.timeZone = TimeZone(secondsFromGMT: 0)
-            df.dateFormat = "yyyy-MM-dd"
-            return df.date(from: s)
-        }
+        func parseDate(_ s: String) -> Date? { ReleaseDate.parse(s) }
         
         struct TempRelease {
             let id: Int
@@ -3038,7 +2194,7 @@ extension HardcoverService {
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             let resp = try JSONDecoder().decode(GraphQLUserBooksResponse.self, from: data)
             if let errs = resp.errors, !errs.isEmpty {
                 return []
@@ -3113,7 +2269,7 @@ extension HardcoverService {
         request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
         
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await HardcoverHTTP.shared.data(for: request)
             
             if let httpResponse = response as? HTTPURLResponse {
                 print("📊 Status code: \(httpResponse.statusCode)")
@@ -3242,7 +2398,7 @@ extension HardcoverService {
         ]
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let errs = root["errors"] as? [[String: Any]], !errs.isEmpty {
                 return nil
@@ -3266,16 +2422,13 @@ extension HardcoverService {
                 return "Unknown Author"
             }()
             let desc = first["description"] as? String
-            var coverData: Data? = nil
-            if let img = (first["image"] as? [String: Any])?["url"] as? String, !img.isEmpty {
-                coverData = await fetchAndResizeImage(from: img)
-            }
+            let coverURL = (first["image"] as? [String: Any])?["url"] as? String
             
             return BookProgress(
                 id: "book-\(bookId)",
                 title: title,
                 author: author,
-                coverImageData: coverData,
+                coverImageUrl: coverURL,
                 progress: 0.0,
                 totalPages: 0,
                 currentPage: 0,
@@ -3341,7 +2494,7 @@ extension HardcoverService {
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
             print("🌐 Sending finishBookByBookId request...")
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             print("📡 Received response data: \(data.count) bytes")
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 print("📄 Response JSON: \(root)")
@@ -3438,7 +2591,7 @@ extension HardcoverService {
 
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await HardcoverHTTP.shared.data(for: request)
             if let http = response as? HTTPURLResponse { print("📥 Insert user_book HTTP Status: \(http.statusCode)") }
             if let raw = String(data: data, encoding: .utf8) { print("📥 Insert user_book Raw: \(raw)") }
             if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
@@ -3634,7 +2787,7 @@ extension HardcoverService {
             request.httpBody = bodyData
             print("🚀 Sending request...")
             
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             print("📨 Got response data")
             
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
@@ -3697,7 +2850,7 @@ extension HardcoverService {
     }
     
     static func fetchReadingDates(userBookId: Int) async -> [ReadingDate] {
-        guard !HardcoverConfig.apiKey.isEmpty else { return [] }
+        guard !HardcoverConfig.apiKey.isEmpty else { HardcoverReadScope.failure?.record(HardcoverNetworkError.signIn); return [] }
         guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return [] }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -3722,7 +2875,7 @@ extension HardcoverService {
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let dataDict = root["data"] as? [String: Any],
                let reads = dataDict["user_book_reads"] as? [[String: Any]] {
@@ -3738,8 +2891,10 @@ extension HardcoverService {
                 }
             }
         } catch {
+            HardcoverReadScope.failure?.record(error)
             return []
         }
+        HardcoverReadScope.failure?.record(HardcoverNetworkError.invalidResponse)
         return []
     }
     
@@ -3803,7 +2958,7 @@ extension HardcoverService {
             print("🚀 Sending update request...")
             print("📦 Body: \(String(data: bodyData, encoding: .utf8) ?? "invalid")")
             
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             let responseString = String(data: data, encoding: .utf8) ?? "invalid"
             print("📨 Response: \(responseString)")
             
@@ -3902,7 +3057,7 @@ extension HardcoverService {
             print("🚀 Sending insert request with operation name...")
             print("📦 Body: \(String(data: bodyData, encoding: .utf8) ?? "invalid")")
             
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             let responseString = String(data: data, encoding: .utf8) ?? "invalid"
             print("📨 Response: \(responseString)")
             
@@ -3980,7 +3135,7 @@ extension HardcoverService {
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             let responseString = String(data: data, encoding: .utf8) ?? "invalid"
             print("📨 Status update response: \(responseString)")
         } catch {
@@ -4064,7 +3219,7 @@ extension HardcoverService {
             
             do {
                 request.httpBody = try JSONSerialization.data(withJSONObject: body)
-                let (data, _) = try await URLSession.shared.data(for: request)
+                let (data, _) = try await HardcoverHTTP.shared.data(for: request)
                 let responseString = String(data: data, encoding: .utf8) ?? "invalid"
                 print("📨 Status update response: \(responseString)")
             } catch {
@@ -4122,7 +3277,7 @@ extension HardcoverService {
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let dataDict = root["data"] as? [String: Any],
                let userBooks = dataDict["user_books"] as? [[String: Any]],
@@ -4171,7 +3326,7 @@ extension HardcoverService {
             if let bodyString = String(data: request.httpBody!, encoding: .utf8) {
                 print("📦 Body: \(bodyString)")
             }
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             if let responseString = String(data: data, encoding: .utf8) {
                 print("📨 Response: \(responseString)")
             }
@@ -4203,7 +3358,7 @@ extension HardcoverService {
     
     // MARK: - Reading Journal Quotes
     
-    struct ReadingJournalQuote: Codable {
+    struct ReadingJournalQuote: Codable, Sendable {
         let id: Int
         let entry: String
         let bookId: Int
@@ -4218,14 +3373,14 @@ extension HardcoverService {
             case book
         }
         
-        struct QuoteBook: Codable {
+        struct QuoteBook: Codable, Sendable {
             let title: String
             let contributions: [Contribution]
             
-            struct Contribution: Codable {
+            struct Contribution: Codable, Sendable {
                 let author: Author?
                 
-                struct Author: Codable {
+                struct Author: Codable, Sendable {
                     let name: String
                 }
             }
@@ -4332,7 +3487,7 @@ extension HardcoverService {
         request.httpBody = jsonData
         
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await HardcoverHTTP.shared.data(for: request)
             
             if let httpResponse = response as? HTTPURLResponse {
                 print("[Quotes] HTTP status: \(httpResponse.statusCode)")

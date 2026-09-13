@@ -398,7 +398,7 @@ struct UpcomingReleasesView: View {
 // Minimal detaljvy (utan framsteg), med beskrivning + dynamiska genres & moods + recensioner + medelbetyg
 private struct InlineReleaseBookDetailView: View {
     @Environment(\.dismiss) private var dismiss
-    let book: BookProgress
+    @State var book: BookProgress
     @State private var descriptionText: String?
     @State private var isLoadingDescription = false
     
@@ -595,10 +595,13 @@ private struct InlineReleaseBookDetailView: View {
                     Button(NSLocalizedString("Close", comment: "Close button")) { dismiss() }
                 }
             }
+            .catalogEditing(book: $book) { refreshed in
+                descriptionText = refreshed.bookDescription
+            }
         }
         .task {
             // Parallellt: beskrivning + taxonomier (genrer/moods) + ev. medelbetyg (bok)
-            async let loadDesc: Void = {
+            async let loadDesc: Void = { @MainActor in
                 if descriptionText == nil, (book.bookDescription == nil || book.bookDescription?.isEmpty == true),
                    let id = book.bookId {
                     await MainActor.run { isLoadingDescription = true }
@@ -610,7 +613,7 @@ private struct InlineReleaseBookDetailView: View {
                 }
             }()
             async let loadTax: Void = { await reloadTaxonomies() }()
-            async let loadAvg: Void = {
+            async let loadAvg: Void = { @MainActor in
                 if book.editionAverageRating == nil, let id = book.bookId {
                     let avg = await fetchBookAverageRating(bookId: id)
                     await MainActor.run { averageRating = avg }
@@ -661,7 +664,7 @@ private struct InlineReleaseBookDetailView: View {
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let errs = root["errors"] as? [[String: Any]], !errs.isEmpty {
                 return nil
@@ -703,7 +706,7 @@ private struct InlineReleaseBookDetailView: View {
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let errs = root["errors"] as? [[String: Any]], !errs.isEmpty {
                 return nil
@@ -867,7 +870,7 @@ private struct InlineReleaseBookDetailView: View {
         let body: [String: Any] = ["query": query, "variables": ["id": bookId]]
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let errs = root["errors"] as? [[String: Any]], !errs.isEmpty {
                 return nil
@@ -914,7 +917,7 @@ private struct InlineReleaseBookDetailView: View {
         let body: [String: Any] = ["query": query, "variables": ["id": userBookId]]
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let errs = root["errors"] as? [[String: Any]], !errs.isEmpty {
                 return nil
@@ -971,7 +974,7 @@ private struct InlineReleaseBookDetailView: View {
         let body: [String: Any] = ["query": query, "variables": ["id": bookId]]
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let errs = root["errors"] as? [[String: Any]], !errs.isEmpty {
                 return nil
@@ -1009,7 +1012,7 @@ private struct InlineReleaseBookDetailView: View {
         let body: [String: Any] = ["query": query, "variables": ["id": editionId]]
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let errs = root["errors"] as? [[String: Any]], !errs.isEmpty {
                 return nil
@@ -1057,7 +1060,7 @@ private struct InlineReleaseBookDetailView: View {
         let body: [String: Any] = ["query": query, "variables": ["id": userBookId]]
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let errs = root["errors"] as? [[String: Any]], !errs.isEmpty {
                 return nil
@@ -1117,7 +1120,7 @@ private struct InlineReleaseBookDetailView: View {
         let body: [String: Any] = ["query": query, "variables": ["id": bookId]]
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let errs = root["errors"] as? [[String: Any]], !errs.isEmpty {
                 return nil
@@ -1150,7 +1153,7 @@ private struct InlineReleaseBookDetailView: View {
         let body: [String: Any] = ["query": query, "variables": ["id": editionId]]
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let errs = root["errors"] as? [[String: Any]], !errs.isEmpty {
                 return nil
@@ -1185,7 +1188,7 @@ private struct InlineReleaseBookDetailView: View {
         let body: [String: Any] = ["query": query, "variables": ["id": userBookId]]
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let errs = root["errors"] as? [[String: Any]], !errs.isEmpty {
                 return nil
@@ -1300,7 +1303,7 @@ private struct InlineReleaseBookDetailView: View {
         let body: [String: Any] = ["query": query, "variables": ["id": bookId]]
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let errs = root["errors"] as? [[String: Any]], !errs.isEmpty {
                 return nil
@@ -1333,7 +1336,7 @@ private struct InlineReleaseBookDetailView: View {
         let body: [String: Any] = ["query": query, "variables": ["id": editionId]]
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let errs = root["errors"] as? [[String: Any]], !errs.isEmpty {
                 return nil
@@ -1368,7 +1371,7 @@ private struct InlineReleaseBookDetailView: View {
         let body: [String: Any] = ["query": query, "variables": ["id": userBookId]]
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let errs = root["errors"] as? [[String: Any]], !errs.isEmpty {
                 return nil
@@ -1670,7 +1673,7 @@ private struct InlineReleaseBookDetailView: View {
             let body: [String: Any] = ["query": mutation, "variables": vars]
             do {
                 request.httpBody = try JSONSerialization.data(withJSONObject: body)
-                let (data, _) = try await URLSession.shared.data(for: request)
+                let (data, _) = try await HardcoverHTTP.shared.data(for: request)
                 guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                       (root["errors"] as? [[String: Any]])?.isEmpty != false,
                       let dataDict = root["data"] as? [String: Any],
@@ -1699,7 +1702,7 @@ private struct InlineReleaseBookDetailView: View {
             let body: [String: Any] = ["query": mutation, "variables": vars]
             do {
                 request.httpBody = try JSONSerialization.data(withJSONObject: body)
-                let (data, _) = try await URLSession.shared.data(for: request)
+                let (data, _) = try await HardcoverHTTP.shared.data(for: request)
                 guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                       (root["errors"] as? [[String: Any]])?.isEmpty != false,
                       let dataDict = root["data"] as? [String: Any],

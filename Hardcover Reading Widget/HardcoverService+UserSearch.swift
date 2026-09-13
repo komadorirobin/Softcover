@@ -43,7 +43,7 @@ extension HardcoverService {
         request.httpBody = jsonData
         
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await HardcoverHTTP.shared.data(for: request)
             
             if let httpResponse = response as? HTTPURLResponse {
                 print("📡 Response status: \(httpResponse.statusCode)")
@@ -179,7 +179,7 @@ extension HardcoverService {
         request.httpBody = jsonData
         
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await HardcoverHTTP.shared.data(for: request)
             
             if let httpResponse = response as? HTTPURLResponse {
                 print("📡 Response status: \(httpResponse.statusCode)")

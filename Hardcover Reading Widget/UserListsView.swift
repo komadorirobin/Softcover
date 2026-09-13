@@ -5,11 +5,13 @@ struct UserListsView: View {
     @State private var lists: [UserList] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var generation = UUID()
+    @State private var retryTask: Task<Void, Never>?
     
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                if isLoading {
+                if isLoading && lists.isEmpty {
                     VStack(spacing: 20) {
                         ProgressView()
                             .scaleEffect(1.5)
@@ -19,7 +21,7 @@ struct UserListsView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.top, 100)
-                } else if let error = errorMessage {
+                } else if let error = errorMessage, lists.isEmpty {
                     VStack(spacing: 20) {
                         Image(systemName: "exclamationmark.triangle")
                             .font(.system(size: 50))
@@ -31,7 +33,8 @@ struct UserListsView: View {
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                         Button("Try Again") {
-                            Task { await loadLists() }
+                            retryTask?.cancel()
+                            retryTask = Task { await loadLists() }
                         }
                         .buttonStyle(.borderedProminent)
                     }
@@ -73,21 +76,39 @@ struct UserListsView: View {
         .task {
             await loadLists()
         }
+        .refreshable { await loadLists() }
+        .safeAreaInset(edge: .top) {
+            if let errorMessage, !lists.isEmpty {
+                InlineLoadError(message: errorMessage) {
+                    retryTask?.cancel()
+                    retryTask = Task { await loadLists() }
+                }.padding().background(.regularMaterial)
+            }
+        }
+        .onDisappear {
+            retryTask?.cancel(); generation = UUID(); isLoading = false
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .hardcoverAccountDidChange)) { _ in
+            retryTask?.cancel(); generation = UUID(); lists = []; errorMessage = nil
+            retryTask = Task { await loadLists() }
+        }
     }
     
-    private func loadLists() async {
-        isLoading = true
-        errorMessage = nil
-        
-        let fetchedLists = await HardcoverService.fetchUserLists(username: username)
-        
-        await MainActor.run {
-            self.lists = fetchedLists
-            self.isLoading = false
-            
-            if fetchedLists.isEmpty {
-                self.errorMessage = nil // Not an error, just empty
-            }
+    @MainActor private func loadLists() async {
+        let request = UUID()
+        let account = HardcoverConfig.authorizationHeaderValue
+        generation = request
+        isLoading = true; errorMessage = nil
+        defer { if generation == request { isLoading = false } }
+        do {
+            try Task.checkCancellation()
+            let fetched = try await HardcoverReadScope.checked { await HardcoverService.fetchUserLists(username: username) }
+            try Task.checkCancellation()
+            guard generation == request, account == HardcoverConfig.authorizationHeaderValue else { return }
+            lists = fetched
+        } catch {
+            guard !Task.isCancelled, generation == request, account == HardcoverConfig.authorizationHeaderValue else { return }
+            errorMessage = error.localizedDescription
         }
     }
 }
@@ -97,6 +118,7 @@ struct ListCard: View {
     let username: String
     @State private var bookCovers: [String] = []
     @State private var isLoadingCovers = false
+    @State private var coverGeneration = UUID()
     
     var body: some View {
         HStack(spacing: 12) {
@@ -201,20 +223,26 @@ struct ListCard: View {
         .background(Color(UIColor.secondarySystemGroupedBackground))
         .cornerRadius(12)
         .task {
-            // Load book covers for the list
             guard bookCovers.isEmpty, !isLoadingCovers else { return }
+            let request = UUID()
+            let account = HardcoverConfig.authorizationHeaderValue
+            coverGeneration = request
             isLoadingCovers = true
-            
-            if let slug = list.slug {
-                let books = await HardcoverService.fetchListBooks(username: username, listSlug: slug)
-                let covers = books.prefix(3).compactMap { $0.coverUrl }
-                await MainActor.run {
-                    bookCovers = covers
+            defer { if coverGeneration == request { isLoadingCovers = false } }
+            do {
+                try Task.checkCancellation()
+                guard let slug = list.slug else { return }
+                let books = try await HardcoverReadScope.checked {
+                    await HardcoverService.fetchListBooks(username: username, listSlug: slug)
                 }
+                try Task.checkCancellation()
+                guard coverGeneration == request, account == HardcoverConfig.authorizationHeaderValue else { return }
+                bookCovers = books.prefix(3).compactMap { $0.coverUrl }
+            } catch {
+                // Decorative previews retain their fallback; the actual list reports read failures.
             }
-            
-            isLoadingCovers = false
         }
+        .onDisappear { coverGeneration = UUID(); isLoadingCovers = false }
     }
     
     private var placeholderView: some View {

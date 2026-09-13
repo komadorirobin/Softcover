@@ -6,110 +6,45 @@ enum FriendsFilter: String, CaseIterable {
 }
 
 struct FriendsView: View {
-    @State private var selectedFilter: FriendsFilter = .following
-    @State private var following: [FriendUser] = []
-    @State private var followers: [FriendUser] = []
-    @State private var isLoading = true
-    @State private var errorMessage: String?
-    
-    private var displayedUsers: [FriendUser] {
-        switch selectedFilter {
-        case .following:
-            return following
-        case .followers:
-            return followers
-        }
-    }
-    
+    @State private var selectedFilter = FriendsFilter.following
+    @StateObject private var store = ExploreLoadState<FriendUser>()
+
     var body: some View {
         VStack(spacing: 0) {
-            // Segmented Control
             Picker("Filter", selection: $selectedFilter) {
                 ForEach(FriendsFilter.allCases, id: \.self) { filter in
-                    Text(filter.rawValue).tag(filter)
+                    Text(LocalizedStringKey(filter.rawValue)).tag(filter)
                 }
             }
-            .pickerStyle(.segmented)
-            .padding()
-            
-            // Content
-            Group {
-                if isLoading {
-                    VStack(spacing: 20) {
-                        ProgressView()
-                            .scaleEffect(1.5)
-                        Text("Loading friends...")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if let error = errorMessage {
-                    VStack(spacing: 20) {
-                        Image(systemName: "exclamationmark.triangle")
-                            .font(.system(size: 50))
-                            .foregroundColor(.orange)
-                        Text("Failed to load friends")
-                            .font(.headline)
-                        Text(error)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                        Button("Try Again") {
-                            Task { await loadFriends() }
-                        }
-                        .buttonStyle(.borderedProminent)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(.horizontal)
-                } else if displayedUsers.isEmpty {
-                    VStack(spacing: 20) {
-                        Image(systemName: selectedFilter == .following ? "person.2" : "person.wave.2")
-                            .font(.system(size: 50))
-                            .foregroundColor(.secondary)
-                        Text(selectedFilter == .following ? "Not following anyone yet" : "No followers yet")
-                            .font(.headline)
-                        Text(selectedFilter == .following ? "Start following other users to see them here" : "Other users will appear here when they follow you")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(.horizontal)
-                } else {
-                    List(displayedUsers) { user in
-                        NavigationLink {
-                            UserProfileView(username: user.username)
-                        } label: {
-                            FriendRow(user: user)
-                        }
-                    }
-                    .listStyle(.plain)
+            .pickerStyle(.segmented).padding()
+            List {
+                ExploreLoadFeedback(isLoading: store.isLoading, error: store.error,
+                                    isEmpty: store.items.isEmpty,
+                                    emptyTitle: selectedFilter == .following ? "Not following anyone yet" : "No followers yet") {
+                    Task { await load(refresh: true) }
+                }
+                ForEach(store.items) { user in
+                    NavigationLink { UserProfileView(username: user.username) } label: { FriendRow(user: user) }
                 }
             }
+            .listStyle(.plain)
+            .refreshable { await load(refresh: true) }
         }
         .navigationTitle("Friends")
-        .navigationBarTitleDisplayMode(.large)
-        .task {
-            await loadFriends()
+        .navigationBarTitleDisplayMode(.inline)
+        .task(id: selectedFilter) { await load() }
+        .onReceive(NotificationCenter.default.publisher(for: .hardcoverAccountDidChange)) { _ in
+            store.reset()
+            Task { await load() }
         }
     }
-    
-    private func loadFriends() async {
-        isLoading = true
-        errorMessage = nil
-        
-        async let followingResult = HardcoverService.fetchFollowing()
-        async let followersResult = HardcoverService.fetchFollowers()
-        
-        let (fetchedFollowing, fetchedFollowers) = await (followingResult, followersResult)
-        
-        await MainActor.run {
-            self.following = fetchedFollowing
-            self.followers = fetchedFollowers
-            self.isLoading = false
-            
-            if fetchedFollowing.isEmpty && fetchedFollowers.isEmpty {
-                self.errorMessage = nil // Not an error, just empty
+
+    @MainActor private func load(refresh: Bool = false) async {
+        let filter = selectedFilter
+        await store.load(key: filter.rawValue, refresh: refresh) {
+            try await HardcoverReadScope.checked {
+                if filter == .following { return await HardcoverService.fetchFollowing() }
+                return await HardcoverService.fetchFollowers()
             }
         }
     }

@@ -192,7 +192,7 @@ extension HardcoverService {
                 "variables": variables
             ])
 
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await HardcoverHTTP.shared.data(for: request)
             if let http = response as? HTTPURLResponse, http.statusCode != 200 {
                 print("❌ Trending GraphQL HTTP \(http.statusCode)")
                 return nil

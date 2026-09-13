@@ -45,72 +45,51 @@ struct BookEntity: AppEntity {
 // Cache for books to avoid repeated API calls
 actor BookCache {
     static let shared = BookCache()
-    
-    private var cachedBooks: [BookEntity]?
-    private var lastFetch: Date?
-    private let cacheTimeout: TimeInterval = 60 // 1 minute cache
-    
+
+    private var cachedBooks: [BookEntity] = []
+    private var lastFetch = Date.distantPast
+    private var token: WidgetSnapshotStore.Token?
+
     func getBooks() async -> [BookEntity] {
-        // Return cached books if they're still fresh
-        if let cached = cachedBooks,
-           let lastFetch = lastFetch,
-           Date().timeIntervalSince(lastFetch) < cacheTimeout {
-            return cached
+        guard !HardcoverConfig.apiKey.isEmpty else { clearCache(); return [] }
+        let expected = WidgetSnapshotStore.token(kind: WidgetSync.readingKind)
+        if token == expected, Date().timeIntervalSince(lastFetch) < 60 {
+            return cachedBooks
         }
-        
-        // Fetch new books
         do {
-            let books = await HardcoverService.fetchCurrentlyReading(forWidget: true)
+            let books: [BookProgress]
+            if let snapshot = LibrarySnapshot.load(status: 2, maxAge: 300), !snapshot.stale, snapshot.complete {
+                books = snapshot.books
+            } else {
+                books = try await LibraryAPI.page(status: 2, limit: 100).books
+            }
+            guard expected == WidgetSnapshotStore.token(kind: expected.kind) else { return [] }
             let entities = books.map { BookEntity(id: $0.id, title: $0.title) }
-            
-            // Update cache
             self.cachedBooks = entities
             self.lastFetch = Date()
-            
+            self.token = expected
             return entities
         } catch {
-            print("Error fetching books: \(error)")
-            // Return cached books even if expired, or empty array
-            return cachedBooks ?? []
+            guard token?.account == expected.account, Date().timeIntervalSince(lastFetch) < 3600 else { return [] }
+            return cachedBooks
         }
     }
     
     func clearCache() {
-        cachedBooks = nil
-        lastFetch = nil
+        cachedBooks = []
+        lastFetch = .distantPast
+        token = nil
     }
 }
 
 // The query that fetches the books.
 struct BookQuery: EntityQuery {
     func entities(for identifiers: [String]) async throws -> [BookEntity] {
-        let allBooks = await BookCache.shared.getBooks()
-        
-        // If no books were fetched, try once more with a fresh fetch
-        if allBooks.isEmpty {
-            await BookCache.shared.clearCache()
-            let retryBooks = await BookCache.shared.getBooks()
-            return retryBooks.filter { identifiers.contains($0.id) }
-        }
-        
-        return allBooks.filter { identifiers.contains($0.id) }
+        try await WidgetReaders.selectedBooks(ids: identifiers).map { BookEntity(id: $0.id, title: $0.title) }
     }
     
     func suggestedEntities() async throws -> [BookEntity] {
         let books = await BookCache.shared.getBooks()
-        
-        // If no books were fetched, try once more with a fresh fetch
-        if books.isEmpty {
-            await BookCache.shared.clearCache()
-            let retryBooks = await BookCache.shared.getBooks()
-            
-            // If still empty, throw a more descriptive error
-            if retryBooks.isEmpty {
-                throw BookQueryError.noBooksFound
-            }
-            
-            return retryBooks
-        }
         
         return books
     }

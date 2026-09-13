@@ -14,13 +14,13 @@ public enum AsyncCachedImagePhase {
 }
 
 // MARK: - Units for maxPixel
-public enum AsyncCachedImagePixelUnit {
+public enum AsyncCachedImagePixelUnit: Sendable {
     case points
     case pixels
 }
 
 // MARK: - Public configuration
-public struct AsyncCachedImageConfiguration {
+public struct AsyncCachedImageConfiguration: Sendable {
     public var retryCount: Int
     public var retryDelay: TimeInterval
     public var session: URLSession
@@ -43,8 +43,11 @@ public struct AsyncCachedImageConfiguration {
 }
 
 public enum AsyncCachedImageTools {
-    // Global konfiguration
-    public static var configuration = AsyncCachedImageConfiguration()
+    private static let configurationStorage = ImageConfigurationStorage()
+    public static var configuration: AsyncCachedImageConfiguration {
+        get { configurationStorage.get() }
+        set { configurationStorage.set(newValue) }
+    }
     
     // Skapa en URLSession med större URLCache och bra defaults
     public static func makeDefaultSession() -> URLSession {
@@ -83,43 +86,51 @@ public enum AsyncCachedImageTools {
         clearDisk()
     }
     
-    public static func remove(for url: URL, maxPixel: Int? = nil, pixelUnit: AsyncCachedImagePixelUnit = .points, scale: CGFloat = UIScreen.main.scale) {
-        let processedKey = cacheKeyProcessed(url: url, maxPixel: maxPixel, pixelUnit: pixelUnit, scale: Int(scale.rounded()))
+    public static func remove(for url: URL, maxPixel: Int? = nil, pixelUnit: AsyncCachedImagePixelUnit = .points, scale: CGFloat = 0) {
+        let scales = scale > 0 ? [Int(scale.rounded())] : [1, 2, 3]
+        let processedKeys = scales.map { cacheKeyProcessed(url: url, maxPixel: maxPixel, pixelUnit: pixelUnit, scale: $0) }
         let originalKey = cacheKeyOriginal(url: url)
-        MemoryImageCache.shared.removeAll()
+        for key in processedKeys { MemoryImageCache.shared.remove(forKey: key) }
         Task {
-            await DiskCache.shared.remove(forKey: processedKey)
+            for key in processedKeys { await DiskCache.shared.remove(forKey: key) }
             await DiskCache.shared.remove(forKey: originalKey)
         }
     }
     
-    public static func remove(for request: URLRequest, maxPixel: Int? = nil, pixelUnit: AsyncCachedImagePixelUnit = .points, scale: CGFloat = UIScreen.main.scale) {
+    public static func remove(for request: URLRequest, maxPixel: Int? = nil, pixelUnit: AsyncCachedImagePixelUnit = .points, scale: CGFloat = 0) {
         guard let url = request.url else { return }
         remove(for: url, maxPixel: maxPixel, pixelUnit: pixelUnit, scale: scale)
     }
     
     // Prefetch-stöd
-    public static func prefetch(urls: [URL], maxPixel: Int? = nil, pixelUnit: AsyncCachedImagePixelUnit = .points, scale: CGFloat = UIScreen.main.scale) {
+    public static func prefetch(urls: [URL], maxPixel: Int? = nil, pixelUnit: AsyncCachedImagePixelUnit = .points, scale: CGFloat = 0) {
         guard !urls.isEmpty else { return }
         let cfg = configuration
         Task(priority: cfg.taskPriority) {
+            let resolvedScale = scale > 0 ? scale : await defaultDisplayScale()
             for url in urls {
                 if Task.isCancelled { return }
-                await prefetchOne(url: url, maxPixel: maxPixel, pixelUnit: pixelUnit, scale: scale, cfg: cfg)
+                await prefetchOne(url: url, maxPixel: maxPixel, pixelUnit: pixelUnit, scale: resolvedScale, cfg: cfg)
             }
         }
     }
     
-    public static func prefetch(requests: [URLRequest], maxPixel: Int? = nil, pixelUnit: AsyncCachedImagePixelUnit = .points, scale: CGFloat = UIScreen.main.scale) {
+    public static func prefetch(requests: [URLRequest], maxPixel: Int? = nil, pixelUnit: AsyncCachedImagePixelUnit = .points, scale: CGFloat = 0) {
         guard !requests.isEmpty else { return }
         let cfg = configuration
         Task(priority: cfg.taskPriority) {
+            let resolvedScale = scale > 0 ? scale : await defaultDisplayScale()
             for req in requests {
                 if Task.isCancelled { return }
                 guard let url = req.url else { continue }
-                await prefetchOne(request: req, url: url, maxPixel: maxPixel, pixelUnit: pixelUnit, scale: scale, cfg: cfg)
+                await prefetchOne(request: req, url: url, maxPixel: maxPixel, pixelUnit: pixelUnit, scale: resolvedScale, cfg: cfg)
             }
         }
+    }
+
+    @MainActor
+    private static func defaultDisplayScale() -> CGFloat {
+        UIApplication.shared.connectedScenes.compactMap { ($0 as? UIWindowScene)?.screen.scale }.first ?? 2
     }
     
     private static func prefetchOne(url: URL, maxPixel: Int?, pixelUnit: AsyncCachedImagePixelUnit, scale: CGFloat, cfg: AsyncCachedImageConfiguration) async {
@@ -209,6 +220,8 @@ public struct AsyncCachedImage<Content: View, Placeholder: View>: View {
     private let placeholder: (() -> Placeholder)?
     
     @StateObject private var loader: ImageLoader
+    @Environment(\.displayScale) private var displayScale
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     
     // Classic initializer (URL)
     public init(
@@ -308,11 +321,11 @@ public struct AsyncCachedImage<Content: View, Placeholder: View>: View {
         Group {
             if let phaseContent {
                 phaseContent(loader.phase)
-                    .animation(.easeInOut(duration: fadeInDuration), value: loader.isShowingFinalImage)
+                    .animation(reduceMotion ? nil : .easeInOut(duration: fadeInDuration), value: loader.isShowingFinalImage)
             } else if let imageContent, let ui = loader.image {
                 imageContent(Image(uiImage: ui))
                     .transition(.opacity)
-                    .animation(.easeInOut(duration: fadeInDuration), value: loader.isShowingFinalImage)
+                    .animation(reduceMotion ? nil : .easeInOut(duration: fadeInDuration), value: loader.isShowingFinalImage)
             } else if let imageContent, let fallback = loader.fallback {
                 imageContent(Image(uiImage: fallback))
             } else if let placeholder {
@@ -321,7 +334,8 @@ public struct AsyncCachedImage<Content: View, Placeholder: View>: View {
                 EmptyView()
             }
         }
-        .onAppear { loader.loadIfNeeded() }
+        .onAppear { loader.loadIfNeeded(displayScale: displayScale) }
+        .onChange(of: displayScale) { _, scale in loader.loadIfNeeded(displayScale: scale) }
         .onChange(of: url) { _, newURL in
             loader.update(url: newURL, request: request, maxPixel: maxPixel, pixelUnit: pixelUnit, dataFallback: dataFallback)
         }
@@ -352,6 +366,7 @@ private final class ImageLoader: ObservableObject {
     private var currentMaxPixel: Int?
     private var currentPixelUnit: AsyncCachedImagePixelUnit = .points
     private var currentFallbackData: Data?
+    private var currentDisplayScale: CGFloat = 1
     private var configuration: AsyncCachedImageConfiguration
     private var progressBinding: Binding<Double?>?
     
@@ -384,6 +399,7 @@ private final class ImageLoader: ObservableObject {
             self.fallback = nil
         }
         if shouldReload {
+            task?.cancel()
             image = nil
             isShowingFinalImage = false
             phase = .empty
@@ -392,11 +408,16 @@ private final class ImageLoader: ObservableObject {
         }
     }
     
-    func loadIfNeeded() {
+    func loadIfNeeded(displayScale: CGFloat? = nil) {
+        if let displayScale, displayScale != currentDisplayScale {
+            currentDisplayScale = max(1, displayScale)
+            task?.cancel()
+            image = nil
+        }
         guard image == nil else { return }
         guard let url = currentURL else { return } // endast fallback
         
-        let scale = Int(UIScreen.main.scale.rounded())
+        let scale = Int(currentDisplayScale.rounded())
         let processedKey = cacheKeyProcessed(url: url, maxPixel: currentMaxPixel, pixelUnit: currentPixelUnit, scale: scale)
         let originalKey = cacheKeyOriginal(url: url)
         
@@ -417,6 +438,7 @@ private final class ImageLoader: ObservableObject {
             
             // 1) Diskcache: processed image
             if let diskImage = await DiskCache.shared.loadImage(forKey: expectedKey) {
+                guard !Task.isCancelled else { return }
                 await MainActor.run {
                     MemoryImageCache.shared.store(image: diskImage, forKey: expectedKey)
                     if expectedKey == self.makeCacheKeyProcessed(url: self.currentURL ?? url, maxPixel: self.currentMaxPixel, pixelUnit: self.currentPixelUnit, scale: scale) {
@@ -469,8 +491,12 @@ private final class ImageLoader: ObservableObject {
                 if let progressBinding = self.progressBinding {
                     let req = self.currentRequest ?? URLRequest(url: url)
                     let (bytes, response) = try await self.configuration.session.bytes(for: req)
+                    if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+                        throw URLError(.badServerResponse)
+                    }
                     let expected = response.expectedContentLength
                     var received = 0
+                    var reportedBytes = 0
                     var collected: [UInt8] = []
                     if expected > 0 {
                         collected.reserveCapacity(Int(expected))
@@ -484,7 +510,8 @@ private final class ImageLoader: ObservableObject {
                         if Task.isCancelled { return }
                         collected.append(byte)
                         received += 1
-                        if expected > 0 {
+                        if expected > 0 && (received - reportedBytes >= max(16_384, Int(expected / 100)) || received == expected) {
+                            reportedBytes = received
                             let p = min(1.0, Double(received) / Double(expected))
                             await MainActor.run {
                                 self.phase = .progress(p)
@@ -582,7 +609,8 @@ private final class ImageLoader: ObservableObject {
     }
     
     private func makeCacheKeyProcessed(url: URL, maxPixel: Int?, pixelUnit: AsyncCachedImagePixelUnit, scale: Int) -> String {
-        cacheKeyProcessed(url: url, maxPixel: maxPixel, pixelUnit: pixelUnit, scale: scale)
+        guard currentURL != nil else { return "" }
+        return cacheKeyProcessed(url: url, maxPixel: maxPixel, pixelUnit: pixelUnit, scale: Int(currentDisplayScale.rounded()))
     }
 }
 
@@ -614,7 +642,8 @@ private func cacheKeyProcessed(url: URL, maxPixel: Int?, pixelUnit: AsyncCachedI
 }
 
 // MARK: - Memory cache
-private final class MemoryImageCache {
+// NSCache synchronizes access; the observer is installed only during initialization.
+private final class MemoryImageCache: @unchecked Sendable {
     static let shared = MemoryImageCache()
     private let cache = NSCache<NSString, UIImage>()
     private var didSetUpWarningObserver = false
@@ -647,69 +676,102 @@ private final class MemoryImageCache {
     func removeAll() {
         cache.removeAllObjects()
     }
+
+    func remove(forKey key: String) {
+        cache.removeObject(forKey: key as NSString)
+    }
+}
+
+private final class ImageConfigurationStorage: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value = AsyncCachedImageConfiguration()
+
+    func get() -> AsyncCachedImageConfiguration {
+        lock.lock()
+        defer { lock.unlock() }
+        return value
+    }
+
+    func set(_ value: AsyncCachedImageConfiguration) {
+        lock.lock()
+        defer { lock.unlock() }
+        self.value = value
+    }
 }
 
 // MARK: - Disk cache with configurable TTL + LRU
 private actor DiskCache {
     static let shared = DiskCache()
-    
+
+    private struct Record: Codable {
+        let storedAt: Date
+        var lastAccess: Date
+        let size: Int
+    }
+
     private let folderURL: URL
     private let fm = FileManager.default
-    
-    // Config (kan justeras via configure)
-    private var ttl: TimeInterval = 7 * 24 * 60 * 60 // 7 dagar
-    private var maxSizeBytes: Int = 200 * 1024 * 1024 // 200 MB
-    
-    private init() {
+    private let now: @Sendable () -> Date
+    private var records: [String: Record] = [:]
+    private var totalBytes = 0
+    private var indexLoaded = false
+    private var maintenanceTask: Task<Void, Never>?
+    private var ttl: TimeInterval = 7 * 24 * 60 * 60
+    private var maxSizeBytes: Int = 200 * 1024 * 1024
+
+    // Internal injection keeps disk policy independently testable without the UI.
+    init(folderURL: URL? = nil, now: @escaping @Sendable () -> Date = { Date() }) {
         let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
-        folderURL = base.appendingPathComponent("ImageCache", isDirectory: true)
-        try? fm.createDirectory(at: folderURL, withIntermediateDirectories: true)
-        excludeFromBackup(url: folderURL)
+        let folder = folderURL ?? base.appendingPathComponent("ImageCache", isDirectory: true)
+        self.folderURL = folder
+        self.now = now
+        Self.prepareDirectory(folder)
     }
-    
+
     func configure(ttl: TimeInterval, maxSizeBytes: Int) {
-        self.ttl = max(60, ttl) // minst 1 minut
-        self.maxSizeBytes = max(1 * 1024 * 1024, maxSizeBytes) // minst 1 MB
-        Task { await trimIfNeeded() }
+        self.ttl = max(60, ttl)
+        self.maxSizeBytes = max(1 * 1024 * 1024, maxSizeBytes)
+        ensureIndex()
+        scheduleMaintenance()
     }
-    
-    // MARK: Public API
-    func loadImage(forKey key: String) async -> UIImage? {
-        let url = imageFileURL(forKey: key)
-        return await loadImage(at: url)
+
+    func loadImage(forKey key: String) -> UIImage? {
+        guard let data = loadData(at: imageFileURL(forKey: key)) else { return nil }
+        return UIImage(data: data)
     }
-    
-    func storeImage(_ image: UIImage, forKey key: String) async {
-        let url = imageFileURL(forKey: key)
-        await storeImage(image, at: url)
-        await trimIfNeeded()
+
+    func storeImage(_ image: UIImage, forKey key: String) {
+        let data = imageHasAlpha(image) ? image.pngData() : image.jpegData(compressionQuality: 0.9)
+        guard let data else { return }
+        storeData(data, at: imageFileURL(forKey: key))
     }
-    
-    func loadData(forKey key: String) async -> Data? {
-        let url = dataFileURL(forKey: key)
-        return await loadData(at: url)
+
+    func loadData(forKey key: String) -> Data? {
+        loadData(at: dataFileURL(forKey: key))
     }
-    
-    func storeData(_ data: Data, forKey key: String) async {
-        let url = dataFileURL(forKey: key)
-        await storeData(data, at: url)
-        await trimIfNeeded()
+
+    func storeData(_ data: Data, forKey key: String) {
+        storeData(data, at: dataFileURL(forKey: key))
     }
-    
-    func remove(forKey key: String) async {
-        let paths = [imageFileURL(forKey: key), dataFileURL(forKey: key)]
-        for p in paths {
-            try? fm.removeItem(at: p)
+
+    func remove(forKey key: String) {
+        ensureIndex()
+        for url in [imageFileURL(forKey: key), dataFileURL(forKey: key)] {
+            removeFile(named: url.lastPathComponent)
         }
+        scheduleMaintenance()
     }
-    
-    func removeAll() async {
+
+    func removeAll() {
+        maintenanceTask?.cancel()
+        maintenanceTask = nil
         try? fm.removeItem(at: folderURL)
-        try? fm.createDirectory(at: folderURL, withIntermediateDirectories: true)
-        excludeFromBackup(url: folderURL)
+        Self.prepareDirectory(folderURL)
+        records.removeAll()
+        totalBytes = 0
+        indexLoaded = true
     }
-    
-    // MARK: Internals
+
     private func imageFileURL(forKey key: String) -> URL {
         folderURL.appendingPathComponent(sha256(key)).appendingPathExtension("img")
     }
@@ -718,95 +780,102 @@ private actor DiskCache {
         folderURL.appendingPathComponent(sha256(key)).appendingPathExtension("bin")
     }
     
-    private func isExpired(_ url: URL) -> Bool {
-        guard let attrs = try? fm.attributesOfItem(atPath: url.path),
-              let modDate = attrs[.modificationDate] as? Date
-        else { return false }
-        return Date().timeIntervalSince(modDate) > ttl
-    }
-    
-    private func touch(_ url: URL) {
-        try? fm.setAttributes([.modificationDate: Date()], ofItemAtPath: url.path)
-    }
-    
-    private func loadImage(at url: URL) async -> UIImage? {
-        guard fm.fileExists(atPath: url.path) else { return nil }
-        if isExpired(url) {
-            try? fm.removeItem(at: url)
+    private func loadData(at url: URL) -> Data? {
+        ensureIndex()
+        let name = url.lastPathComponent
+        guard var record = records[name] else { return nil }
+        guard now().timeIntervalSince(record.storedAt) < ttl,
+              let data = try? Data(contentsOf: url, options: [.mappedIfSafe]) else {
+            removeFile(named: name)
+            scheduleMaintenance()
             return nil
         }
-        guard let data = try? Data(contentsOf: url, options: [.mappedIfSafe]) else { return nil }
-        touch(url)
-        return UIImage(data: data)
-    }
-    
-    private func storeImage(_ image: UIImage, at url: URL) async {
-        // PNG om alpha, annars JPEG
-        let hasAlpha = imageHasAlpha(image)
-        let data: Data?
-        if hasAlpha {
-            data = image.pngData()
-        } else {
-            data = image.jpegData(compressionQuality: 0.9)
-        }
-        guard let data else { return }
-        do {
-            try data.write(to: url, options: .atomic)
-            touch(url)
-        } catch {
-            // ignore
-        }
-    }
-    
-    private func loadData(at url: URL) async -> Data? {
-        guard fm.fileExists(atPath: url.path) else { return nil }
-        if isExpired(url) {
-            try? fm.removeItem(at: url)
-            return nil
-        }
-        guard let data = try? Data(contentsOf: url, options: [.mappedIfSafe]) else { return nil }
-        touch(url)
+        // Access affects eviction order, never the original freshness deadline.
+        record.lastAccess = now()
+        records[name] = record
+        scheduleMaintenance()
         return data
     }
-    
-    private func storeData(_ data: Data, at url: URL) async {
+
+    private func storeData(_ data: Data, at url: URL) {
+        ensureIndex()
+        guard data.count <= maxSizeBytes else { return }
         do {
             try data.write(to: url, options: .atomic)
-            touch(url)
+            let date = now()
+            try? fm.setAttributes([.modificationDate: date], ofItemAtPath: url.path)
+            let name = url.lastPathComponent
+            totalBytes -= records[name]?.size ?? 0
+            records[name] = Record(storedAt: date, lastAccess: date, size: data.count)
+            totalBytes += data.count
+            // Bound temporary overflow during a long burst without a filesystem scan.
+            if totalBytes > maxSizeBytes + maxSizeBytes / 4 { trim() }
+            scheduleMaintenance()
         } catch {
-            // ignore
+            // Cache writes are optional; a removed cache directory is recreated.
+            Self.prepareDirectory(folderURL)
         }
     }
-    
-    private func trimIfNeeded() async {
-        let resourceKeys: Set<URLResourceKey> = [.isDirectoryKey, .contentModificationDateKey, .fileSizeKey]
-        guard let files = try? fm.contentsOfDirectory(at: folderURL, includingPropertiesForKeys: Array(resourceKeys), options: [.skipsHiddenFiles]) else {
-            return
-        }
-        
-        var fileInfos: [(url: URL, modDate: Date, size: Int)] = []
-        var total: Int = 0
-        for fileURL in files {
-            guard let rv = try? fileURL.resourceValues(forKeys: resourceKeys),
-                  rv.isDirectory != true,
-                  let mdate = rv.contentModificationDate,
-                  let fsize = rv.fileSize
+
+    private var indexURL: URL { folderURL.appendingPathComponent(".index.json") }
+
+    private func ensureIndex() {
+        guard !indexLoaded else { return }
+        indexLoaded = true
+        let saved = (try? Data(contentsOf: indexURL)).flatMap {
+            try? JSONDecoder().decode([String: Record].self, from: $0)
+        } ?? [:]
+        let keys: Set<URLResourceKey> = [.contentModificationDateKey, .fileSizeKey, .isRegularFileKey]
+        let files = (try? fm.contentsOfDirectory(at: folderURL, includingPropertiesForKeys: Array(keys), options: [.skipsHiddenFiles])) ?? []
+        // Reconcile once per process, including legacy files and an interrupted index write.
+        for url in files where ["img", "bin"].contains(url.pathExtension) {
+            guard let values = try? url.resourceValues(forKeys: keys), values.isRegularFile == true,
+                  let storedAt = values.contentModificationDate, let size = values.fileSize
             else { continue }
-            fileInfos.append((fileURL, mdate, fsize))
-            total += fsize
+            let name = url.lastPathComponent
+            let previous = saved[name]
+            let matches = previous?.size == size && abs((previous?.storedAt ?? .distantPast).timeIntervalSince(storedAt)) < 1
+            records[name] = Record(storedAt: storedAt, lastAccess: matches ? previous!.lastAccess : storedAt, size: size)
+            totalBytes += size
         }
-        
-        if total <= maxSizeBytes { return }
-        
-        fileInfos.sort { $0.modDate < $1.modDate }
-        var toDeleteBytes = total - maxSizeBytes
-        for info in fileInfos {
-            if toDeleteBytes <= 0 { break }
-            try? fm.removeItem(at: info.url)
-            toDeleteBytes -= info.size
+        trim()
+    }
+
+    private func scheduleMaintenance() {
+        guard maintenanceTask == nil else { return }
+        maintenanceTask = Task { [weak self] in
+            do { try await Task.sleep(for: .seconds(2)) } catch { return }
+            guard !Task.isCancelled else { return }
+            await self?.performMaintenance()
         }
     }
-    
+
+    private func performMaintenance() {
+        maintenanceTask = nil
+        trim()
+        if let data = try? JSONEncoder().encode(records) {
+            try? data.write(to: indexURL, options: .atomic)
+        }
+    }
+
+    private func trim() {
+        let date = now()
+        for (name, record) in records where date.timeIntervalSince(record.storedAt) >= ttl {
+            removeFile(named: name)
+        }
+        guard totalBytes > maxSizeBytes else { return }
+        let target = maxSizeBytes * 9 / 10
+        for (name, _) in records.sorted(by: { $0.value.lastAccess < $1.value.lastAccess }) {
+            guard totalBytes > target else { break }
+            removeFile(named: name)
+        }
+    }
+
+    private func removeFile(named name: String) {
+        try? fm.removeItem(at: folderURL.appendingPathComponent(name))
+        totalBytes -= records.removeValue(forKey: name)?.size ?? 0
+    }
+
     private func imageHasAlpha(_ image: UIImage) -> Bool {
         guard let alphaInfo = image.cgImage?.alphaInfo else { return false }
         switch alphaInfo {
@@ -817,7 +886,8 @@ private actor DiskCache {
         }
     }
     
-    private func excludeFromBackup(url: URL) {
+    private nonisolated static func prepareDirectory(_ url: URL) {
+        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         var u = url
         var res = URLResourceValues()
         res.isExcludedFromBackup = true
@@ -846,7 +916,7 @@ private actor RequestCoalescer {
             return try await task.value
         }
         let task = Task<Data, Error> {
-            defer { Task { await self.remove(url) } }
+            defer { self.remove(url) }
             return try await fetchWithRetry(url: url, session: session, retries: retries, delay: delay)
         }
         inFlight[url] = task
@@ -859,7 +929,7 @@ private actor RequestCoalescer {
             return try await task.value
         }
         let task = Task<Data, Error> {
-            defer { Task { await self.remove(url) } }
+            defer { self.remove(url) }
             return try await fetchWithRetry(request: request, session: session, retries: retries, delay: delay)
         }
         inFlight[url] = task

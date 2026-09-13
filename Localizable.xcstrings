@@ -1,6 +1,1466 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Finish" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": { "stringUnit": { "state": "translated", "value": "Avsluta" } }
+      }
+    },
+    "Book information" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bokinformation"
+          }
+        }
+      }
+    },
+    "Could not load books" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kunde inte ladda böcker"
+          }
+        }
+      }
+    },
+    "Try again later" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Försök igen senare"
+          }
+        }
+      }
+    },
+    "Could not load reading goal" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kunde inte ladda läsmålet"
+          }
+        }
+      }
+    },
+    "Could not load upcoming releases" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kunde inte ladda kommande utgivningar"
+          }
+        }
+      }
+    },
+    "Sign in to Hardcover" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Logga in på Hardcover"
+          }
+        }
+      }
+    },
+    "Could not load quotes" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kunde inte ladda citat"
+          }
+        }
+      }
+    },
+    "Delete reading date?" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta bort läsdatum?"
+          }
+        }
+      }
+    },
+    "%@ of %@" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ av %@"
+          }
+        }
+      }
+    },
+    "%d pages" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d sidor"
+          }
+        }
+      }
+    },
+    "Add Quote" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lägg till citat"
+          }
+        }
+      }
+    },
+    "Add your favourite quotes from this book." : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lägg till dina favoritcitat från den här boken."
+          }
+        }
+      }
+    },
+    "Add your first quote..." : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lägg till ditt första citat..."
+          }
+        }
+      }
+    },
+    "Clear search history" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rensa sökhistorik"
+          }
+        }
+      }
+    },
+    "Community" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemenskap"
+          }
+        }
+      }
+    },
+    "Connect a valid Hardcover API key in Settings." : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anslut en giltig API-nyckel från Hardcover i Inställningar."
+          }
+        }
+      }
+    },
+    "Copy" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kopiera"
+          }
+        }
+      }
+    },
+    "Could not add book" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kunde inte lägga till boken"
+          }
+        }
+      }
+    },
+    "Current edition" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nuvarande utgåva"
+          }
+        }
+      }
+    },
+    "Did Not Finish" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avbruten"
+          }
+        }
+      }
+    },
+    "Discard changes" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kasta ändringar"
+          }
+        }
+      }
+    },
+    "Dismiss" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stäng"
+          }
+        }
+      }
+    },
+    "Edit" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Redigera"
+          }
+        }
+      }
+    },
+    "Failed to load feed" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kunde inte ladda flödet"
+          }
+        }
+      }
+    },
+    "Feed" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Flöde"
+          }
+        }
+      }
+    },
+    "Finish without review" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avsluta utan recension"
+          }
+        }
+      }
+    },
+    "Follow other users to see their activity here" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Följ andra användare för att se deras aktivitet här"
+          }
+        }
+      }
+    },
+    "Hardcover is busy. Try again after %@." : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hardcover begränsar anropen. Försök igen efter %@."
+          }
+        }
+      }
+    },
+    "Hardcover is unavailable (HTTP %d). Please try again." : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hardcover är inte tillgängligt (HTTP %d). Försök igen."
+          }
+        }
+      }
+    },
+    "Hardcover returned an unreadable response. Please try again." : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Svaret från Hardcover gick inte att läsa. Försök igen."
+          }
+        }
+      }
+    },
+    "Hours" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Timmar"
+          }
+        }
+      }
+    },
+    "In your library" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I ditt bibliotek"
+          }
+        }
+      }
+    },
+    "Keep editing" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fortsätt redigera"
+          }
+        }
+      }
+    },
+    "Library" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bibliotek"
+          }
+        }
+      }
+    },
+    "Loading feed…" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Laddar flödet…"
+          }
+        }
+      }
+    },
+    "Minutes" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Minuter"
+          }
+        }
+      }
+    },
+    "No Quotes Yet" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inga citat ännu"
+          }
+        }
+      }
+    },
+    "Optional – the page this quote is from." : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Valfritt: sidan som citatet är hämtat från."
+          }
+        }
+      }
+    },
+    "Page %d" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sida %d"
+          }
+        }
+      }
+    },
+    "Page %d of %d" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sida %d av %d"
+          }
+        }
+      }
+    },
+    "Page Number" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sidnummer"
+          }
+        }
+      }
+    },
+    "Progress must be within the edition's length." : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Läspositionen måste vara inom utgåvans längd."
+          }
+        }
+      }
+    },
+    "Quote Text" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Citat"
+          }
+        }
+      }
+    },
+    "Quotes" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Citat"
+          }
+        }
+      }
+    },
+    "Reading actions" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Läsåtgärder"
+          }
+        }
+      }
+    },
+    "Reading progress" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Läsposition"
+          }
+        }
+      }
+    },
+    "Reading progress changed on another device. Review the latest progress before saving." : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Läspositionen ändrades på en annan enhet. Kontrollera den senaste positionen innan du sparar."
+          }
+        }
+      }
+    },
+    "Release Date" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utgivningsdatum"
+          }
+        }
+      }
+    },
+    "Remove from library" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta bort från biblioteket"
+          }
+        }
+      }
+    },
+    "Scan barcode" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skanna streckkod"
+          }
+        }
+      }
+    },
+    "Settings" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inställningar"
+          }
+        }
+      }
+    },
+    "The change could not be saved. Please try again." : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ändringen kunde inte sparas. Försök igen."
+          }
+        }
+      }
+    },
+    "The connected account changed. Please try again." : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Det anslutna kontot har ändrats. Försök igen."
+          }
+        }
+      }
+    },
+    "The edition or reading status has changed. Reopen the progress editor to continue." : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utgåvan eller lässtatusen har ändrats. Öppna läspositionen igen för att fortsätta."
+          }
+        }
+      }
+    },
+    "This book is no longer in your library. Refresh and try again." : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Boken finns inte längre i ditt bibliotek. Uppdatera och försök igen."
+          }
+        }
+      }
+    },
+    "This will permanently remove the quote." : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Citatet tas bort permanent."
+          }
+        }
+      }
+    },
+    "Title or author" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Titel eller författare"
+          }
+        }
+      }
+    },
+    "Unit" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enhet"
+          }
+        }
+      }
+    },
+    "Update progress" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uppdatera läsposition"
+          }
+        }
+      }
+    },
+    "Use latest progress" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Använd senaste positionen"
+          }
+        }
+      }
+    },
+    "View All Quotes" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visa alla citat"
+          }
+        }
+      }
+    },
+    "Your API key does not have permission for this action." : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Din API-nyckel saknar behörighet för den här åtgärden."
+          }
+        }
+      }
+    },
+    "Your reading" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Din läsning"
+          }
+        }
+      }
+    },
+    "Edit current edition" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": { "stringUnit": { "state": "translated", "value": "Redigera aktuell utgåva" } }
+      }
+    },
+    "Hardcover is temporarily limiting requests. Retrying automatically." : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": { "stringUnit": { "state": "translated", "value": "Hardcover begränsar tillfälligt anropen. Ett nytt försök görs automatiskt." } }
+      }
+    },
+    "Hardcover is temporarily limiting requests. Try again after %@." : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": { "stringUnit": { "state": "translated", "value": "Hardcover begränsar tillfälligt anropen. Försök igen efter %@." } }
+      }
+    },
+    "Retry" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": { "stringUnit": { "state": "translated", "value": "Försök igen" } }
+      }
+    },
+    "Changes saved" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ändringarna har sparats"
+          }
+        }
+      }
+    },
+    "The changes were saved, but the book details could not be refreshed. Reopen this view to try again." : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ändringarna har sparats, men bokdetaljerna kunde inte uppdateras. Öppna vyn igen för att försöka på nytt."
+          }
+        }
+      }
+    },
+    "Edit on Hardcover" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Redigera på Hardcover"
+          }
+        }
+      }
+    },
+    "Catalog editing access" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Behörighet för katalogredigering"
+          }
+        }
+      }
+    },
+    "Edit Book" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Redigera bok"
+          }
+        }
+      }
+    },
+    "Edit Editions" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Redigera utgåvor"
+          }
+        }
+      }
+    },
+    "Edit Edition" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Redigera utgåva"
+          }
+        }
+      }
+    },
+    "Locked on Hardcover" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Låst på Hardcover"
+          }
+        }
+      }
+    },
+    "Could not load edition" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kunde inte ladda utgåvan"
+          }
+        }
+      }
+    },
+    "Edition" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utgåva"
+          }
+        }
+      }
+    },
+    "Title" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Titel"
+          }
+        }
+      }
+    },
+    "Subtitle" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Undertitel"
+          }
+        }
+      }
+    },
+    "Release date" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utgivningsdatum"
+          }
+        }
+      }
+    },
+    "Cover" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Omslag"
+          }
+        }
+      }
+    },
+    "Choose cover edition" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Välj omslagsutgåva"
+          }
+        }
+      }
+    },
+    "Series" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Serier"
+          }
+        }
+      }
+    },
+    "Remove series" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta bort serie"
+          }
+        }
+      }
+    },
+    "Position in series" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nummer i serien"
+          }
+        }
+      }
+    },
+    "Featured series" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Huvudserie"
+          }
+        }
+      }
+    },
+    "Add series" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lägg till serie"
+          }
+        }
+      }
+    },
+    "Discard changes?" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kasta ändringarna?"
+          }
+        }
+      }
+    },
+    "Discard Changes" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kasta ändringar"
+          }
+        }
+      }
+    },
+    "Saved with warnings" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sparat med varningar"
+          }
+        }
+      }
+    },
+    "Format" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Format"
+          }
+        }
+      }
+    },
+    "Binding / edition format" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bindning / utgåveformat"
+          }
+        }
+      }
+    },
+    "Pages" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sidor"
+          }
+        }
+      }
+    },
+    "Audio length (seconds)" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Längd i sekunder"
+          }
+        }
+      }
+    },
+    "ISBN-10" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ISBN-10"
+          }
+        }
+      }
+    },
+    "ISBN-13" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ISBN-13"
+          }
+        }
+      }
+    },
+    "Publisher" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Förlag"
+          }
+        }
+      }
+    },
+    "Select publisher" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Välj förlag"
+          }
+        }
+      }
+    },
+    "Remove publisher" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta bort förlag"
+          }
+        }
+      }
+    },
+    "Authors and contributors" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Författare och medverkande"
+          }
+        }
+      }
+    },
+    "Role" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Roll"
+          }
+        }
+      }
+    },
+    "Unspecified" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ej angiven"
+          }
+        }
+      }
+    },
+    "Remove contributor" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta bort medverkande"
+          }
+        }
+      }
+    },
+    "Add contributor" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lägg till medverkande"
+          }
+        }
+      }
+    },
+    "Select cover" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Välj omslag"
+          }
+        }
+      }
+    },
+    "New cover image URL" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bildlänk till nytt omslag"
+          }
+        }
+      }
+    },
+    "YYYY-MM-DD" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ÅÅÅÅ-MM-DD"
+          }
+        }
+      }
+    },
+    "Could not save" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kunde inte spara"
+          }
+        }
+      }
+    },
+    "Save to Hardcover?" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spara på Hardcover?"
+          }
+        }
+      }
+    },
+    "Save to Hardcover" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spara på Hardcover"
+          }
+        }
+      }
+    },
+    "These changes update the shared catalog for everyone on Hardcover." : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ändringarna uppdaterar den gemensamma katalogen för alla på Hardcover."
+          }
+        }
+      }
+    },
+    "Select contributor" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Välj medverkande"
+          }
+        }
+      }
+    },
+    "Select series" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Välj serie"
+          }
+        }
+      }
+    },
+    "No results" : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inga resultat"
+          }
+        }
+      }
+    },
+    "Catalog editing requires a Hardcover librarian account." : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Katalogredigering kräver librarian-behörighet på Hardcover."
+          }
+        }
+      }
+    },
+    "Your account changed. Close the editor and open it again." : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ditt konto har ändrats. Stäng redigeringen och öppna den igen."
+          }
+        }
+      }
+    },
+    "This catalog record is locked on Hardcover." : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Den här katalogposten är låst på Hardcover."
+          }
+        }
+      }
+    },
+    "This record changed on Hardcover while you were editing. Reopen the editor to load the latest version." : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Posten har ändrats på Hardcover medan du redigerade. Öppna redigeringen igen för att hämta den senaste versionen."
+          }
+        }
+      }
+    },
+    "Hardcover returned an unexpected response. No save could be confirmed." : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hardcover gav ett oväntat svar. Det gick inte att bekräfta att ändringarna sparades."
+          }
+        }
+      }
+    },
+    "A title is required." : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En titel krävs."
+          }
+        }
+      }
+    },
+    "Enter a valid date as YYYY-MM-DD." : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ange ett giltigt datum som ÅÅÅÅ-MM-DD."
+          }
+        }
+      }
+    },
+    "Enter a non-negative whole number." : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ange ett heltal som är noll eller större."
+          }
+        }
+      }
+    },
+    "Enter a valid series position." : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ange ett giltigt nummer i serien."
+          }
+        }
+      }
+    },
+    "The ISBN is invalid. Check its digits and checksum." : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ISBN-numret är ogiltigt. Kontrollera siffrorna och kontrollsumman."
+          }
+        }
+      }
+    },
+    "Enter a public HTTPS image URL without login details." : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ange en offentlig HTTPS-bildlänk utan inloggningsuppgifter."
+          }
+        }
+      }
+    },
+    "Select a cover from an edition of this book." : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Välj ett omslag från en utgåva av den här boken."
+          }
+        }
+      }
+    },
+    "Your Hardcover API key has expired or is invalid." : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Din API-nyckel för Hardcover har gått ut eller är ogiltig."
+          }
+        }
+      }
+    },
+    "Hardcover denied access. The API key needs read:me:roles and write:catalog:edit, as well as catalog read and search access." : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hardcover nekade åtkomst. API-nyckeln behöver read:me:roles och write:catalog:edit samt läs- och sökbehörighet för katalogen."
+          }
+        }
+      }
+    },
+    "Hardcover request failed (HTTP %d). Try again later." : {
+      "extractionState": "manual",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anropet till Hardcover misslyckades (HTTP %d). Försök igen senare."
+          }
+        }
+      }
+    },
+    "Format: %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Format: %@"
+          }
+        }
+      }
+    },
+    "Unknown format" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Okänt format"
+          }
+        }
+      }
+    },
+    "E-book" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "E-bok"
+          }
+        }
+      }
+    },
+    "Physical book" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fysisk bok"
+          }
+        }
+      }
+    },
+    "Audiobook" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ljudbok"
+          }
+        }
+      }
+    },
     "Quote Widget" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -215,8 +1675,16 @@
       }
     },
     "(%lld ratings)" : {
-      "comment" : "A text showing the number of ratings a user has given. The argument is the total number of ratings.",
-      "isCommentAutoGenerated" : true
+      "comment": "A text showing the number of ratings a user has given. The argument is the total number of ratings.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "(%lld betyg)"
+          }
+        }
+      }
     },
     "(hours : minutes)" : {
       "localizations" : {
@@ -239,8 +1707,16 @@
       }
     },
     "@%@ doesn't have any followers yet" : {
-      "comment" : "A description text below the main text in the \"Not following anyone\" or \"No followers\" case. The text varies slightly depending on which case it is.",
-      "isCommentAutoGenerated" : true
+      "comment": "A description text below the main text in the \"Not following anyone\" or \"No followers\" case. The text varies slightly depending on which case it is.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "@%@ har inga följare ännu"
+          }
+        }
+      }
     },
     "@%@ hasn't added any books to Want to Read yet" : {
       "comment" : "Empty state message",
@@ -255,8 +1731,16 @@
       }
     },
     "@%@ hasn't created any lists yet" : {
-      "comment" : "A description below the icon in the \"No lists yet\" view, explaining that the user has not created any lists.",
-      "isCommentAutoGenerated" : true
+      "comment": "A description below the icon in the \"No lists yet\" view, explaining that the user has not created any lists.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "@%@ har inte skapat några listor ännu"
+          }
+        }
+      }
     },
     "@%@ hasn't finished any books yet" : {
       "comment" : "Empty state message",
@@ -271,8 +1755,16 @@
       }
     },
     "@%@ is not following anyone yet" : {
-      "comment" : "A description text below the main text in the \"Not following anyone\" or \"No followers\" case. The text varies slightly depending on which case it is.",
-      "isCommentAutoGenerated" : true
+      "comment": "A description text below the main text in the \"Not following anyone\" or \"No followers\" case. The text varies slightly depending on which case it is.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "@%@ följer ingen ännu"
+          }
+        }
+      }
     },
     "@%@ isn't currently reading any books" : {
       "comment" : "Empty state message",
@@ -298,16 +1790,40 @@
       }
     },
     "@%@'s Friends" : {
-      "comment" : "The title of the view, showing the username of the user whose friends are being displayed. The placeholder text is replaced with the actual username when the view is rendered.",
-      "isCommentAutoGenerated" : true
+      "comment": "The title of the view, showing the username of the user whose friends are being displayed. The placeholder text is replaced with the actual username when the view is rendered.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "@%@:s vänner"
+          }
+        }
+      }
     },
     "@%@'s Lists" : {
-      "comment" : "The navigation title of the view. The placeholder is replaced with the username of the user whose lists are being viewed.",
-      "isCommentAutoGenerated" : true
+      "comment": "The navigation title of the view. The placeholder is replaced with the username of the user whose lists are being viewed.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "@%@:s listor"
+          }
+        }
+      }
     },
     "@%@'s Stats" : {
-      "comment" : "The title of the navigation bar at the top of the view. The placeholder is replaced with the username of the user whose stats are being viewed.",
-      "isCommentAutoGenerated" : true
+      "comment": "The title of the navigation bar at the top of the view. The placeholder is replaced with the username of the user whose stats are being viewed.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "@%@:s statistik"
+          }
+        }
+      }
     },
     "%" : {
 
@@ -421,32 +1937,42 @@
       }
     },
     "%lld / %lld pages" : {
-      "comment" : "Reading progress",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld / %2$lld pages"
+      "comment": "Reading progress",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$lld / %2$lld pages"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld / %lld sidor"
           }
         }
       }
     },
     "%lld books" : {
-      "comment" : "A pair of text labels next to a book icon, showing the number of books on a list.",
-      "isCommentAutoGenerated" : true
+      "comment": "A pair of text labels next to a book icon, showing the number of books on a list.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld böcker"
+          }
+        }
+      }
     },
     "%lld likes" : {
-      "comment" : "A label displaying the number of likes a user's list has received. The argument is the number of likes.",
-      "isCommentAutoGenerated" : true
-    },
-    "%lld more quote%@…" : {
-      "comment" : "A text that indicates there are more quotes available to view. The argument is the count of additional quotes.",
-      "isCommentAutoGenerated" : true,
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld more quote%2$@…"
+      "comment": "A label displaying the number of likes a user's list has received. The argument is the number of likes.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld gillningar"
           }
         }
       }
@@ -497,8 +2023,16 @@
       }
     },
     "%lld reading" : {
-      "comment" : "A text label showing the number of times a book has been read by other users. The number is dynamically replaced with the actual count.",
-      "isCommentAutoGenerated" : true
+      "comment": "A text label showing the number of times a book has been read by other users. The number is dynamically replaced with the actual count.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld läser"
+          }
+        }
+      }
     },
     "%lld%%" : {
       "localizations" : {
@@ -527,34 +2061,59 @@
       }
     },
     "%lldh %lldm" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lldh %2$lldm"
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$lldh %2$lldm"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld tim %lld min"
           }
         }
       }
     },
     "%lldh %lldm of %lldh %lldm" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lldh %2$lldm of %3$lldh %4$lldm"
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$lldh %2$lldm of %3$lldh %4$lldm"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld tim %lld min av %lld tim %lld min"
           }
         }
       }
     },
     "%lldm" : {
-
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld min"
+          }
+        }
+      }
     },
     "%lldm of %lldm" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lldm of %2$lldm"
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$lldm of %2$lldm"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld min av %lld min"
           }
         }
       }
@@ -564,21 +2123,33 @@
       "isCommentAutoGenerated" : true
     },
     "≈ %lldh %lldm of %lldh %lldm" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "≈ %1$lldh %2$lldm of %3$lldh %4$lldm"
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "≈ %1$lldh %2$lldm of %3$lldh %4$lldm"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "≈ %lld tim %lld min av %lld tim %lld min"
           }
         }
       }
     },
     "≈ page %lld of %lld" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "≈ page %1$lld of %2$lld"
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "≈ page %1$lld of %2$lld"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "≈ sida %lld av %lld"
           }
         }
       }
@@ -741,10 +2312,6 @@
         }
       }
     },
-    "Add Quote" : {
-      "comment" : "A button that opens a sheet to add a new quote.",
-      "isCommentAutoGenerated" : true
-    },
     "Add to Want to Read" : {
       "localizations" : {
         "sv" : {
@@ -754,14 +2321,6 @@
           }
         }
       }
-    },
-    "Add your favourite quotes from this book." : {
-      "comment" : "A description below the button to add a quote, encouraging the user to do so.",
-      "isCommentAutoGenerated" : true
-    },
-    "Add your first quote…" : {
-      "comment" : "A suggestion to add a quote when a user has not added any yet.",
-      "isCommentAutoGenerated" : true
     },
     "All book data, reviews, and reading lists are provided by Hardcover." : {
       "comment" : "Data source description",
@@ -960,8 +2519,16 @@
       }
     },
     "Book Answer" : {
-      "comment" : "The title of the view that shows the full description of a book.",
-      "isCommentAutoGenerated" : true
+      "comment": "The title of the view that shows the full description of a book.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Boksvar"
+          }
+        }
+      }
     },
     "Book Details" : {
       "comment" : "Title for book details",
@@ -1120,11 +2687,26 @@
       }
     },
     "Choose how books are displayed in the widget." : {
-      "comment" : "Title of the intent that allows the user to configure how books are displayed in the widget.",
-      "isCommentAutoGenerated" : true
+      "comment": "Title of the intent that allows the user to configure how books are displayed in the widget.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Välj hur böcker visas i widgeten."
+          }
+        }
+      }
     },
     "Choose how your currently reading books are sorted in both the app and widgets. \"Recently Updated\" shows books you've most recently updated progress on. \"Recently Added\" shows books in the order you added them to your reading list." : {
-
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Välj hur pågående böcker sorteras i appen och widgetar. Senast uppdaterade sorterar efter ändrad läsposition. Senast tillagda sorterar efter när böckerna lades till."
+          }
+        }
+      }
     },
     "Choose whether to update progress using page numbers/time or percentage by default. You can always switch between modes when updating." : {
       "localizations" : {
@@ -1238,8 +2820,16 @@
       }
     },
     "Configure Widget" : {
-      "comment" : "Title of the intent that lets the user configure the display mode of the widget.",
-      "isCommentAutoGenerated" : true
+      "comment": "Title of the intent that lets the user configure the display mode of the widget.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anpassa widget"
+          }
+        }
+      }
     },
     "Confirm" : {
       "comment" : "The text on a button that confirms a rating.",
@@ -1276,10 +2866,6 @@
           }
         }
       }
-    },
-    "Copy" : {
-      "comment" : "A menu item that copies the quote entry to the clipboard.",
-      "isCommentAutoGenerated" : true
     },
     "Could not load book entry" : {
       "extractionState" : "stale",
@@ -1364,8 +2950,16 @@
       }
     },
     "Current rating: %.1f of 5" : {
-      "comment" : "A label describing the current rating of the book, based on the value of the `@Binding` `rating` property.",
-      "isCommentAutoGenerated" : true
+      "comment": "A label describing the current rating of the book, based on the value of the `@Binding` `rating` property.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nuvarande betyg: %.1f av 5"
+          }
+        }
+      }
     },
     "Currently Reading" : {
       "comment" : "Book is currently being read",
@@ -1385,7 +2979,14 @@
       }
     },
     "Currently Reading Sort Order" : {
-
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sortering av böcker du läser"
+          }
+        }
+      }
     },
     "Dark" : {
       "extractionState" : "manual",
@@ -1441,13 +3042,17 @@
         }
       }
     },
-    "Delete Quote?" : {
-      "comment" : "An alert title that asks if the user wants to delete a quote.",
-      "isCommentAutoGenerated" : true
-    },
     "Delete Read" : {
-      "comment" : "The title of an alert that appears when a user attempts to delete a reading record.",
-      "isCommentAutoGenerated" : true
+      "comment": "The title of an alert that appears when a user attempts to delete a reading record.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ta bort läsning"
+          }
+        }
+      }
     },
     "Delete This Read" : {
       "comment" : "A button label that prompts them to delete a read.",
@@ -1460,10 +3065,6 @@
           }
         }
       }
-    },
-    "Deleting…" : {
-      "comment" : "A message indicating that a quote is being deleted.",
-      "isCommentAutoGenerated" : true
     },
     "Description" : {
       "localizations" : {
@@ -1486,12 +3087,28 @@
       }
     },
     "Display a random quote from your Reading Journal" : {
-      "comment" : "Description of the QuoteWidget.",
-      "isCommentAutoGenerated" : true
+      "comment": "Description of the QuoteWidget.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visa ett slumpmässigt citat från din läsdagbok"
+          }
+        }
+      }
     },
     "Display Mode" : {
-      "comment" : "Parameters that can be configured in the widget configuration intent.",
-      "isCommentAutoGenerated" : true
+      "comment": "Parameters that can be configured in the widget configuration intent.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visningsläge"
+          }
+        }
+      }
     },
     "Displays your currently reading books from Hardcover." : {
       "localizations" : {
@@ -1530,10 +3147,6 @@
           }
         }
       }
-    },
-    "Edit" : {
-      "comment" : "A button that triggers an action to edit a quote.",
-      "isCommentAutoGenerated" : true
     },
     "Edit Read" : {
       "comment" : "The title of the sheet that allows users to edit details of a reading.",
@@ -1639,24 +3252,64 @@
       }
     },
     "Every 2 hours" : {
-      "comment" : "Display representation of the \"Every 2 hours\" case in the \"Update Interval\" enum.",
-      "isCommentAutoGenerated" : true
+      "comment": "Display representation of the \"Every 2 hours\" case in the \"Update Interval\" enum.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Varannan timme"
+          }
+        }
+      }
     },
     "Every 4 hours" : {
-      "comment" : "A case display representation for the `UpdateInterval` enum, representing how often a quote is updated every 4 hours.",
-      "isCommentAutoGenerated" : true
+      "comment": "A case display representation for the `UpdateInterval` enum, representing how often a quote is updated every 4 hours.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Var fjärde timme"
+          }
+        }
+      }
     },
     "Every 8 hours" : {
-      "comment" : "A user-visible string describing the display representation of the \"Every 8 hours\" case of the \"Update Interval\" enum.",
-      "isCommentAutoGenerated" : true
+      "comment": "A user-visible string describing the display representation of the \"Every 8 hours\" case of the \"Update Interval\" enum.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Var åttonde timme"
+          }
+        }
+      }
     },
     "Every 12 hours" : {
-      "comment" : "Display representation for the \"Every 12 hours\" case of the `UpdateInterval` enum.",
-      "isCommentAutoGenerated" : true
+      "comment": "Display representation for the \"Every 12 hours\" case of the `UpdateInterval` enum.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Var tolfte timme"
+          }
+        }
+      }
     },
     "Every hour" : {
-      "comment" : "Display representation for the \"Every hour\" case of the \"Update Interval\" enum.",
-      "isCommentAutoGenerated" : true
+      "comment": "Display representation for the \"Every hour\" case of the \"Update Interval\" enum.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Varje timme"
+          }
+        }
+      }
     },
     "Explore" : {
       "comment" : "A tab label for the \"Explore\" section of the app.",
@@ -1671,8 +3324,16 @@
       }
     },
     "Failed to load answers" : {
-      "comment" : "An error message displayed when loading a user's prompt answers fails.",
-      "isCommentAutoGenerated" : true
+      "comment": "An error message displayed when loading a user's prompt answers fails.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kunde inte ladda svar"
+          }
+        }
+      }
     },
     "Failed to load books" : {
       "comment" : "Error loading books",
@@ -1690,10 +3351,6 @@
           }
         }
       }
-    },
-    "Failed to load feed" : {
-      "comment" : "An error message indicating that the feed could not be loaded.",
-      "isCommentAutoGenerated" : true
     },
     "Failed to load friends" : {
       "comment" : "An error message displayed when loading friends fails.",
@@ -1847,10 +3504,6 @@
         }
       }
     },
-    "Feed" : {
-      "comment" : "The title of the feed view.",
-      "isCommentAutoGenerated" : true
-    },
     "Filter" : {
       "comment" : "A label for a segmented control in the Friends view.",
       "isCommentAutoGenerated" : true,
@@ -1864,8 +3517,16 @@
       }
     },
     "Find readers on Hardcover" : {
-      "comment" : "A description below the \"Search for users\" prompt, encouraging them to find readers on Hardcover.",
-      "isCommentAutoGenerated" : true
+      "comment": "A description below the \"Search for users\" prompt, encouraging them to find readers on Hardcover.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hitta läsare på Hardcover"
+          }
+        }
+      }
     },
     "Finished" : {
       "comment" : "Book has been finished",
@@ -1879,7 +3540,15 @@
       }
     },
     "Finished %@" : {
-      "comment" : "Finished date"
+      "comment": "Finished date",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avslutad %@"
+          }
+        }
+      }
     },
     "Finished:" : {
       "comment" : "Read date prefix",
@@ -1893,8 +3562,16 @@
       }
     },
     "Finished: %@" : {
-      "comment" : "A label indicating that a reading session has ended. The argument is the date when the reading session ended.",
-      "isCommentAutoGenerated" : true
+      "comment": "A label indicating that a reading session has ended. The argument is the date when the reading session ended.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avslutad: %@"
+          }
+        }
+      }
     },
     "Follow" : {
       "localizations" : {
@@ -1905,10 +3582,6 @@
           }
         }
       }
-    },
-    "Follow other users to see their activity here" : {
-      "comment" : "A message displayed below a \"Follow other users to see their activity here\" label, explaining that following other users will make their activity visible in the feed.",
-      "isCommentAutoGenerated" : true
     },
     "Follow System" : {
       "extractionState" : "manual",
@@ -1944,8 +3617,16 @@
       }
     },
     "Get a new random quote" : {
-      "comment" : "Title of an intent that refreshes a quote.",
-      "isCommentAutoGenerated" : true
+      "comment": "Title of an intent that refreshes a quote.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hämta ett nytt slumpmässigt citat"
+          }
+        }
+      }
     },
     "Hardcover API Key" : {
       "extractionState" : "stale",
@@ -2016,8 +3697,16 @@
       }
     },
     "How often to show a new quote" : {
-      "comment" : "Title of a widget configuration intent that allows them to set how often a quote should be refreshed.",
-      "isCommentAutoGenerated" : true
+      "comment": "Title of a widget configuration intent that allows them to set how often a quote should be refreshed.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hur ofta ett nytt citat ska visas"
+          }
+        }
+      }
     },
     "In %d days" : {
       "comment" : "Badge for release happening in N days",
@@ -2043,7 +3732,15 @@
       }
     },
     "In Want to Read" : {
-      "comment" : "Book is in Want to Read list"
+      "comment": "Book is in Want to Read list",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I Vill läsa"
+          }
+        }
+      }
     },
     "Input mode" : {
       "localizations" : {
@@ -2340,12 +4037,28 @@
       }
     },
     "Load More Reviews" : {
-      "comment" : "The text on a button that loads more reviews.",
-      "isCommentAutoGenerated" : true
+      "comment": "The text on a button that loads more reviews.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ladda fler recensioner"
+          }
+        }
+      }
     },
     "Loading answers..." : {
-      "comment" : "A message displayed while waiting to load answers for a prompt.",
-      "isCommentAutoGenerated" : true
+      "comment": "A message displayed while waiting to load answers for a prompt.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Laddar svar..."
+          }
+        }
+      }
     },
     "Loading books..." : {
       "comment" : "Loading books message",
@@ -2390,10 +4103,6 @@
           }
         }
       }
-    },
-    "Loading feed…" : {
-      "comment" : "A message displayed while waiting for the feed to load.",
-      "isCommentAutoGenerated" : true
     },
     "Loading friends..." : {
       "localizations" : {
@@ -2483,10 +4192,6 @@
         }
       }
     },
-    "Loading quotes…" : {
-      "comment" : "A placeholder text indicating that quotes are being loaded.",
-      "isCommentAutoGenerated" : true
-    },
     "Loading statistics..." : {
       "localizations" : {
         "en" : {
@@ -2504,8 +4209,16 @@
       }
     },
     "Loading status..." : {
-      "comment" : "A placeholder text shown while loading a book's reading status.",
-      "isCommentAutoGenerated" : true
+      "comment": "A placeholder text shown while loading a book's reading status.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Laddar status..."
+          }
+        }
+      }
     },
     "Loading tips…" : {
       "localizations" : {
@@ -2579,8 +4292,16 @@
       }
     },
     "Manual Selection" : {
-      "comment" : "Description of the manual selection display mode.",
-      "isCommentAutoGenerated" : true
+      "comment": "Description of the manual selection display mode.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manuellt val"
+          }
+        }
+      }
     },
     "Mark as finished" : {
       "localizations" : {
@@ -2703,8 +4424,16 @@
       }
     },
     "No %@ found" : {
-      "comment" : "A message displayed when no books or users match a search query. The argument is the search type (\"books\" or \"users\").",
-      "isCommentAutoGenerated" : true
+      "comment": "A message displayed when no books or users match a search query. The argument is the search type (\"books\" or \"users\").",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inga %@ hittades"
+          }
+        }
+      }
     },
     "No %@ Want to Read books" : {
       "comment" : "A message displayed when there are no books in a specific category of the \"Want to Read\" list. The placeholder text is replaced with the actual category name.",
@@ -2718,14 +4447,6 @@
         }
       }
     },
-    "No activity found" : {
-      "comment" : "A message displayed when there is no activity to show in the feed.",
-      "isCommentAutoGenerated" : true
-    },
-    "No activity from people you follow" : {
-      "comment" : "A message displayed when there is no activity from people the user follows in the feed.",
-      "isCommentAutoGenerated" : true
-    },
     "No answered prompts" : {
       "comment" : "Message when user has no answered prompts",
       "localizations" : {
@@ -2738,8 +4459,16 @@
       }
     },
     "No answers yet" : {
-      "comment" : "A message displayed when a prompt has no answers.",
-      "isCommentAutoGenerated" : true
+      "comment": "A message displayed when a prompt has no answers.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inga svar ännu"
+          }
+        }
+      }
     },
     "No Books" : {
       "localizations" : {
@@ -2865,12 +4594,28 @@
       }
     },
     "No followers" : {
-      "comment" : "A description displayed when a user has no followers.",
-      "isCommentAutoGenerated" : true
+      "comment": "A description displayed when a user has no followers.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inga följare"
+          }
+        }
+      }
     },
     "No followers yet" : {
-      "comment" : "A message displayed when a user has no followers.",
-      "isCommentAutoGenerated" : true
+      "comment": "A message displayed when a user has no followers.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inga följare ännu"
+          }
+        }
+      }
     },
     "No lists found" : {
       "extractionState" : "manual",
@@ -2957,10 +4702,6 @@
         }
       }
     },
-    "No Quotes Yet" : {
-      "comment" : "A message displayed when a book has no quotes added to it.",
-      "isCommentAutoGenerated" : true
-    },
     "No rating" : {
       "comment" : "A label displayed when a user hasn't rated an item.",
       "extractionState" : "stale",
@@ -2987,8 +4728,16 @@
       }
     },
     "No release" : {
-      "comment" : "A label displayed when there are no upcoming book releases.",
-      "isCommentAutoGenerated" : true
+      "comment": "A label displayed when there are no upcoming book releases.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ingen utgivning"
+          }
+        }
+      }
     },
     "No reviews found" : {
       "localizations" : {
@@ -3063,12 +4812,28 @@
       }
     },
     "Not following anyone" : {
-      "comment" : "A message displayed when a user is not following anyone.",
-      "isCommentAutoGenerated" : true
+      "comment": "A message displayed when a user is not following anyone.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Följer ingen"
+          }
+        }
+      }
     },
     "Not following anyone yet" : {
-      "comment" : "A message displayed when a user hasn't followed anyone yet.",
-      "isCommentAutoGenerated" : true
+      "comment": "A message displayed when a user hasn't followed anyone yet.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Följer ingen ännu"
+          }
+        }
+      }
     },
     "Not now" : {
       "comment" : "Alert cancel",
@@ -3207,12 +4972,16 @@
       }
     },
     "Once a day" : {
-      "comment" : "Display representation for the \"Once a day\" case of the `UpdateInterval` enum.",
-      "isCommentAutoGenerated" : true
-    },
-    "Optional – the page this quote is from." : {
-      "comment" : "A description below the page number field, explaining its purpose.",
-      "isCommentAutoGenerated" : true
+      "comment": "Display representation for the \"Once a day\" case of the `UpdateInterval` enum.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En gång om dagen"
+          }
+        }
+      }
     },
     "Original title" : {
       "extractionState" : "stale",
@@ -3238,8 +5007,16 @@
       }
     },
     "Other users will appear here when they follow you" : {
-      "comment" : "A description below the \"Not following anyone yet\" message in the Friends view, explaining that other users will appear here once they follow the current user.",
-      "isCommentAutoGenerated" : true
+      "comment": "A description below the \"Not following anyone yet\" message in the Friends view, explaining that other users will appear here once they follow the current user.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Här visas användare som följer dig"
+          }
+        }
+      }
     },
     "Page" : {
       "localizations" : {
@@ -3298,10 +5075,6 @@
           }
         }
       }
-    },
-    "Page Number" : {
-      "comment" : "A section header that instructs the user to enter the page number of a quote.",
-      "isCommentAutoGenerated" : true
     },
     "Page/Time" : {
       "localizations" : {
@@ -3432,8 +5205,16 @@
       }
     },
     "Prompt Answers" : {
-      "comment" : "The title of a view that lists answers to a specific prompt.",
-      "isCommentAutoGenerated" : true
+      "comment": "The title of a view that lists answers to a specific prompt.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Svar på bokfrågor"
+          }
+        }
+      }
     },
     "Publish review" : {
       "comment" : "A button label that says \"Publish review\".",
@@ -3458,18 +5239,6 @@
           }
         }
       }
-    },
-    "Quote Text" : {
-      "comment" : "The label for the text field where a user can input a quote.",
-      "isCommentAutoGenerated" : true
-    },
-    "Quotes" : {
-      "comment" : "A heading for the section that lists a book's quotes.",
-      "isCommentAutoGenerated" : true
-    },
-    "Quotes — %@" : {
-      "comment" : "The title of the view, which defaults to \"Quotes\" unless a book title is provided.",
-      "isCommentAutoGenerated" : true
     },
     "Rate" : {
       "comment" : "Rate navigation title",
@@ -3516,7 +5285,15 @@
       }
     },
     "Rate this book" : {
-      "comment" : "Rating sheet title"
+      "comment": "Rating sheet title",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Betygsätt boken"
+          }
+        }
+      }
     },
     "Rating" : {
       "comment" : "A label describing the rating control.",
@@ -3621,8 +5398,16 @@
       }
     },
     "Reading Quote" : {
-      "comment" : "Name of the widget configuration.",
-      "isCommentAutoGenerated" : true
+      "comment": "Name of the widget configuration.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Läscitat"
+          }
+        }
+      }
     },
     "Reading Statistics" : {
       "extractionState" : "stale",
@@ -3679,7 +5464,14 @@
       }
     },
     "Recently Added" : {
-
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Senast tillagda"
+          }
+        }
+      }
     },
     "Recently Released" : {
       "comment" : "Header for recently released books section",
@@ -3699,16 +5491,40 @@
       }
     },
     "Recently Updated" : {
-      "comment" : "Display representation for each case of the `DisplayMode` enum.",
-      "isCommentAutoGenerated" : true
+      "comment": "Display representation for each case of the `DisplayMode` enum.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Senast uppdaterade"
+          }
+        }
+      }
     },
     "Refresh Quote" : {
-      "comment" : "Title of an intent to refresh a quote.",
-      "isCommentAutoGenerated" : true
+      "comment": "Title of an intent to refresh a quote.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uppdatera citat"
+          }
+        }
+      }
     },
     "Release" : {
-      "comment" : "Type display representation for entities in the ReleaseQuery.",
-      "isCommentAutoGenerated" : true
+      "comment": "Type display representation for entities in the ReleaseQuery.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utgivning"
+          }
+        }
+      }
     },
     "Released" : {
       "comment" : "Badge for already released item",
@@ -3746,8 +5562,16 @@
       }
     },
     "Reload" : {
-      "comment" : "A button to reload data.",
-      "isCommentAutoGenerated" : true
+      "comment": "A button to reload data.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uppdatera"
+          }
+        }
+      }
     },
     "Reload trending" : {
       "localizations" : {
@@ -3917,10 +5741,6 @@
         }
       }
     },
-    "Saving…" : {
-      "comment" : "A message indicating that data is being saved.",
-      "isCommentAutoGenerated" : true
-    },
     "Search" : {
       "localizations" : {
         "sv" : {
@@ -3960,12 +5780,28 @@
       }
     },
     "Search for books" : {
-      "comment" : "A prompt displayed in the \"Search for books\" section of the search view, encouraging users to search by title or author.",
-      "isCommentAutoGenerated" : true
+      "comment": "A prompt displayed in the \"Search for books\" section of the search view, encouraging users to search by title or author.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sök böcker"
+          }
+        }
+      }
     },
     "Search for users" : {
-      "comment" : "A label above the search bar for finding users.",
-      "isCommentAutoGenerated" : true
+      "comment": "A label above the search bar for finding users.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sök användare"
+          }
+        }
+      }
     },
     "Search Hardcover for books" : {
       "localizations" : {
@@ -3978,8 +5814,16 @@
       }
     },
     "Search Type" : {
-      "comment" : "A label describing the segmented control for selecting the type of search (books or users).",
-      "isCommentAutoGenerated" : true
+      "comment": "A label describing the segmented control for selecting the type of search (books or users).",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Söktyp"
+          }
+        }
+      }
     },
     "Searching more of your history…" : {
       "comment" : "Searching more pages for history",
@@ -4271,7 +6115,14 @@
       }
     },
     "Start following other users to see them here" : {
-
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Här visas användare som du följer"
+          }
+        }
+      }
     },
     "Start Reading" : {
       "comment" : "A button label that says \"Start Reading\".",
@@ -4339,8 +6190,16 @@
       }
     },
     "Started: %@" : {
-      "comment" : "A text label inside a horizontal stack, displaying the date when a reading was started. The text is formatted using a date formatter.",
-      "isCommentAutoGenerated" : true
+      "comment": "A text label inside a horizontal stack, displaying the date when a reading was started. The text is formatted using a date formatter.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Påbörjad: %@"
+          }
+        }
+      }
     },
     "Support Softcover" : {
       "localizations" : {
@@ -4379,8 +6238,16 @@
       }
     },
     "Tap the bell icon to mute or unmute release notifications for individual books. Notifications are sent at 9:00 AM on the release date." : {
-      "comment" : "A footer text in the \"Want to Read\" view",
-      "isCommentAutoGenerated" : true
+      "comment": "A footer text in the \"Want to Read\" view",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notiser för enskilda böcker kan slås på eller av med klockikonen. Notiser skickas klockan 9 på utgivningsdagen."
+          }
+        }
+      }
     },
     "Tema" : {
       "comment" : "A label for the \"Theme\" section in the API key settings view.",
@@ -4472,11 +6339,15 @@
         }
       }
     },
-    "This will permanently remove the quote." : {
-
-    },
     "Time" : {
-
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tid"
+          }
+        }
+      }
     },
     "Time Range" : {
       "comment" : "A label for a segmented control that lets users filter upcoming book releases by time.",
@@ -4542,7 +6413,14 @@
       }
     },
     "Title, author, or ISBN" : {
-
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Titel, författare eller ISBN"
+          }
+        }
+      }
     },
     "to" : {
       "localizations" : {
@@ -4583,7 +6461,14 @@
       }
     },
     "Today!" : {
-
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Idag!"
+          }
+        }
+      }
     },
     "Tomorrow" : {
       "comment" : "Badge for release happening tomorrow",
@@ -4665,8 +6550,16 @@
       }
     },
     "Try searching by title or author" : {
-      "comment" : "A description below the search bar, encouraging users to search by title or author.",
-      "isCommentAutoGenerated" : true
+      "comment": "A description below the search bar, encouraging users to search by title or author.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sök efter titel eller författare"
+          }
+        }
+      }
     },
     "Turn on notifications to be alerted on the morning of a release day." : {
       "comment" : "Footer encouraging enabling notifications",
@@ -4759,12 +6652,28 @@
       }
     },
     "Update Every" : {
-      "comment" : "Title of a parameter in a widget configuration intent that allows the user to set the update interval for a widget.",
-      "isCommentAutoGenerated" : true
+      "comment": "Title of a parameter in a widget configuration intent that allows the user to set the update interval for a widget.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uppdatera var"
+          }
+        }
+      }
     },
     "Update Interval" : {
-      "comment" : "Intended to be a user-facing name for the intent that allows a user to change how often a quote is refreshed.",
-      "isCommentAutoGenerated" : true
+      "comment": "Intended to be a user-facing name for the intent that allows a user to change how often a quote is refreshed.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uppdateringsintervall"
+          }
+        }
+      }
     },
     "Updated %@ ago" : {
       "localizations" : {
@@ -4819,7 +6728,14 @@
       }
     },
     "Username or name" : {
-
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Användarnamn eller namn"
+          }
+        }
+      }
     },
     "Utseende" : {
       "comment" : "A section header that translates to \"Appearance\" in English.",
@@ -4857,10 +6773,6 @@
         }
       }
     },
-    "View All" : {
-      "comment" : "A button label that says \"View All\".",
-      "isCommentAutoGenerated" : true
-    },
     "View Developer Profile" : {
       "comment" : "Link to developer profile",
       "localizations" : {
@@ -4895,10 +6807,26 @@
       }
     },
     "We’ll send you a notification the morning a book on your Want to Read list is released. You can turn this off anytime." : {
-      "comment" : "Alert message explaining why notifications are requested"
+      "comment": "Alert message explaining why notifications are requested",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Du får en notis på morgonen när en bok i Vill läsa ges ut. Du kan stänga av detta när som helst."
+          }
+        }
+      }
     },
     "We’ll show future editions from your Want to Read list here." : {
-      "comment" : "Empty state subtitle for upcoming releases"
+      "comment": "Empty state subtitle for upcoming releases",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Här visas kommande utgåvor av böcker i Vill läsa."
+          }
+        }
+      }
     },
     "Welcome to Softcover!" : {
       "comment" : "Onboarding welcome title",
@@ -4952,11 +6880,26 @@
       }
     },
     "Why this book?" : {
-      "comment" : "A label displayed above the full description of a book.",
-      "isCommentAutoGenerated" : true
+      "comment": "A label displayed above the full description of a book.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Varför den här boken?"
+          }
+        }
+      }
     },
     "Widget Settings" : {
-
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Widgetinställningar"
+          }
+        }
+      }
     },
     "You can find your personal API key on Hardcover under Account → API. Log in and go to:" : {
       "localizations" : {
@@ -4987,7 +6930,15 @@
       }
     },
     "You’ll get a notification at 9:00 on the release day. You can mute individual books using the bell icon." : {
-      "comment" : "Footer explaining notification time and per-item mute"
+      "comment": "Footer explaining notification time and per-item mute",
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Du får en notis klockan 9 på utgivningsdagen. Notiser för enskilda böcker kan stängas av med klockikonen."
+          }
+        }
+      }
     },
     "You're %d %@ ahead of schedule." : {
       "comment" : "A text and color pair describing how many items they're ahead of schedule. The first element of the tuple is the text, the second is the SwiftUI Color to use for the text.",
@@ -5038,11 +6989,26 @@
       }
     },
     "Your %@ means a lot. Thanks for supporting Softcover!" : {
-      "comment" : "A thank-you message displayed when a user purchases a tip. The argument is the name of the tip purchased.",
-      "isCommentAutoGenerated" : true
+      "comment": "A thank-you message displayed when a user purchases a tip. The argument is the name of the tip purchased.",
+      "isCommentAutoGenerated": true,
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ditt bidrag %@ betyder mycket. Tack för att du stöder Softcover!"
+          }
+        }
+      }
     },
     "Your rating: %.1f" : {
-
+      "localizations": {
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ditt betyg: %.1f"
+          }
+        }
+      }
     },
     "Your settings have been saved. Widgets will update shortly." : {
       "extractionState" : "stale",

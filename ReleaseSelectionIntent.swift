@@ -30,29 +30,13 @@ struct ReleaseEntity: AppEntity {
 actor ReleaseCache {
     static let shared = ReleaseCache()
 
-    private var cachedReleases: [ReleaseEntity]?
-    private var lastFetch: Date?
-    private let cacheTimeout: TimeInterval = 60 // 1 minute cache
-
     func getReleases() async -> [ReleaseEntity] {
-        if let cached = cachedReleases,
-           let lastFetch = lastFetch,
-           Date().timeIntervalSince(lastFetch) < cacheTimeout {
-            return cached
-        }
-
-        // Hämta upp till 30 (räcker för val + större widgets)
-        let items = await HardcoverService.fetchUpcomingReleasesFromWantToRead(limit: 30)
-        let entities = items.map { ReleaseEntity(id: String($0.id), title: $0.title) }
-
-        cachedReleases = entities
-        lastFetch = Date()
-        return entities
+        let loaded = await WidgetReaders.releases()
+        return loaded.value.map { ReleaseEntity(id: String($0.id), title: $0.title) }
     }
 
     func clearCache() {
-        cachedReleases = nil
-        lastFetch = nil
+        WidgetSnapshotStore.invalidate(kind: WidgetSync.upcomingKind)
     }
 }
 
@@ -61,15 +45,6 @@ struct ReleaseQuery: EntityQuery {
     func entities(for identifiers: [String]) async throws -> [ReleaseEntity] {
         let all = await ReleaseCache.shared.getReleases()
 
-        if all.isEmpty {
-            await ReleaseCache.shared.clearCache()
-            let retry = await ReleaseCache.shared.getReleases()
-            // Behåll ordning enligt identifiers
-            let set = Set(identifiers)
-            let filtered = retry.filter { set.contains($0.id) }
-            return sortByIdentifiers(filtered, identifiers: identifiers)
-        }
-
         let set = Set(identifiers)
         let filtered = all.filter { set.contains($0.id) }
         return sortByIdentifiers(filtered, identifiers: identifiers)
@@ -77,14 +52,6 @@ struct ReleaseQuery: EntityQuery {
 
     func suggestedEntities() async throws -> [ReleaseEntity] {
         let list = await ReleaseCache.shared.getReleases()
-        if list.isEmpty {
-            await ReleaseCache.shared.clearCache()
-            let retry = await ReleaseCache.shared.getReleases()
-            if retry.isEmpty {
-                throw ReleaseQueryError.noReleasesFound
-            }
-            return retry
-        }
         return list
     }
 

@@ -9,6 +9,9 @@ struct ReadingDatesView: View {
     @State private var isLoading = true
     @State private var showAddDatePicker = false
     @State private var editingRead: HardcoverService.ReadingDate?
+    @State private var pendingDelete: HardcoverService.ReadingDate?
+    @State private var errorMessage: String?
+    @State private var loadGeneration = UUID()
     
     private var dateFormatter: DateFormatter {
         let df = DateFormatter()
@@ -20,6 +23,9 @@ struct ReadingDatesView: View {
     var body: some View {
         NavigationStack {
             List {
+                if let error = errorMessage {
+                    InlineLoadError(message: error) { Task { await loadReadingDates() } }
+                }
                 if isLoading {
                     HStack {
                         Spacer()
@@ -41,7 +47,7 @@ struct ReadingDatesView: View {
                                 ReadingDateRow(
                                     read: read,
                                     onEdit: { editRead(read) },
-                                    onDelete: { deleteRead(read) }
+                                    onDelete: { pendingDelete = read }
                                 )
                             }
                         } header: {
@@ -51,6 +57,10 @@ struct ReadingDatesView: View {
                 }
             }
             .navigationTitle("Dates Read")
+            .confirmationDialog("Delete reading date?", isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }), titleVisibility: .visible) {
+                if let read = pendingDelete { Button("Delete", role: .destructive) { deleteRead(read) } }
+                Button("Cancel", role: .cancel) { pendingDelete = nil }
+            }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -84,13 +94,18 @@ struct ReadingDatesView: View {
         }
     }
     
-    private func loadReadingDates() async {
-        await MainActor.run { isLoading = true }
-        let dates = await HardcoverService.fetchReadingDates(userBookId: userBookId)
-        await MainActor.run {
+    @MainActor private func loadReadingDates() async {
+        let token = UUID(), account = HardcoverConfig.authorizationHeaderValue
+        loadGeneration = token
+        isLoading = readingDates.isEmpty
+        errorMessage = nil
+        defer { if loadGeneration == token { isLoading = false } }
+        do {
+            let dates = try await HardcoverReadScope.checked { await HardcoverService.fetchReadingDates(userBookId: userBookId) }
+            guard token == loadGeneration, account == HardcoverConfig.authorizationHeaderValue else { return }
             readingDates = dates
-            isLoading = false
-        }
+        } catch is CancellationError { }
+        catch { if token == loadGeneration, account == HardcoverConfig.authorizationHeaderValue { errorMessage = error.localizedDescription } }
     }
     
     private func editRead(_ read: HardcoverService.ReadingDate) {
@@ -100,10 +115,15 @@ struct ReadingDatesView: View {
     
     private func deleteRead(_ read: HardcoverService.ReadingDate) {
         Task {
-            let success = await HardcoverService.deleteReadingDate(readId: read.id)
-            if success {
+            let account = HardcoverConfig.authorizationHeaderValue
+            do {
+                let success = try await HardcoverReadScope.checked { await HardcoverService.deleteReadingDate(readId: read.id) }
+                guard account == HardcoverConfig.authorizationHeaderValue else { return }
+                guard success else { throw HardcoverNetworkError.invalidResponse }
+                WidgetSync.libraryChanged(statuses: [2, 3])
                 await loadReadingDates()
-            }
+            } catch { if account == HardcoverConfig.authorizationHeaderValue { errorMessage = error.localizedDescription } }
+            pendingDelete = nil
         }
     }
 }
@@ -202,7 +222,7 @@ struct DatePickerSheet: View {
                         .padding()
                 } else {
                     VStack(spacing: 12) {
-                        Text(isPickingEndDate ? "Select End Date" : "Select Start Date")
+                        Text(isPickingEndDate ? LocalizedStringKey("Select End Date") : LocalizedStringKey("Select Start Date"))
                             .font(.headline)
                         
                         if isPickingEndDate {

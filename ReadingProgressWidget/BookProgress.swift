@@ -1,7 +1,7 @@
 import Foundation
 
 // This is now the only place where the "recipe" for BookProgress exists.
-struct BookProgress: Identifiable {
+struct BookProgress: Identifiable, Codable, Hashable, Sendable {
     let id: String
     var title: String
     var author: String
@@ -26,6 +26,27 @@ struct BookProgress: Identifiable {
     var isAudiobook: Bool = false
     var totalMinutes: Int = 0
     var currentMinute: Int = 0
+    var readingFormat: String? = nil
+    var statusId: Int? = nil
+    var parsedReleaseDate: Date? = nil
+
+    var currentUnits: Int { isAudiobook ? currentMinute : currentPage }
+    var totalUnits: Int { isAudiobook ? totalMinutes : totalPages }
+    var displayFormat: String {
+        let format = readingFormat?.lowercased() ?? ""
+        if isAudiobook { return NSLocalizedString("Audiobook", comment: "") }
+        if format == "ebook" || format == "e-book" { return NSLocalizedString("E-book", comment: "") }
+        if format == "physical" || format == "physical book" { return NSLocalizedString("Physical book", comment: "") }
+        return readingFormat ?? NSLocalizedString("Unknown format", comment: "")
+    }
+
+    func withProgress(_ units: Int) -> BookProgress {
+        var updated = self
+        let value = max(0, totalUnits > 0 ? min(units, totalUnits) : units)
+        if isAudiobook { updated.currentMinute = value } else { updated.currentPage = value }
+        updated.progress = totalUnits > 0 ? Double(value) / Double(totalUnits) : 0
+        return updated
+    }
     
     var progressText: String {
         if isAudiobook {
@@ -44,4 +65,3 @@ struct BookProgress: Identifiable {
         }
     }
 }
-

@@ -16,58 +16,38 @@ struct QuoteWidgetProvider: AppIntentTimelineProvider {
     }
     
     func snapshot(for configuration: QuoteUpdateIntervalIntent, in context: Context) async -> QuoteEntry {
-        QuoteEntry(
-            date: Date(),
-            quote: "Reading is essential for those who seek to rise above the ordinary.",
-            bookTitle: "The Book Thief",
-            authorName: "Markus Zusak",
-            quoteId: nil,
-            bookId: nil,
-            configuration: configuration
-        )
+        if context.isPreview { return placeholder(in: context) }
+        let loaded = await WidgetReaders.quotes()
+        return makeEntry(quotes: loaded.value, configuration: configuration, failed: loaded.failed)
     }
     
     func timeline(for configuration: QuoteUpdateIntervalIntent, in context: Context) async -> Timeline<QuoteEntry> {
-        let quotes = await HardcoverService.fetchReadingJournalQuotes()
+        let loaded = await WidgetReaders.quotes()
         let updateHours = (configuration.updateInterval ?? .fourHours).hours
+        let entry = makeEntry(quotes: loaded.value, configuration: configuration, failed: loaded.failed)
+        let interval = loaded.failed ? 900 : TimeInterval(updateHours * 3600)
+        return Timeline(entries: [entry], policy: .after(Date().addingTimeInterval(interval)))
+    }
 
-        guard !quotes.isEmpty else {
-            let entry = QuoteEntry(
-                date: Date(),
-                quote: "No quotes found. Add quotes to your Reading Journal on Hardcover!",
-                bookTitle: "",
-                authorName: "",
-                quoteId: nil,
-                bookId: nil,
-                configuration: configuration
-            )
-            let nextUpdate = Calendar.current.date(byAdding: .hour, value: updateHours, to: Date())!
-            return Timeline(entries: [entry], policy: .after(nextUpdate))
+    private func makeEntry(quotes: [HardcoverService.ReadingJournalQuote], configuration: QuoteUpdateIntervalIntent, failed: Bool) -> QuoteEntry {
+        guard let picked = quotes.randomElement() else {
+            let message = HardcoverConfig.apiKey.isEmpty ? "Sign in to Hardcover" : (failed ? "Could not load quotes" : "No quotes found. Add quotes to your Reading Journal on Hardcover!")
+            return QuoteEntry(date: Date(), quote: NSLocalizedString(message, comment: "Quote widget empty state"), bookTitle: "", authorName: "", quoteId: nil, bookId: nil, configuration: configuration)
         }
-
-        // Pick one random quote to show now. Each widget instance calls
-        // timeline() independently, so they each get their own random pick.
-        // The refresh button triggers reloadTimelines which calls this again
-        // with a new random selection.
-        let picked = quotes.randomElement()!
         let authorNames = picked.book.contributions
             .compactMap { $0.author?.name }
             .joined(separator: ", ")
 
-        let now = Date()
-        let entry = QuoteEntry(
-            date: now,
+        return QuoteEntry(
+            date: Date(),
             quote: picked.entry,
             bookTitle: picked.book.title,
-            authorName: authorNames.isEmpty ? "Unknown Author" : authorNames,
+            authorName: authorNames.isEmpty ? NSLocalizedString("Unknown Author", comment: "") : authorNames,
             quoteId: picked.id,
             bookId: picked.bookId,
             configuration: configuration
         )
 
-        // Schedule next automatic update after the configured interval
-        let nextUpdate = Calendar.current.date(byAdding: .hour, value: updateHours, to: now)!
-        return Timeline(entries: [entry], policy: .after(nextUpdate))
     }
 }
 
@@ -206,6 +186,8 @@ struct QuoteWidgetView: View {
             Image(systemName: "arrow.clockwise")
                 .font(.system(size: size))
                 .foregroundStyle(foregroundColor.opacity(0.7))
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Refresh Quote")

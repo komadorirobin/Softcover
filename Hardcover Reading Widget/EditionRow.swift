@@ -5,8 +5,9 @@ struct EditionRow: View {
     let isSelected: Bool
     let isCurrent: Bool
     let onTap: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     
-    private var cornerRadius: CGFloat { 14 }
+    private var cornerRadius: CGFloat { 8 }
     
     var body: some View {
         Button(action: onTap) {
@@ -24,15 +25,15 @@ struct EditionRow: View {
                 
                 // Textinnehåll
                 VStack(alignment: .leading, spacing: 6) {
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 6) {
                         Text(edition.displayTitle)
                             .font(.headline)
                             .foregroundColor(.primary)
-                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
                             .multilineTextAlignment(.leading)
                         
                         if isCurrent {
-                            Text("NUVARANDE")
+                            Label("Current edition", systemImage: "checkmark.circle")
                                 .font(.caption2)
                                 .fontWeight(.bold)
                                 .padding(.horizontal, 8)
@@ -43,6 +44,12 @@ struct EditionRow: View {
                         }
                     }
                     
+                    Text("Format: \(edition.displayFormat)")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(.primary)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+
                     Text(edition.displayInfo)
                         .font(.caption)
                         .foregroundColor(.secondary)
@@ -69,6 +76,8 @@ struct EditionRow: View {
         }
         .buttonStyle(.plain)
         .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
     
     // MARK: - Subviews
@@ -115,7 +124,7 @@ struct EditionRow: View {
             }
         }
         .frame(width: 22, height: 22)
-        .animation(.easeInOut(duration: 0.15), value: isSelected)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isSelected)
         .accessibilityHidden(true)
     }
 }

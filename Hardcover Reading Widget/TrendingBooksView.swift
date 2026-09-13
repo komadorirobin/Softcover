@@ -1,26 +1,20 @@
 import SwiftUI
 
 struct TrendingBooksView: View {
-    @State private var trending: [HardcoverService.TrendingBook] = []
-    @State private var trendingLoading = false
-    @State private var trendingError: String?
-    @State private var trendingAddInProgress: Int?
-    @State private var selectedTrending: HardcoverService.TrendingBook?
+    @StateObject private var store = ExploreLoadState<HardcoverService.TrendingBook>()
     @State private var selectedFilter: TimeFilter = .lastMonth
-    @State private var addedBookIds: Set<Int> = []
-    
+    @State private var selectedBook: BookProgress?
+    @State private var adding: Set<Int> = []
+    @State private var added: Set<Int> = []
+    @State private var actionError: String?
+    var isActive = true
     let onDone: (Bool) -> Void
-    
+
     enum TimeFilter: String, CaseIterable {
         case lastMonth = "Last Month"
         case threeMonths = "3 Months"
         case oneYear = "1 Year"
         case allTime = "All Time"
-        
-        var displayName: LocalizedStringKey {
-            LocalizedStringKey(self.rawValue)
-        }
-        
         var path: String {
             switch self {
             case .lastMonth: return "month"
@@ -30,237 +24,70 @@ struct TrendingBooksView: View {
             }
         }
     }
-    
-    var body: some View {
-        VStack(spacing: 0) {
-            // Filter picker
-            Picker("Time Range", selection: $selectedFilter) {
-                ForEach(TimeFilter.allCases, id: \.self) { filter in
-                    Text(filter.displayName).tag(filter)
-                }
-            }
-            .pickerStyle(.segmented)
-            .padding()
-            .onChange(of: selectedFilter) { _ in
-                Task { await loadTrending(force: true) }
-            }
-            
-            Group {
-            if trendingLoading {
-                VStack(spacing: 20) {
-                    ProgressView()
-                        .scaleEffect(1.5)
-                    Text("Loading trending books...")
-                        .font(.headline)
-                        .foregroundColor(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let error = trendingError {
-                VStack(spacing: 16) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.system(size: 48))
-                        .foregroundColor(.orange)
-                    Text("Failed to load trending books")
-                        .font(.headline)
-                    Text(error)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                    Button("Try Again") {
-                        Task { await loadTrending(force: true) }
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
-                .padding()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if trending.isEmpty {
-                VStack(spacing: 16) {
-                    Image(systemName: "flame")
-                        .font(.system(size: 48))
-                        .foregroundColor(.secondary)
-                    Text("No trending books found")
-                        .font(.headline)
-                    Button("Reload") {
-                        Task { await loadTrending(force: true) }
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
-                .padding()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                LazyVStack(spacing: 16) {
-                    ForEach(trending) { item in
-                        TrendingBookCard(
-                            book: item,
-                            isAddInProgress: trendingAddInProgress == item.id,
-                            isAdded: addedBookIds.contains(item.id),
-                            onTap: { selectedTrending = item },
-                            onQuickAdd: { Task { await addTrendingBook(item) } }
-                        )
-                    }
-                }
-                .padding()
-            }
-            }  // Group
-        }  // VStack
-        .task {
-            await loadTrending(force: false)
-        }
-        .sheet(item: $selectedTrending) { item in
-            TrendingBookDetailSheet(
-                item: item,
-                isWorking: trendingAddInProgress == item.id,
-                onAddWithEdition: { chosenId in
-                    Task { await addTrendingBook(item, editionId: chosenId) }
-                }
-            )
-        }
-    }  // body
-    
-    private func loadTrending(force: Bool) async {
-        await MainActor.run { trendingLoading = true }
-        
-        let books = await HardcoverService.fetchTrendingBooks(timeFilter: selectedFilter.path)
-        
-        await MainActor.run {
-            trendingLoading = false
-            if books.isEmpty {
-                trendingError = "No trending books available"
-            } else {
-                trending = books
-                trendingError = nil
-            }
-        }
-    }
-    
-    private func addTrendingBook(_ item: HardcoverService.TrendingBook, editionId: Int? = nil) async {
-        await MainActor.run {
-            trendingAddInProgress = item.id
-        }
-        
-        let success = await HardcoverService.addBookToWantToRead(
-            bookId: item.id,
-            editionId: editionId
-        )
-        
-        await MainActor.run {
-            trendingAddInProgress = nil
-            if success {
-                addedBookIds.insert(item.id)
-                // Notify for refresh but don't switch tabs
-                onDone(true)
-            }
-        }
-    }
-}
 
-struct TrendingBookCard: View {
-    let book: HardcoverService.TrendingBook
-    let isAddInProgress: Bool
-    let isAdded: Bool
-    let onTap: () -> Void
-    let onQuickAdd: () -> Void
-    
     var body: some View {
-        Button(action: onTap) {
-            HStack(alignment: .top, spacing: 12) {
-                // Book cover
-                if let urlString = book.coverImageUrl, let url = URL(string: urlString) {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(width: 60, height: 90)
-                                .cornerRadius(6)
-                        case .empty, .failure:
-                            Rectangle()
-                                .fill(Color.gray.opacity(0.3))
-                                .frame(width: 60, height: 90)
-                                .cornerRadius(6)
-                                .overlay(
-                                    Image(systemName: "book.fill")
-                                        .foregroundColor(.gray)
-                                )
-                        @unknown default:
-                            Rectangle()
-                                .fill(Color.gray.opacity(0.3))
-                                .frame(width: 60, height: 90)
-                                .cornerRadius(6)
-                        }
-                    }
-                } else {
-                    Rectangle()
-                        .fill(Color.gray.opacity(0.3))
-                        .frame(width: 60, height: 90)
-                        .cornerRadius(6)
-                        .overlay(
-                            Image(systemName: "book.fill")
-                                .foregroundColor(.gray)
-                        )
-                }
-                
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Image(systemName: "flame.fill")
-                            .font(.caption)
-                            .foregroundColor(.orange)
-                        Text("Trending")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                            .foregroundColor(.orange)
-                    }
-                    
-                    Text(book.title)
-                        .font(.headline)
-                        .foregroundColor(.primary)
-                        .lineLimit(2)
-                    
-                    Text(book.author)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                    
-                    if book.usersCount > 0 {
-                        HStack(spacing: 4) {
-                            Image(systemName: "person.2.fill")
-                                .font(.caption)
-                            Text("\(book.usersCount) reading")
-                                .font(.caption)
-                        }
-                        .foregroundColor(.blue)
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                Picker("Time Range", selection: $selectedFilter) {
+                    ForEach(TimeFilter.allCases, id: \.self) { filter in
+                        Text(LocalizedStringKey(filter.rawValue)).tag(filter)
                     }
                 }
-                
-                Spacer()
-                
-                // Quick add button or checkmark
-                Button(action: onQuickAdd) {
-                    if isAddInProgress {
-                        ProgressView()
-                            .scaleEffect(0.8)
-                    } else if isAdded {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(.green)
-                    } else {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(.blue)
-                    }
+                .pickerStyle(.menu)
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                .padding(.horizontal)
+                ExploreLoadFeedback(isLoading: store.isLoading, error: store.error ?? actionError,
+                                    isEmpty: store.items.isEmpty, emptyTitle: "No trending books found") {
+                    Task { await load(refresh: true) }
                 }
-                .disabled(isAddInProgress || isAdded)
-                .buttonStyle(.plain)
+                ForEach(store.items) { item in
+                    BookRow(book: progress(for: item),
+                            subtitle: item.usersCount > 0 ? String.localizedStringWithFormat(NSLocalizedString("%lld reading", comment: ""), item.usersCount) : nil,
+                            isWorking: adding.contains(item.id),
+                            actionIcon: added.contains(item.id) ? "checkmark.circle.fill" : "plus.circle",
+                            actionLabel: added.contains(item.id) ? "Added" : "Want to Read",
+                            onAction: { if !added.contains(item.id) { Task { await add(item) } } },
+                            onOpen: { selectedBook = progress(for: item) })
+                        .padding(.horizontal)
+                    Divider().padding(.leading, 88)
+                }
             }
-            .padding()
-            .background(Color(UIColor.secondarySystemGroupedBackground))
-            .cornerRadius(12)
         }
-        .buttonStyle(.plain)
+        .refreshable { await load(refresh: true) }
+        .task(id: isActive ? selectedFilter.path : nil) { if isActive { await load() } }
+        .navigationDestination(isPresented: Binding(get: { selectedBook != nil }, set: { if !$0 { selectedBook = nil } })) {
+            if let selectedBook { BookDetailView(book: selectedBook, isOwnBook: false) }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .hardcoverAccountDidChange)) { _ in
+            store.reset(); added = []; adding = []
+            if isActive { Task { await load() } }
+        }
     }
-}
 
-#Preview {
-    TrendingBooksView(onDone: { _ in })
+    @MainActor private func load(refresh: Bool = false) async {
+        let filter = selectedFilter.path
+        actionError = nil
+        await store.load(key: filter, refresh: refresh) {
+            try await HardcoverReadScope.checked { await HardcoverService.fetchTrendingBooks(timeFilter: filter) }
+        }
+    }
+
+    private func progress(for item: HardcoverService.TrendingBook) -> BookProgress {
+        BookProgress(id: "\(item.id)", title: item.title, author: item.author,
+                     coverImageData: nil, coverImageUrl: item.coverImageUrl, progress: 0,
+                     totalPages: 0, currentPage: 0, bookId: item.id, userBookId: nil, editionId: nil, originalTitle: item.title)
+    }
+
+    @MainActor private func add(_ item: HardcoverService.TrendingBook) async {
+        guard !adding.contains(item.id), !added.contains(item.id) else { return }
+        let account = HardcoverConfig.authorizationHeaderValue
+        adding.insert(item.id)
+        defer { adding.remove(item.id) }
+        let success = await HardcoverService.addBookToWantToRead(bookId: item.id, editionId: nil)
+        guard !Task.isCancelled, account == HardcoverConfig.authorizationHeaderValue else { return }
+        if success {
+            added.insert(item.id)
+            onDone(true)
+        } else { actionError = NSLocalizedString("Could not add book", comment: "") }
+    }
 }

@@ -49,7 +49,7 @@ extension HardcoverService {
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let errs = root["errors"] as? [[String: Any]], !errs.isEmpty {
                 // Fallback till enklare variant utan user
@@ -128,7 +128,7 @@ extension HardcoverService {
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let errs = root["errors"] as? [[String: Any]], !errs.isEmpty {
                 return []
@@ -190,7 +190,7 @@ extension HardcoverService {
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                   (root["errors"] as? [[String: Any]])?.isEmpty != false,
                   let dataDict = root["data"] as? [String: Any] else {
@@ -222,7 +222,7 @@ extension HardcoverService {
         let body = "{ \"query\": \"{ me { id username } }\" }"
         req.httpBody = body.data(using: .utf8)
         do {
-            let (data, _) = try await URLSession.shared.data(for: req)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: req)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let errs = root["errors"] as? [[String: Any]], !errs.isEmpty {
                 return nil
@@ -309,7 +309,7 @@ extension HardcoverService {
         let reviewedAt = df.string(from: Date())
         
         // Build update object
-        var object: [String: Any] = [
+        let object: [String: Any] = [
             "review_has_spoilers": hasSpoilers,
             "private_notes": "",
             "review_slate": slate,
@@ -337,7 +337,7 @@ extension HardcoverService {
         
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body, options: [])
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await HardcoverHTTP.shared.data(for: request)
             if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 if let errors = root["errors"] as? [[String: Any]], !errors.isEmpty { return false }
                 if let dataDict = root["data"] as? [String: Any],

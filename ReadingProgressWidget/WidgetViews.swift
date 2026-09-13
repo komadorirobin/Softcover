@@ -5,7 +5,7 @@ import UIKit
 // Accent color for progress elements
 private let progressTint = Color(red: 181/255, green: 181/255, blue: 246/255)
 // Shared corner radius for row cards
-private let rowCornerRadius: CGFloat = 10
+private let rowCornerRadius: CGFloat = 8
 
 struct SmallWidgetView: View {
     let book: BookProgress?
@@ -77,13 +77,16 @@ struct SmallWidgetView: View {
                         }
                         
                         // Page info
-                        if book.currentPage > 0 {
+                        if book.currentUnits > 0 {
                             VStack(alignment: .leading, spacing: 0) {
-                                Text("Page \(book.currentPage)")
+                                Group {
+                                    if book.isAudiobook { Text("\(book.currentMinute) min") }
+                                    else { Text("Page \(book.currentPage)") }
+                                }
                                     .font(.system(size: 9, weight: .medium))
                                     .foregroundColor(.primary)
-                                if book.totalPages > 0 {
-                                    Text("of \(book.totalPages)")
+                                if book.totalUnits > 0 {
+                                    Text("of \(book.totalUnits)")
                                         .font(.system(size: 8))
                                         .foregroundColor(.secondary)
                                 }
@@ -112,7 +115,7 @@ struct CircularProgressView: View {
                 .opacity(0.25)
                 .foregroundColor(color)
             Circle()
-                .trim(from: 0.0, to: CGFloat(min(progress, 1.0)))
+                .trim(from: 0.0, to: CGFloat(min(max(progress, 0), 1.0)))
                 .stroke(style: .init(lineWidth: 3.5, lineCap: .round, lineJoin: .round))
                 .foregroundColor(color)
                 .rotationEffect(.degrees(-90))
@@ -122,16 +125,17 @@ struct CircularProgressView: View {
 
 // Helper: empty state
 struct NoBooksView: View {
+    var unavailable = false
     var body: some View {
         VStack(spacing: 8) {
             Image(systemName: "books.vertical")
                 .font(.title2)
                 .foregroundColor(.secondary)
-            Text("No Books")
+            Text(unavailable ? String(localized: "Could not load books") : String(localized: "No Books"))
                 .font(.caption)
                 .fontWeight(.medium)
                 .foregroundColor(.secondary)
-            Text("Add books to read in Hardcover")
+            Text(unavailable ? String(localized: "Try again later") : String(localized: "Add books to read in Hardcover"))
                 .font(.caption2)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)

@@ -1,1094 +1,511 @@
-// (endast relevant ändring: loadFinishedStatus fallback till finished IDs)
 import SwiftUI
 import UIKit
-import WidgetKit
-import Foundation
 
 struct BookDetailView: View {
     @Environment(\.dismiss) private var dismiss
-    
-    let book: BookProgress
-    // New: controls whether finish action UI is shown
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State var book: BookProgress
     let showFinishAction: Bool
-    // NEW: controls if the standalone "Omdöme" button is shown when showFinishAction is false
     let allowStandaloneReviewButton: Bool
-    // NEW: controls if this is the user's own book (enables edit actions)
     let isOwnBook: Bool
-    
-    @State private var showingEditionPicker = false
-    
-    // Finish/Rating/Review flow
-    @State private var showRatingSheet = false
-    @State private var selectedRating: Double? = nil
-    @State private var isActionWorking = false
-    @State private var showActionError = false
-    @State private var showStatusChangeMenu = false
-    @State private var showReadingDates = false
-    
-    // Reviews state
-    @State private var isLoadingReviews = false
-    @State private var reviewsError: String?
-    @State private var reviews: [HardcoverService.PublicReview] = []
-    @State private var reviewsPage = 0
-    private let reviewsPageSize = 10
-    @State private var canLoadMoreReviews = true
-    
-    // Genres & Moods state
-    @State private var genres: [String] = []
-    @State private var isLoadingGenres = false
-    @State private var moods: [String] = []
-    @State private var isLoadingMoods = false
-    
-    // Description state (fallback fetch if missing)
-    @State private var descriptionText: String?
-    @State private var isLoadingDescription = false
-    
-    // Average rating (book-level fallback if edition rating is missing)
-    @State private var averageRating: Double?
-    
-    // Read status state (to show "Läst (datum)" if already finished)
-    @State private var isFinished = false
-    @State private var finishedDate: Date?
-    @State private var isLoadingFinishedStatus = false
-    
-    // Quotes state
-    @State private var quotes: [Quote] = []
-    @State private var isLoadingQuotes = false
-    @State private var showQuotesView = false
-    /// When set via deep link, the quotes view will open and scroll to this quote
+    var onLibraryChange: ((BookProgress?) -> Void)?
+    var onAddToWantToRead: ((Int?) -> Void)?
+    @StateObject private var store: BookDetailStore
+    @AppStorage("HardcoverAPIKey", store: AppGroup.defaults) private var apiKey = ""
+    @AppStorage("SkipEditionPickerOnAdd", store: AppGroup.defaults) private var skipEditionPicker = false
+    @State private var working = false
+    @State private var actionError: String?
+    @State private var progressBook: BookProgress?
+    @State private var editionBook: BookProgress?
+    @State private var datesBook: BookProgress?
+    @State private var reviewBook: BookProgress?
+    @State private var finishing = false
+    @State private var showQuotes = false
     @State var highlightQuoteId: Int? = nil
-    
-    init(book: BookProgress, showFinishAction: Bool = true, allowStandaloneReviewButton: Bool = true, isOwnBook: Bool = true) {
-        self.book = book
+    @State private var showRemoveConfirmation = false
+    @State private var pendingStatus: Int?
+    @State private var editions: [Edition] = []
+    @State private var showEditionSelection = false
+    @State private var completedBook = false
+
+    init(book: BookProgress, showFinishAction: Bool = true, allowStandaloneReviewButton: Bool = true,
+         isOwnBook: Bool = true, onLibraryChange: ((BookProgress?) -> Void)? = nil,
+         onAddToWantToRead: ((Int?) -> Void)? = nil) {
+        _book = State(initialValue: book)
+        _store = StateObject(wrappedValue: BookDetailStore(bookID: book.bookId))
         self.showFinishAction = showFinishAction
         self.allowStandaloneReviewButton = allowStandaloneReviewButton
         self.isOwnBook = isOwnBook
+        self.onLibraryChange = onLibraryChange
+        self.onAddToWantToRead = onAddToWantToRead
     }
-    
-    private var percentText: String? {
-        guard book.progress > 0 else { return nil }
-        return "\(Int(book.progress * 100))%"
-    }
-    
-    private var pagesLeftText: String? {
-        guard book.totalPages > 0 else { return nil }
-        let left = max(0, book.totalPages - max(0, book.currentPage))
-        return left > 0 ? String(format: NSLocalizedString("%d pages left", comment: ""), left) : NSLocalizedString("No pages left", comment: "")
-    }
-    
-    // Visa progress-sektionen endast när finish-åtgärden är aktiv (dvs. inte från historikvyn)
-    private var showProgressSection: Bool {
-        return showFinishAction
-    }
-    
+
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    headerSection
-                    
-                    if isFinished {
-                        VStack(spacing: 12) {
-                            BookReadStatusView(finishedDate: finishedDate)
-                        }
-                        
-                        // Status change buttons for read books
-                        if let userBookId = book.userBookId {
-                            HStack(spacing: 12) {
-                                Button {
-                                    Task { await changeStatusToReading(userBookId: userBookId) }
-                                } label: {
-                                    Label("Mark as Reading", systemImage: "book.fill")
-                                }
-                                .buttonStyle(.bordered)
-                                .disabled(isActionWorking)
-                                
-                                Button {
-                                    Task { await changeStatusToWantToRead(userBookId: userBookId) }
-                                } label: {
-                                    Label("Want to Read", systemImage: "bookmark.fill")
-                                }
-                                .buttonStyle(.bordered)
-                                .disabled(isActionWorking)
-                            }
-                        }
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 24) {
+                header
+                if let error = store.error {
+                    InlineLoadError(message: error) { Task { await store.load(fresh: true) } }
+                }
+                editionSection
+                Divider()
+                readingSection
+                descriptionSection
+                quotesSection
+                reviewsSection
+                technicalDetails
+            }
+            .padding()
+            .frame(maxWidth: 760, alignment: .leading)
+            .frame(maxWidth: .infinity)
+        }
+        .navigationTitle("Book Details")
+        .navigationBarTitleDisplayMode(.inline)
+        .catalogEditing(book: $book) { _ in Task { await store.load(fresh: true) } }
+        .task(id: apiKey) {
+            await store.load()
+            if highlightQuoteId != nil { showQuotes = true }
+        }
+        .onChange(of: apiKey) { _, _ in
+            progressBook = nil
+            editionBook = nil
+            datesBook = nil
+            reviewBook = nil
+            showQuotes = false
+            showEditionSelection = false
+            pendingStatus = nil
+        }
+        .onChange(of: store.ownBook) { _, own in
+            if isOwnBook, let own { mergeOwnBook(own) }
+        }
+        .onChange(of: store.metadata) { _, metadata in
+            guard let metadata else { return }
+            book.bookDescription = metadata.description
+            book.editionAverageRating = metadata.rating
+            if book.userBookId == nil {
+                if !metadata.title.isEmpty { book.title = metadata.title; book.originalTitle = metadata.title }
+                if !metadata.author.isEmpty { book.author = metadata.author }
+                book.coverImageUrl = book.coverImageUrl ?? metadata.coverURL
+                book.releaseDate = book.releaseDate ?? metadata.releaseDate
+                book.parsedReleaseDate = ReleaseDate.parse(book.releaseDate)
+            }
+        }
+        .sheet(item: $progressBook) { own in
+            ReadingProgressEditor(book: own) { updated in
+                store.apply(updated)
+                if isOwnBook { mergeOwnBook(updated) }
+                onLibraryChange?(updated)
+            }
+        }
+        .sheet(item: $editionBook) { own in
+            EditionSelectionLoader(book: own) { updated in libraryChanged(updated) }
+        }
+        .sheet(item: $datesBook, onDismiss: { Task { await store.refreshOwnBook() } }) { own in
+            if let userBookID = own.userBookId {
+                ReadingDatesView(userBookId: userBookID, editionId: own.editionId)
+            }
+        }
+        .sheet(item: $reviewBook) { own in
+            FinishRateReviewSheet(book: own, markFinished: finishing) { updated in
+                libraryChanged(updated)
+                if finishing {
+                    completedBook = true
+                    if !reduceMotion { UINotificationFeedbackGenerator().notificationOccurred(.success) }
+                }
+                Task { await store.loadReviews(fresh: true) }
+            }
+        }
+        .sheet(isPresented: $showQuotes, onDismiss: { Task { await store.loadQuotes(fresh: true) } }) {
+            if let id = book.bookId {
+                BookQuotesView(bookId: id, bookTitle: book.title,
+                    editionId: store.ownBook?.editionId ?? book.editionId,
+                    totalPages: store.ownBook?.totalPages, highlightQuoteId: highlightQuoteId)
+            }
+        }
+        .sheet(isPresented: $showEditionSelection, onDismiss: { pendingStatus = nil }) {
+            EditionSelectionSheet(bookTitle: book.title, currentEditionId: nil, editions: editions,
+                onCancel: { pendingStatus = nil }, onSave: { id in
+                    guard let status = pendingStatus else { return }
+                    pendingStatus = nil
+                    Task { await changeStatus(status, editionID: id) }
+                })
+        }
+        .confirmationDialog("Remove book?", isPresented: $showRemoveConfirmation, titleVisibility: .visible) {
+            Button("Remove from library", role: .destructive) { Task { await removeBook() } }
+            Button("Cancel", role: .cancel) { }
+        }
+        .alert("Action failed", isPresented: Binding(get: { actionError != nil }, set: { if !$0 { actionError = nil } })) {
+            Button("OK", role: .cancel) { actionError = nil }
+        } message: { Text(actionError ?? "") }
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12)) : AnyLayout(HStackLayout(alignment: .top, spacing: 16))
+            layout {
+                BookCover(book: book)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(book.title).font(.title2.weight(.semibold)).fixedSize(horizontal: false, vertical: true)
+                    Text(book.author).font(.subheadline).foregroundStyle(.secondary)
+                    if book.originalTitle != book.title, !book.originalTitle.isEmpty {
+                        Text("Original title: \(book.originalTitle)").font(.caption).foregroundStyle(.secondary)
                     }
-                    
-                    // Show "Dates Read" button only for user's own books
-                    if isOwnBook, let userBookId = book.userBookId {
-                        Button {
-                            showReadingDates = true
-                        } label: {
-                            HStack {
-                                Image(systemName: "calendar")
-                                Text("Dates Read")
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        .buttonStyle(.bordered)
+                    if let rating = store.metadata?.rating ?? book.editionAverageRating {
+                        Label { Text("Average \(rating, specifier: "%.1f")") } icon: {
+                            Image(systemName: "star.fill").foregroundStyle(.orange)
+                        }.font(.subheadline)
                     }
-                    
-                    quickActionsSection
-                    
-                    if showProgressSection {
-                        progressSection
-                    }
-                    
-                    yourRatingSection
-                    
-                    descriptionSection
-                    
-                    // Quotes section
-                    if isOwnBook {
-                        quotesSection
-                    }
-                    
-                    reviewsSection
-                    
-                    metadataSection
-                    
-                    Spacer(minLength: 8)
-                }
-                .padding()
+                }.frame(maxWidth: .infinity, alignment: .leading)
             }
-            .navigationTitle("Book Details")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }
-                }
-                // Keep "Change edition" in toolbar only for user's own books
-                if isOwnBook, book.userBookId != nil {
-                    ToolbarItem(placement: .primaryAction) {
-                        Button {
-                            showingEditionPicker = true
-                        } label: {
-                            Image(systemName: "books.vertical.fill")
-                        }
-                        .accessibilityLabel("Change Edition")
-                    }
-                }
-            }
-            .background(Color(UIColor.systemBackground))
-            .sheet(isPresented: $showingEditionPicker) {
-                EditionPickerView(book: book) { success in
-                    if success {
-                        WidgetCenter.shared.reloadAllTimelines()
-                        print("✅ Widget timelines reloaded after edition change from BookDetailView.")
-                    }
-                }
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-            }
-            // Sheet-hantering:
-            // - showFinishAction == true: Finish+Rate+Review -> markerar färdig
-            // - showFinishAction == false: Omdöme -> spara betyg (om ändrat) + publicera recension, men INTE markera som färdig
-            .sheet(isPresented: $showRatingSheet) {
-                if let userBookId = book.userBookId {
-                    if showFinishAction {
-                        FinishRateReviewSheet(
-                            userBookId: userBookId,
-                            initialRating: selectedRating,
-                            onPublishedReview: {},
-                            onSkip: { rating in
-                                Task { await markAsFinished(userBookId: userBookId, rating: rating) }
-                            },
-                            onConfirmFinish: { rating in
-                                Task { await markAsFinished(userBookId: userBookId, rating: rating) }
-                            }
-                        )
-                        .presentationDetents([.large, .medium])
-                    } else {
-                        // Kombinerat ark för historik: publicera recension och spara betyg om ändrat, men avsluta inte boken.
-                        FinishRateReviewSheet(
-                            userBookId: userBookId,
-                            initialRating: selectedRating,
-                            onPublishedReview: {
-                                // valfritt: feedback
-                            },
-                            onSkip: { rating in
-                                // Om användaren ändrade betyg och tryckte "Skip", spara bara betyget.
-                                Task { _ = await HardcoverService.updateUserBook(userBookId: userBookId, statusId: 3, rating: rating) }
-                            },
-                            onConfirmFinish: { rating in
-                                // Arkets logik publicerar recensionen innan denna kallas.
-                                // Här markerar vi INTE som färdig; spara bara betyg om ändrat (säkerhet).
-                                Task { _ = await HardcoverService.updateUserBook(userBookId: userBookId, statusId: 3, rating: rating) }
-                            }
-                        )
-                        .presentationDetents([.large, .medium])
-                    }
-                }
-            }
-            .alert("Action failed", isPresented: $showActionError) {
-                Button("OK") { }
-            } message: {
-                Text("Please try again.")
-            }
-            .sheet(isPresented: $showReadingDates) {
-                if let userBookId = book.userBookId {
-                    ReadingDatesView(userBookId: userBookId, editionId: book.editionId)
-                }
-            }
-            .sheet(isPresented: $showQuotesView) {
-                if let id = book.bookId {
-                    BookQuotesView(
-                        bookId: id,
-                        bookTitle: book.title,
-                        editionId: book.editionId,
-                        totalPages: book.totalPages > 0 ? book.totalPages : nil,
-                        highlightQuoteId: highlightQuoteId
-                    )
-                }
-            }
-            // Ladda genres & moods när vyn visas
-            .task { await reloadTaxonomies() }
-            // Ladda quotes för boken
-            .task {
-                if isOwnBook, let id = book.bookId {
-                    await MainActor.run { isLoadingQuotes = true }
-                    let fetched = await HardcoverService.fetchQuotesForBook(bookId: id)
-                    await MainActor.run {
-                        quotes = fetched
-                        isLoadingQuotes = false
-                    }
-                }
-            }
-            // Öppna quotes-vyn automatiskt om vi har ett highlightQuoteId (deep link)
-            .onAppear {
-                if highlightQuoteId != nil {
-                    showQuotesView = true
-                }
-            }
-            // Ladda beskrivning om den saknas i modellen
-            .task {
-                if descriptionText == nil,
-                   (book.bookDescription == nil || book.bookDescription?.isEmpty == true),
-                   let id = book.bookId {
-                    await MainActor.run { isLoadingDescription = true }
-                    let fetched = await fetchBookDescription(bookId: id)
-                    await MainActor.run {
-                        descriptionText = fetched
-                        isLoadingDescription = false
-                    }
-                }
-            }
-            // Ladda medelbetyg på boknivå om editionsbetyg saknas
-            .task {
-                if averageRating == nil, book.editionAverageRating == nil, let id = book.bookId {
-                    let avg = await fetchBookAverageRating(bookId: id)
-                    await MainActor.run { averageRating = avg }
-                }
-            }
-            // Ladda färdigstatus (för att visa "Läst (datum)")
-            .task {
-                await loadFinishedStatus()
+            if let metadata = store.metadata {
+                if !metadata.genres.isEmpty { WrapChipsView(items: metadata.genres) }
+                if !metadata.moods.isEmpty { WrapChipsView(items: metadata.moods) }
             }
         }
     }
-    
-    private var originalTitleText: String? {
-        guard !book.originalTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
-        // Only show if different from displayed title
-        if book.originalTitle != book.title {
-            return String(format: NSLocalizedString("Original title: %@", comment: ""), book.originalTitle)
-        }
-        return nil
-    }
-    
-    // If description might contain stray HTML tags, strip very basic tags and decode HTML entities.
-    private func normalizedDescription(_ s: String?) -> String? {
-        guard let s = s?.trimmingCharacters(in: .whitespacesAndNewlines), !s.isEmpty else { return nil }
-        // Lightweight sanitation: remove very simple tags if present.
-        let withoutTags = s.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
-        // Decode HTML entities
-        return withoutTags.trimmingCharacters(in: .whitespacesAndNewlines).decodedHTMLEntities
-    }
-    
-    @ViewBuilder
-    private var coverView: some View {
-        Group {
-            if let data = book.coverImageData, let ui = UIImage(data: data) {
-                Image(uiImage: ui)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 90, height: 130)
-                    .clipped()
-                    .cornerRadius(8)
-                    .shadow(radius: 3)
-            } else if let urlString = book.coverImageUrl, let url = URL(string: urlString) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .empty:
-                        ProgressView()
-                            .frame(width: 90, height: 130)
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(width: 90, height: 130)
-                            .clipped()
-                            .cornerRadius(8)
-                            .shadow(radius: 3)
-                    case .failure:
-                        placeholderCover
-                    @unknown default:
-                        placeholderCover
-                    }
-                }
-            } else {
-                placeholderCover
-            }
-        }
-    }
-    
-    private var placeholderCover: some View {
-        RoundedRectangle(cornerRadius: 8)
-            .fill(Color(UIColor.tertiarySystemFill))
-            .frame(width: 90, height: 130)
-            .overlay(
-                Image(systemName: "book.closed")
-                    .font(.title2)
-                    .foregroundColor(.secondary)
-            )
-    }
-    
-    private func markAsFinished(userBookId: Int, rating: Double?) async {
-        guard showFinishAction else { return } // Safety: do nothing if disabled
-        guard !isActionWorking else { return }
-        isActionWorking = true
-        let ok = await HardcoverService.finishBook(
-            userBookId: userBookId,
-            editionId: book.editionId,
-            totalPages: book.totalPages > 0 ? book.totalPages : nil,
-            currentPage: book.currentPage > 0 ? book.currentPage : nil,
-            rating: rating // may be nil if untouched
-        )
-        await MainActor.run {
-            isActionWorking = false
-            if ok {
-#if os(iOS) && !targetEnvironment(macCatalyst)
-                UINotificationFeedbackGenerator().notificationOccurred(.success)
-#endif
-                WidgetCenter.shared.reloadAllTimelines()
-                // Close after success
-                dismiss()
-            } else {
-                showActionError = true
-            }
-        }
-    }
-    
-    // MARK: - Finished status loading
-    private func loadFinishedStatus() async {
-        guard let bookId = book.bookId else { return }
-        await MainActor.run { isLoadingFinishedStatus = true }
-        let metadataService = BookMetadataService()
-        let finishedDates = await metadataService.fetchFinishedBooksWithDates(for: [bookId])
-        
-        // Fallback: finished utan datum
-        var finishedFlag = finishedDates[bookId] != nil
-        var dateValue = finishedDates[bookId]
-        if !finishedFlag {
-            let finishedIds = await metadataService.fetchFinishedBookIds(for: [bookId])
-            if finishedIds.contains(bookId) {
-                finishedFlag = true
-                dateValue = nil
-            }
-        }
-        
-        await MainActor.run {
-            isLoadingFinishedStatus = false
-            isFinished = finishedFlag
-            finishedDate = dateValue
-        }
-    }
-    
-    // MARK: - Reviews loading
-    private func reloadReviews(for bookId: Int) async {
-        await MainActor.run {
-            isLoadingReviews = true
-            reviewsError = nil
-            reviewsPage = 0
-            canLoadMoreReviews = true
-            reviews = []
-        }
-        let list = await HardcoverService.fetchPublicReviewsForBook(bookId: bookId, limit: reviewsPageSize, offset: 0)
-        await MainActor.run {
-            isLoadingReviews = false
-            reviews = list
-            canLoadMoreReviews = list.count == reviewsPageSize
-            reviewsPage = 1
-        }
-    }
-    
-    private func loadMoreReviews(for bookId: Int) async {
-        guard !isLoadingReviews, canLoadMoreReviews else { return }
-        await MainActor.run { isLoadingReviews = true }
-        let offset = reviewsPage * reviewsPageSize
-        let list = await HardcoverService.fetchPublicReviewsForBook(bookId: bookId, limit: reviewsPageSize, offset: offset)
-        await MainActor.run {
-            isLoadingReviews = false
-            if list.isEmpty {
-                canLoadMoreReviews = false
-            } else {
-                reviews.append(contentsOf: list)
-                reviewsPage += 1
-                if list.count < reviewsPageSize { canLoadMoreReviews = false }
-            }
-        }
-    }
-    
-    // MARK: - Genres & Moods loading
-    private func reloadTaxonomies() async {
-        // Fetch both in parallel
-        await MainActor.run {
-            isLoadingGenres = genres.isEmpty
-            isLoadingMoods = moods.isEmpty
-        }
-        async let g = fetchGenresPreferred(bookId: book.bookId, editionId: book.editionId, userBookId: book.userBookId)
-        async let m = fetchMoodsPreferred(bookId: book.bookId, editionId: book.editionId, userBookId: book.userBookId)
-        let (gList, mList) = await (g, m)
-        await MainActor.run {
-            self.genres = gList
-            self.moods = mList
-            self.isLoadingGenres = false
-            self.isLoadingMoods = false
-        }
-    }
-    
-    // MARK: - UI Sections (split to help the compiler)
-    private var headerSection: some View {
-        HStack(alignment: .top, spacing: 16) {
-            coverView
-            
-            VStack(alignment: .leading, spacing: 8) {
-                Text(book.title)
-                    .font(.title3)
-                    .fontWeight(.semibold)
-                    .lineLimit(3)
-                    .multilineTextAlignment(.leading)
-                
-                Text(book.author)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .lineLimit(2)
-                
-                if let original = originalTitleText {
-                    Text(original)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .lineLimit(2)
-                }
-                
-                if let avg = (book.editionAverageRating ?? averageRating) {
-                    HStack(spacing: 8) {
-                        ReadOnlyStars(rating: avg)
-                        Text(String(format: NSLocalizedString("Average %.1f", comment: ""), avg))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                
-                if !genres.isEmpty {
-                    WrapChipsView(items: genres)
-                        .padding(.top, 2)
-                } else if isLoadingGenres {
-                    HStack(spacing: 6) {
-                        ProgressView().scaleEffect(0.8)
-                        Text(NSLocalizedString("Loading genres…", comment: ""))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    .padding(.top, 2)
-                }
-                
-                if !genres.isEmpty && !moods.isEmpty {
-                    Divider()
-                        .padding(.vertical, 2)
-                }
-                
-                if !moods.isEmpty {
-                    WrapChipsView(items: moods)
-                } else if isLoadingMoods {
-                    HStack(spacing: 6) {
-                        ProgressView().scaleEffect(0.8)
-                        Text(NSLocalizedString("Loading moods…", comment: ""))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-    
-    @ViewBuilder
-    private var quickActionsSection: some View {
-        if isOwnBook, book.userBookId != nil {
-            HStack(spacing: 12) {
-                Button {
-                    showingEditionPicker = true
-                } label: {
-                    Label("Change Edition", systemImage: "books.vertical.fill")
-                }
-                .buttonStyle(.bordered)
-                
-                if !showFinishAction && allowStandaloneReviewButton {
-                    Button {
-                        selectedRating = book.userRating
-                        showRatingSheet = true
-                    } label: {
-                        Label(NSLocalizedString("Omdöme", comment: "Rate & Review combined action"), systemImage: "square.and.pencil")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.orange)
-                    .disabled(isActionWorking)
-                    .accessibilityLabel(NSLocalizedString("Betyg & omdöme", comment: "Accessibility label for combined rate & review"))
-                }
-                
-                if showFinishAction {
-                    Button {
-                        selectedRating = book.userRating
-                        showRatingSheet = true
-                    } label: {
-                        Label("Mark as finished", systemImage: "checkmark.circle.fill")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.green)
-                    .disabled(isActionWorking)
-                    .accessibilityLabel("Mark as finished")
-                }
-            }
-        } else if let bookId = book.bookId {
-            // Book not in user's library yet - show "Start Reading" and "Want to Read" buttons
-            HStack(spacing: 12) {
-                Button {
-                    Task { await startReading(bookId: bookId) }
-                } label: {
-                    Label("Start Reading", systemImage: "book.fill")
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(isActionWorking)
-                
-                Button {
-                    Task { await addToWantToRead(bookId: bookId) }
-                } label: {
-                    Label("Want to Read", systemImage: "bookmark.fill")
-                }
-                .buttonStyle(.bordered)
-                .disabled(isActionWorking)
-            }
-        }
-    }
-    
-    private var progressSection: some View {
+
+    private var editionSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                if book.totalPages > 0 && book.currentPage > 0 {
-                    Text("Page \(book.currentPage) of \(book.totalPages)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                } else if book.currentPage > 0 {
-                    Text("Page \(book.currentPage)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                } else if book.totalPages > 0 {
-                    Text("\(book.totalPages) pages")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                } else {
-                    Text("No progress information")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                
+                Text("Edition").font(.headline)
                 Spacer()
-                
-                if let pct = percentText {
-                    Text(pct)
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.accentColor)
+                if let own = store.ownBook, isOwnBook || own.editionId == book.editionId {
+                    Button { Task { await openPersonalSheet(.edition) } } label: {
+                        Image(systemName: "books.vertical").frame(width: 44, height: 44)
+                    }.accessibilityLabel("Change Edition").help("Change Edition").disabled(working)
                 }
             }
-            
-            if let left = pagesLeftText {
-                Text(left)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+            Text(book.displayFormat).font(.subheadline)
+            if book.totalUnits > 0 {
+                if book.isAudiobook { Text(BookProgressPresentation.duration(book.totalUnits)).foregroundStyle(.secondary) }
+                else { Text("\(book.totalUnits) pages").foregroundStyle(.secondary) }
             }
-            
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.gray.opacity(0.25))
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(LinearGradient(colors: [Color.accentColor, Color.accentColor.opacity(0.8)], startPoint: .leading, endPoint: .trailing))
-                        .frame(width: CGFloat(book.progress) * geometry.size.width)
-                }
-            }
-            .frame(height: 8)
-        }
-    }
-    
-    @ViewBuilder
-    private var yourRatingSection: some View {
-        if let my = book.userRating {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 8) {
-                    ReadOnlyStars(rating: my)
-                    Text(String(format: NSLocalizedString("Your rating: %.1f", comment: ""), my))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
+            if let date = book.parsedReleaseDate ?? ReleaseDate.parse(book.releaseDate) {
+                LabeledContent("Release Date") { Text(date, format: .dateTime.year().month().day()) }.font(.subheadline)
             }
         }
     }
-    
-    @ViewBuilder
-    private var descriptionSection: some View {
-        if let desc = normalizedDescription(descriptionText ?? book.bookDescription) {
+
+    private var readingSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Your reading").font(.headline)
+                Spacer()
+                if working { ProgressView().controlSize(.small) }
+                if store.ownBook != nil {
+                    Menu {
+                        Button("Dates Read", systemImage: "calendar") { Task { await openPersonalSheet(.dates) } }
+                        if store.ownBook?.statusId != 1 {
+                            Button("Want to Read", systemImage: "bookmark") { Task { await prepareStatus(1) } }
+                        }
+                        if store.ownBook?.statusId != 2 {
+                            Button("Start Reading", systemImage: "book") { Task { await prepareStatus(2) } }
+                        }
+                        if store.ownBook?.statusId != 3 {
+                            Button("Mark as finished", systemImage: "checkmark.circle") { Task { await prepareStatus(3) } }
+                        }
+                        Divider()
+                        Button("Remove from library", systemImage: "trash", role: .destructive) { showRemoveConfirmation = true }
+                    } label: { Image(systemName: "ellipsis").frame(width: 44, height: 44) }
+                    .accessibilityLabel("Reading actions").disabled(working)
+                }
+            }
+            if let error = store.personalError {
+                InlineLoadError(message: error) { Task { await store.refreshOwnBook() } }
+            }
+            if let own = store.ownBook {
+                Label(statusTitle(own.statusId), systemImage: own.statusId == 3 ? "checkmark.circle" : own.statusId == 2 ? "book" : "bookmark")
+                    .foregroundStyle(own.statusId == 3 ? Color.green : Color.secondary)
+                if !isOwnBook && own.editionId != book.editionId {
+                    Button { Task { await openPersonalSheet(.edition) } } label: {
+                        Label(own.displayFormat, systemImage: "books.vertical").frame(minHeight: 44)
+                    }.accessibilityLabel("Change Edition").disabled(working)
+                }
+                if own.statusId == 2 {
+                    Text(BookProgressPresentation.summary(own)).font(.subheadline).monospacedDigit()
+                    if own.totalUnits > 0 { ProgressView(value: min(1, max(0, own.progress))) }
+                    Button { Task { await openPersonalSheet(.progress) } } label: {
+                        Label("Update progress", systemImage: "slider.horizontal.3").frame(minHeight: 32)
+                    }.buttonStyle(.borderedProminent).disabled(working)
+                    if showFinishAction {
+                        Button { Task { await prepareStatus(3) } } label: {
+                            Label("Mark as finished", systemImage: "checkmark.circle").frame(minHeight: 32)
+                        }.buttonStyle(.bordered).disabled(working)
+                    }
+                } else if own.statusId == 1 {
+                    Button { Task { await prepareStatus(2) } } label: {
+                        Label("Start Reading", systemImage: "book").frame(minHeight: 32)
+                    }.buttonStyle(.borderedProminent).disabled(working)
+                }
+                if let rating = own.userRating {
+                    Label { Text("Your rating: \(rating, specifier: "%.1f")") } icon: { Image(systemName: "star.fill") }.font(.subheadline)
+                }
+                if allowStandaloneReviewButton {
+                    Button { Task { await openPersonalSheet(.review) } } label: {
+                        Label("Rate and review", systemImage: "square.and.pencil").frame(minHeight: 44)
+                    }.disabled(working)
+                }
+            } else if store.hasLoadedOwnBook {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 12) { addButtons }
+                    VStack(alignment: .leading, spacing: 8) { addButtons }
+                }
+                Button("Mark as finished", systemImage: "checkmark.circle") { Task { await prepareStatus(3) } }
+                    .frame(minHeight: 44).disabled(working)
+            } else if store.personalError == nil { ProgressView("Loading status...") }
+            if completedBook {
+                Label("Marked as finished", systemImage: "checkmark.seal.fill").foregroundStyle(.green)
+            }
+        }
+    }
+
+    @ViewBuilder private var addButtons: some View {
+        Button { Task { await prepareStatus(2) } } label: {
+            Label("Start Reading", systemImage: "book").frame(minHeight: 32)
+        }.buttonStyle(.borderedProminent).disabled(working)
+        Button { Task { await prepareStatus(1) } } label: {
+            Label("Want to Read", systemImage: "bookmark").frame(minHeight: 32)
+        }.buttonStyle(.bordered).disabled(working)
+    }
+
+    @ViewBuilder private var descriptionSection: some View {
+        if let description = store.metadata?.description ?? book.bookDescription, !description.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
-                Text("Description")
-                    .font(.headline)
-                Text(desc)
-                    .font(.body)
-                    .foregroundColor(.primary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .textSelection(.enabled)
+                Text("Description").font(.headline)
+                Text(description).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
             }
-            .padding(.top, 4)
-        } else if isLoadingDescription {
-            HStack(spacing: 8) {
-                ProgressView().scaleEffect(0.9)
-                Text(NSLocalizedString("Loading description…", comment: "Loading state for description"))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            .padding(.top, 4)
-        }
+        } else if store.isLoading { ProgressView("Loading description...") }
     }
-    
-    // MARK: - Quotes Section
-    
-    @ViewBuilder
+
     private var quotesSection: some View {
-        if let bookId = book.bookId {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("Quotes")
-                        .font(.headline)
-                    Spacer()
-                    if isLoadingQuotes {
-                        ProgressView()
-                            .controlSize(.small)
-                    }
-                    Button {
-                        showQuotesView = true
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text("View All")
-                                .font(.subheadline)
-                            Image(systemName: "chevron.right")
-                                .font(.caption)
-                        }
-                    }
-                }
-                
-                if quotes.isEmpty && !isLoadingQuotes {
-                    Button {
-                        showQuotesView = true
-                    } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: "quote.opening")
-                                .foregroundColor(.secondary)
-                            Text("Add your first quote…")
-                                .foregroundColor(.secondary)
-                                .font(.subheadline)
-                            Spacer()
-                            Image(systemName: "plus.circle")
-                                .foregroundColor(.accentColor)
-                        }
-                        .padding(12)
-                        .background(Color(UIColor.secondarySystemBackground))
-                        .cornerRadius(10)
-                    }
-                    .buttonStyle(.plain)
-                } else {
-                    VStack(spacing: 0) {
-                        ForEach(quotes.prefix(3)) { quote in
-                            Button {
-                                highlightQuoteId = quote.id
-                                showQuotesView = true
-                            } label: {
-                                HStack(alignment: .top, spacing: 8) {
-                                    Image(systemName: "quote.opening")
-                                        .font(.caption2)
-                                        .foregroundColor(.secondary)
-                                        .padding(.top, 3)
-                                    
-                                    Text(quote.entry)
-                                        .font(.subheadline)
-                                        .foregroundColor(.primary)
-                                        .lineLimit(3)
-                                        .multilineTextAlignment(.leading)
-                                    
-                                    Spacer(minLength: 0)
-                                }
-                                .padding(.vertical, 8)
-                            }
-                            .buttonStyle(.plain)
-                            
-                            if quote.id != quotes.prefix(3).last?.id {
-                                Divider()
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 4)
-                    .background(Color(UIColor.secondarySystemBackground))
-                    .cornerRadius(10)
-                    
-                    if quotes.count > 3 {
-                        Text("\(quotes.count - 3) more quote\(quotes.count - 3 == 1 ? "" : "s")…")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Quotes").font(.headline)
+                Spacer()
+                Button { highlightQuoteId = nil; showQuotes = true } label: {
+                    Image(systemName: "quote.opening").frame(width: 44, height: 44)
+                }.accessibilityLabel("View All Quotes")
             }
-        }
+            if let error = store.quotesError {
+                InlineLoadError(message: error) { Task { await store.loadQuotes(fresh: true) } }
+            }
+            ForEach(store.quotes.prefix(3)) { quote in
+                Button { highlightQuoteId = quote.id; showQuotes = true } label: {
+                    Text(quote.entry).font(.subheadline).foregroundStyle(.primary)
+                        .lineLimit(typeSize.isAccessibilitySize ? nil : 3)
+                        .multilineTextAlignment(.leading).frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                }.buttonStyle(.plain)
+                Divider()
+            }
+            if store.loadingQuotes { ProgressView() }
+            else if store.quotes.isEmpty && store.quotesError == nil {
+                Button("Add your first quote...", systemImage: "plus") { showQuotes = true }.frame(minHeight: 44)
+            }
+        }.task(id: apiKey) { await store.loadQuotes() }
     }
-    
-    @ViewBuilder
+
     private var reviewsSection: some View {
-        if let bookId = book.bookId {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("Reviews")
-                        .font(.headline)
-                    Spacer()
-                    if isLoadingReviews {
-                        ProgressView().scaleEffect(0.9)
-                    }
-                }
-                
-                if let err = reviewsError {
-                    Text(err)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                } else if reviews.isEmpty && !isLoadingReviews {
-                    Text("No reviews found")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                } else {
-                    VStack(spacing: 12) {
-                        ForEach(reviews) { r in
-                            // Use the shared row from SearchDetailComponents.swift
-                            SearchReviewRow(review: r)
-                        }
-                        if canLoadMoreReviews {
-                            HStack {
-                                Spacer()
-                                Button {
-                                    Task { await loadMoreReviews(for: bookId) }
-                                } label: {
-                                    if isLoadingReviews {
-                                        ProgressView().scaleEffect(0.9)
-                                    } else {
-                                        Text("Load more")
-                                    }
-                                }
-                                .buttonStyle(.bordered)
-                                Spacer()
-                            }
-                            .padding(.top, 4)
-                        }
-                    }
-                }
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Reviews").font(.headline)
+            ForEach(store.reviews) { SearchReviewRow(review: $0) }
+            if let error = store.reviewsError {
+                InlineLoadError(message: error) { Task { await store.loadReviews(more: !store.reviews.isEmpty, fresh: true) } }
             }
-            .padding(.top, 8)
-            .task {
-                // Initial load once when the view appears
-                if reviewsPage == 0 && reviews.isEmpty {
-                    await reloadReviews(for: bookId)
-                }
+            if store.loadingReviews { ProgressView() }
+            else if store.reviews.isEmpty && store.reviewsError == nil { Text("No reviews found").foregroundStyle(.secondary) }
+            else if store.hasMoreReviews {
+                Button("Load more") { Task { await store.loadReviews(more: true) } }.frame(minHeight: 44)
             }
+        }.task(id: apiKey) { await store.loadReviews() }
+    }
+
+    private var technicalDetails: some View {
+        DisclosureGroup("Book information") {
+            if let id = book.bookId { copyID("Book ID", id: id) }
+            if let id = book.editionId { copyID("Edition ID", id: id) }
+            if let id = store.ownBook?.userBookId { copyID("User Book ID", id: id) }
+        }.font(.subheadline).foregroundStyle(.secondary)
+    }
+
+    private func copyID(_ title: LocalizedStringKey, id: Int) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            Text(String(id)).monospacedDigit().textSelection(.enabled)
+            Button { UIPasteboard.general.string = String(id) } label: {
+                Image(systemName: "doc.on.doc").frame(width: 44, height: 44)
+            }.accessibilityLabel(Text("Copy \(Text(title))"))
         }
     }
-    
-    private var metadataSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            if let eid = book.editionId {
-                Label("Edition ID: \(eid)", systemImage: "books.vertical.fill")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            if let bid = book.bookId {
-                Label("Book ID: \(bid)", systemImage: "number")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            if let uid = book.userBookId {
-                Label("User Book ID: \(uid)", systemImage: "person.text.rectangle")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
+
+    private func statusTitle(_ status: Int?) -> String {
+        switch status {
+        case 1: return NSLocalizedString("Want to Read", comment: "")
+        case 2: return NSLocalizedString("Currently Reading", comment: "")
+        case 3: return NSLocalizedString("Finished", comment: "")
+        default: return NSLocalizedString("In your library", comment: "")
         }
-        .padding(.top, 8)
     }
-    
-    // MARK: - GraphQL helpers (local copies to satisfy symbols)
-    private func fetchBookAverageRating(bookId: Int) async -> Double? {
-        guard !HardcoverConfig.apiKey.isEmpty else { return nil }
-        guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return nil }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
-        
-        let query = """
-        query ($id: Int!) {
-          books(where: { id: { _eq: $id }}) {
-            id
-            rating
-          }
-        }
-        """
-        let body: [String: Any] = [
-            "query": query,
-            "variables": ["id": bookId]
-        ]
+
+    private enum PersonalSheet { case progress, edition, dates, review }
+
+    @MainActor private func openPersonalSheet(_ sheet: PersonalSheet) async {
+        guard !working else { return }
+        working = true
+        defer { working = false }
         do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
-            if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let errs = root["errors"] as? [[String: Any]], !errs.isEmpty {
-                return nil
+            let own = try await BookPersonalActions.requireOwnBook(bookID: book.bookId, authorization: HardcoverConfig.authorizationHeaderValue)
+            store.apply(own)
+            switch sheet {
+            case .progress: progressBook = own
+            case .edition: editionBook = own
+            case .dates: datesBook = own
+            case .review: finishing = false; reviewBook = own
             }
-            if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let dataDict = root["data"] as? [String: Any],
-               let books = dataDict["books"] as? [[String: Any]],
-               let first = books.first {
-                return first["rating"] as? Double
-            }
-        } catch { return nil }
-        return nil
+        } catch { actionError = error.localizedDescription }
     }
-    
-    private func fetchBookDescription(bookId: Int) async -> String? {
-        guard !HardcoverConfig.apiKey.isEmpty else { return nil }
-        guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return nil }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
-        
-        let query = """
-        query ($id: Int!) {
-          books(where: { id: { _eq: $id }}) {
-            id
-            description
-          }
-        }
-        """
-        let body: [String: Any] = [
-            "query": query,
-            "variables": ["id": bookId]
-        ]
+
+    @MainActor private func prepareStatus(_ status: Int) async {
+        guard !working, let bookID = book.bookId else { return }
+        working = true
+        let auth = HardcoverConfig.authorizationHeaderValue
         do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, _) = try await URLSession.shared.data(for: request)
-            if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let errs = root["errors"] as? [[String: Any]], !errs.isEmpty {
-                return nil
-            }
-            if let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let dataDict = root["data"] as? [String: Any],
-               let books = dataDict["books"] as? [[String: Any]],
-               let first = books.first {
-                return first["description"] as? String
-            }
-        } catch { return nil }
-        return nil
-    }
-    
-    private func fetchGenresPreferred(bookId: Int?, editionId: Int?, userBookId: Int?) async -> [String] {
-        // Curated-only (cached_tags) for genres, prefer book -> userBook paths
-        guard !HardcoverConfig.apiKey.isEmpty else { return [] }
-        guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return [] }
-        
-        func normalize(_ arr: [String]) -> [String] {
-            let cleaned = arr
-                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                .filter { !$0.isEmpty }
-            return Array(Set(cleaned)).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-        }
-        
-        if let bid = bookId {
-            if let arr = await BookMetadataService.queryBookCachedGenres(url: url, bookId: bid), !arr.isEmpty {
-                return normalize(arr)
-            }
-        }
-        if let ubid = userBookId {
-            if let arr = await BookMetadataService.queryUserBookCachedGenres(url: url, userBookId: ubid), !arr.isEmpty {
-                return normalize(arr)
-            }
-        }
-        return []
-    }
-    
-    private func fetchMoodsPreferred(bookId: Int?, editionId: Int?, userBookId: Int?) async -> [String] {
-        // Taggings first, then cached_tags, across book/edition/user_book
-        guard !HardcoverConfig.apiKey.isEmpty else { return [] }
-        guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return [] }
-        
-        func normalize(_ arr: [String]) -> [String] {
-            let cleaned = arr
-                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                .filter { !$0.isEmpty }
-            return Array(Set(cleaned)).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-        }
-        
-        if let bid = bookId {
-            if let arr = await BookMetadataService.queryBookMoodsViaTaggings(url: url, bookId: bid), !arr.isEmpty {
-                return normalize(arr)
-            }
-        }
-        if let eid = editionId {
-            if let arr = await BookMetadataService.queryEditionBookMoodsViaTaggings(url: url, editionId: eid), !arr.isEmpty {
-                return normalize(arr)
-            }
-        }
-        if let ubid = userBookId {
-            if let arr = await BookMetadataService.queryUserBookMoodsViaTaggings(url: url, userBookId: ubid), !arr.isEmpty {
-                return normalize(arr)
-            }
-        }
-        if let bid = bookId {
-            if let arr = await BookMetadataService.queryBookCachedMoods(url: url, bookId: bid), !arr.isEmpty {
-                return normalize(arr)
-            }
-        }
-        if let eid = editionId {
-            if let arr = await BookMetadataService.queryEditionBookCachedMoods(url: url, editionId: eid), !arr.isEmpty {
-                return normalize(arr)
-            }
-        }
-        if let ubid = userBookId {
-            if let arr = await BookMetadataService.queryUserBookCachedMoods(url: url, userBookId: ubid), !arr.isEmpty {
-                return normalize(arr)
-            }
-        }
-        return []
-    }
-    
-    private func startReading(bookId: Int) async {
-        guard !isActionWorking else { return }
-        await MainActor.run { isActionWorking = true }
-        
-        let result = await HardcoverService.startReadingBook(bookId: bookId, editionId: book.editionId)
-        
-        await MainActor.run {
-            isActionWorking = false
-            if result {
-                // Refresh widget
-                WidgetCenter.shared.reloadAllTimelines()
-                // Close the view since book is now added
-                dismiss()
+            let own = try await LibraryAPI.ownBook(bookID: bookID, fresh: true)
+            guard auth == HardcoverConfig.authorizationHeaderValue else { throw HardcoverNetworkError.accountChanged }
+            if let own { store.apply(own) }
+            if own == nil && !skipEditionPicker {
+                let values = await HardcoverService.fetchEditions(for: bookID)
+                guard auth == HardcoverConfig.authorizationHeaderValue else { throw HardcoverNetworkError.accountChanged }
+                if values.count > 1 {
+                    editions = values; pendingStatus = status; showEditionSelection = true; working = false
+                    return
+                }
+                working = false
+                await changeStatus(status, editionID: values.first?.id)
             } else {
-                showActionError = true
+                working = false
+                await changeStatus(status, editionID: own?.editionId ?? book.editionId)
             }
-        }
+        } catch { working = false; actionError = error.localizedDescription }
     }
-    
-    private func addToWantToRead(bookId: Int) async {
-        guard !isActionWorking else { return }
-        await MainActor.run { isActionWorking = true }
-        
-        let result = await HardcoverService.addBookToWantToRead(bookId: bookId, editionId: book.editionId)
-        
-        await MainActor.run {
-            isActionWorking = false
-            if result {
-                // Refresh widget
-                WidgetCenter.shared.reloadAllTimelines()
-                // Close the view since book is now added
-                dismiss()
+
+    @MainActor private func changeStatus(_ status: Int, editionID: Int?) async {
+        guard !working, let bookID = book.bookId else { return }
+        working = true
+        defer { working = false }
+        let auth = HardcoverConfig.authorizationHeaderValue
+        do {
+            var own = try await LibraryAPI.ownBook(bookID: bookID, fresh: true)
+            guard auth == HardcoverConfig.authorizationHeaderValue else { throw HardcoverNetworkError.accountChanged }
+            if status == 1, let onAddToWantToRead, own == nil { onAddToWantToRead(editionID); return }
+            if status == 3 {
+                if own == nil {
+                    guard await HardcoverService.addBookToWantToRead(bookId: bookID, editionId: editionID) else { throw BookPersonalActions.Failure.saveFailed }
+                    own = try await BookPersonalActions.requireOwnBook(bookID: bookID, authorization: auth)
+                    WidgetSync.libraryChanged(statuses: [1])
+                }
+                if let own { store.apply(own); finishing = true; reviewBook = own }
+                return
+            }
+            let success: Bool
+            if status == 2 {
+                success = await HardcoverService.startReadingBook(bookId: bookID, editionId: own?.editionId ?? editionID)
+            } else if let userBookID = own?.userBookId {
+                success = await HardcoverService.updateUserBookStatus(userBookId: userBookID, statusId: status)
             } else {
-                showActionError = true
+                success = await HardcoverService.addBookToWantToRead(bookId: bookID, editionId: editionID)
             }
-        }
+            guard success else { throw BookPersonalActions.Failure.saveFailed }
+            guard auth == HardcoverConfig.authorizationHeaderValue else { throw HardcoverNetworkError.accountChanged }
+            WidgetSync.libraryChanged(statuses: [own?.statusId ?? 1, status])
+            await store.refreshOwnBook()
+            onLibraryChange?(store.ownBook)
+        } catch { actionError = error.localizedDescription }
     }
-    
-    // Change status from Read to Reading (preserves read dates)
-    private func changeStatusToReading(userBookId: Int) async {
-        guard !isActionWorking else { return }
-        await MainActor.run { isActionWorking = true }
-        
-        let today = utcDateString()
-        let ok = await HardcoverService.updateUserBookWithDate(
-            userBookId: userBookId,
-            editionId: book.editionId,
-            statusId: 2, // Currently Reading
-            rating: book.userRating,
-            lastReadDate: today,
-            dateAdded: nil,
-            userDate: today
-        )
-        
-        await MainActor.run {
-            isActionWorking = false
-            if ok {
-#if os(iOS) && !targetEnvironment(macCatalyst)
-                UINotificationFeedbackGenerator().notificationOccurred(.success)
-#endif
-                WidgetCenter.shared.reloadAllTimelines()
-                dismiss()
-            } else {
-                showActionError = true
-            }
-        }
+
+    @MainActor private func removeBook() async {
+        guard !working else { return }
+        working = true
+        defer { working = false }
+        let auth = HardcoverConfig.authorizationHeaderValue
+        do {
+            let own = try await BookPersonalActions.requireOwnBook(bookID: book.bookId, authorization: auth)
+            guard let id = own.userBookId, await HardcoverService.deleteUserBook(userBookId: id) else { throw BookPersonalActions.Failure.saveFailed }
+            guard auth == HardcoverConfig.authorizationHeaderValue else { throw HardcoverNetworkError.accountChanged }
+            WidgetSync.libraryChanged(statuses: [own.statusId ?? 1])
+            onLibraryChange?(nil)
+            dismiss()
+        } catch { actionError = error.localizedDescription }
     }
-    
-    // Change status from Read to Want to Read (preserves read dates)
-    private func changeStatusToWantToRead(userBookId: Int) async {
-        guard !isActionWorking else { return }
-        await MainActor.run { isActionWorking = true }
-        
-        let ok = await HardcoverService.updateUserBookWithDate(
-            userBookId: userBookId,
-            editionId: book.editionId,
-            statusId: 1, // Want to Read
-            rating: book.userRating,
-            lastReadDate: nil,
-            dateAdded: nil,
-            userDate: nil
-        )
-        
-        await MainActor.run {
-            isActionWorking = false
-            if ok {
-#if os(iOS) && !targetEnvironment(macCatalyst)
-                UINotificationFeedbackGenerator().notificationOccurred(.success)
-#endif
-                WidgetCenter.shared.reloadAllTimelines()
-                dismiss()
-            } else {
-                showActionError = true
-            }
-        }
+
+    private func libraryChanged(_ updated: BookProgress) {
+        store.apply(updated)
+        if isOwnBook { mergeOwnBook(updated) }
+        onLibraryChange?(updated)
     }
-    
-    private func utcDateString() -> String {
-        let df = DateFormatter()
-        df.dateFormat = "yyyy-MM-dd"
-        df.timeZone = TimeZone(identifier: "UTC")
-        return df.string(from: Date())
+
+    private func mergeOwnBook(_ own: BookProgress) {
+        var updated = own
+        updated.bookDescription = store.metadata?.description ?? book.bookDescription
+        book = updated
     }
 }
 
+private struct EditionSelectionLoader: View {
+    let book: BookProgress
+    let onSaved: (BookProgress) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var editions: [Edition] = []
+    @State private var selectedID: Int?
+    @State private var loading = true
+    @State private var saving = false
+    @State private var error: String?
+    @State private var authorization = HardcoverConfig.authorizationHeaderValue
 
+    var body: some View {
+        NavigationStack {
+            List {
+                if loading { ProgressView() }
+                if let error { InlineLoadError(message: error) { Task { await load() } } }
+                ForEach(editions) { edition in
+                    EditionRow(edition: edition, isSelected: selectedID == edition.id, isCurrent: book.editionId == edition.id) { selectedID = edition.id }
+                }
+            }
+            .navigationTitle("Change Edition")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.disabled(saving) }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button { Task { await save() } } label: {
+                        if saving { ProgressView() } else { Text("Save") }
+                    }.disabled(saving || selectedID == nil || selectedID == book.editionId)
+                }
+            }
+            .task { selectedID = book.editionId; await load() }
+            .interactiveDismissDisabled(saving)
+        }
+    }
+
+    @MainActor private func load() async {
+        guard let id = book.bookId else { loading = false; return }
+        loading = true; error = nil
+        editions = await HardcoverService.fetchEditions(for: id)
+        loading = false
+        if editions.isEmpty { error = NSLocalizedString("No editions available", comment: "") }
+    }
+
+    @MainActor private func save() async {
+        guard !saving, let selectedID else { return }
+        saving = true; error = nil
+        defer { saving = false }
+        do {
+            let own = try await BookPersonalActions.requireOwnBook(bookID: book.bookId, authorization: authorization)
+            guard let id = own.userBookId, await HardcoverService.updateEdition(userBookId: id, editionId: selectedID) else { throw BookPersonalActions.Failure.saveFailed }
+            WidgetSync.libraryChanged(statuses: [own.statusId ?? 1])
+            let updated = try await BookPersonalActions.requireOwnBook(bookID: book.bookId, authorization: authorization)
+            onSaved(updated)
+            dismiss()
+        } catch { self.error = error.localizedDescription }
+    }
+}

@@ -16,6 +16,15 @@ struct FeedView: View {
     @State private var isLoadingMore = false
     @State private var errorMessage: String?
     @State private var canLoadMore = true
+    @State private var nextOffset = 0
+    @State private var generation = UUID()
+    @State private var snapshots: [FeedFilter: FeedSnapshot] = [:]
+
+    private struct FeedSnapshot {
+        let activities: [FeedActivity]
+        let offset: Int
+        let hasMore: Bool
+    }
     
     @State private var selectedBookForDetails: BookProgress?
     @State private var fetchingDetailsForBookId: Int?
@@ -27,14 +36,15 @@ struct FeedView: View {
             // Segmented Control
             Picker("Filter", selection: $selectedFilter) {
                 ForEach(FeedFilter.allCases, id: \.self) { filter in
-                    Text(filter.rawValue).tag(filter)
+                    Text(LocalizedStringKey(filter.rawValue)).tag(filter)
                 }
             }
             .pickerStyle(.segmented)
             .padding()
-            .onChange(of: selectedFilter) { _, _ in
-                Task { await reload() }
+            if let errorMessage, !activities.isEmpty {
+                InlineLoadError(message: errorMessage) { Task { await reload() } }.padding(.horizontal)
             }
+            if isLoading && !activities.isEmpty { ProgressView().padding(8) }
             
             // Content
             Group {
@@ -125,62 +135,82 @@ struct FeedView: View {
         }
         .navigationTitle("Feed")
         .navigationBarTitleDisplayMode(.large)
-        .task {
-            await reload()
+        .task(id: selectedFilter) {
+            await reload(refresh: false)
         }
-        .sheet(item: $selectedBookForDetails) { book in
-            NavigationStack {
-                BookDetailView(book: book, showFinishAction: false, allowStandaloneReviewButton: true, isOwnBook: false)
+        .navigationDestination(isPresented: Binding(get: { selectedBookForDetails != nil }, set: { if !$0 { selectedBookForDetails = nil } })) {
+            if let book = selectedBookForDetails {
+                BookDetailView(book: book, showFinishAction: false, isOwnBook: false)
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .hardcoverAccountDidChange)) { _ in
+            generation = UUID(); snapshots = [:]; activities = []; nextOffset = 0
+            Task { await reload() }
         }
     }
     
     // MARK: - Data Loading
     
-    private func reload() async {
-        isLoading = true
+    @MainActor private func reload(refresh: Bool = true) async {
+        let filter = selectedFilter
+        let account = HardcoverConfig.authorizationHeaderValue
+        let request = UUID()
+        generation = request
+        isLoadingMore = false
         errorMessage = nil
-        canLoadMore = true
-        
-        let fetched: [FeedActivity]
-        switch selectedFilter {
-        case .yourFeed:
-            fetched = await HardcoverService.fetchFeed(offset: 0, limit: pageSize)
-        case .allActivity:
-            fetched = await HardcoverService.fetchAllActivity(offset: 0, limit: pageSize)
-        }
-        
-        await MainActor.run {
-            activities = fetched
+        if !refresh, let cached = snapshots[filter] {
+            activities = cached.activities
+            nextOffset = cached.offset
+            canLoadMore = cached.hasMore
             isLoading = false
+            return
+        }
+        isLoading = true
+        defer { if generation == request { isLoading = false } }
+        do {
+            try Task.checkCancellation()
+            let fetched = try await fetch(filter: filter, offset: 0)
+            try Task.checkCancellation()
+            guard generation == request, selectedFilter == filter, account == HardcoverConfig.authorizationHeaderValue else { return }
+            activities = fetched
+            nextOffset = fetched.count
             canLoadMore = fetched.count >= pageSize
-            if fetched.isEmpty && selectedFilter == .yourFeed {
-                // Not necessarily an error
-                errorMessage = nil
-            }
+            snapshots[filter] = FeedSnapshot(activities: activities, offset: nextOffset, hasMore: canLoadMore)
+        } catch {
+            guard !Task.isCancelled, generation == request, selectedFilter == filter else { return }
+            errorMessage = error.localizedDescription
         }
     }
-    
-    private func loadMore() async {
-        guard !isLoadingMore, canLoadMore else { return }
+
+    @MainActor private func loadMore() async {
+        guard !Task.isCancelled, !isLoading, !isLoadingMore, canLoadMore else { return }
+        let request = generation
+        let filter = selectedFilter
+        let account = HardcoverConfig.authorizationHeaderValue
         isLoadingMore = true
-        
-        let offset = activities.count
-        let fetched: [FeedActivity]
-        switch selectedFilter {
-        case .yourFeed:
-            fetched = await HardcoverService.fetchFeed(offset: offset, limit: pageSize)
-        case .allActivity:
-            fetched = await HardcoverService.fetchAllActivity(offset: offset, limit: pageSize)
-        }
-        
-        await MainActor.run {
-            // Deduplicate
-            let existingIds = Set(activities.map { $0.id })
-            let newActivities = fetched.filter { !existingIds.contains($0.id) }
-            activities.append(contentsOf: newActivities)
-            isLoadingMore = false
+        defer { if generation == request { isLoadingMore = false } }
+        do {
+            let fetched = try await fetch(filter: filter, offset: nextOffset)
+            try Task.checkCancellation()
+            guard generation == request, selectedFilter == filter, account == HardcoverConfig.authorizationHeaderValue else { return }
+            var existing = Set(activities.map(\.id))
+            activities.append(contentsOf: fetched.filter { existing.insert($0.id).inserted })
+            nextOffset += fetched.count
             canLoadMore = fetched.count >= pageSize
+            snapshots[filter] = FeedSnapshot(activities: activities, offset: nextOffset, hasMore: canLoadMore)
+            errorMessage = nil
+        } catch {
+            guard !Task.isCancelled, generation == request, selectedFilter == filter else { return }
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func fetch(filter: FeedFilter, offset: Int) async throws -> [FeedActivity] {
+        try await HardcoverReadScope.checked {
+            switch filter {
+            case .yourFeed: return await HardcoverService.fetchFeed(offset: offset, limit: pageSize)
+            case .allActivity: return await HardcoverService.fetchAllActivity(offset: offset, limit: pageSize)
+            }
         }
     }
     

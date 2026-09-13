@@ -2,17 +2,6 @@ import Foundation
 
 // MARK: - Quote Models
 
-struct Quote: Identifiable, Codable {
-    let id: Int
-    let entry: String
-    let bookId: Int
-    let createdAt: String
-    let bookTitle: String
-    let authorName: String
-    let editionId: Int?
-    let privacySettingId: Int?
-    let page: Int?
-}
 
 // MARK: - Quotes Extension
 
@@ -41,7 +30,7 @@ extension HardcoverService {
 
         guard let userId: Int = await {
             do {
-                let (data, _) = try await URLSession.shared.data(for: request)
+                let (data, _) = try await HardcoverHTTP.shared.data(for: request)
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let dataObj = json["data"] as? [String: Any],
                    let me = dataObj["me"] as? [[String: Any]],
@@ -91,7 +80,7 @@ extension HardcoverService {
         request.httpBody = jsonData
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await HardcoverHTTP.shared.data(for: request)
 
             if let httpResponse = response as? HTTPURLResponse,
                !(200...299).contains(httpResponse.statusCode) {
@@ -164,144 +153,12 @@ extension HardcoverService {
     // MARK: - Fetch quotes for a specific book
 
     static func fetchQuotesForBook(bookId: Int) async -> [Quote] {
-        guard !HardcoverConfig.apiKey.isEmpty else {
-            print("❌ fetchQuotesForBook: No API key available")
-            return []
-        }
-
-        guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return [] }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
-
-        // First get user ID
-        let meQuery = """
-        { "query": "{ me { id } }" }
-        """
-        request.httpBody = meQuery.data(using: .utf8)
-
-        guard let userId: Int = await {
-            do {
-                let (data, _) = try await URLSession.shared.data(for: request)
-                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let dataObj = json["data"] as? [String: Any],
-                   let me = dataObj["me"] as? [[String: Any]],
-                   let first = me.first,
-                   let id = first["id"] as? Int {
-                    return id
-                }
-            } catch {
-                print("❌ fetchQuotesForBook: Failed to get user ID: \(error)")
-            }
-            return nil
-        }() else { return [] }
-
-        let query = """
-        query {
-          user_books(
-            where: {
-              user_id: {_eq: \(userId)},
-              book_id: {_eq: \(bookId)},
-              reading_journals: {event: {_eq: "quote"}}
-            }
-          ) {
-            book {
-              id
-              title
-              contributions {
-                author {
-                  name
-                }
-              }
-            }
-            reading_journals(where: {event: {_eq: "quote"}}, order_by: {id: desc}) {
-              id
-              entry
-              book_id
-              created_at
-              edition_id
-              privacy_setting_id
-              metadata
-            }
-          }
-        }
-        """
-
-        let body: [String: Any] = ["query": query]
-        guard let jsonData = try? JSONSerialization.data(withJSONObject: body) else { return [] }
-
-        request.httpBody = jsonData
-
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            if let httpResponse = response as? HTTPURLResponse,
-               !(200...299).contains(httpResponse.statusCode) {
-                print("❌ fetchQuotesForBook HTTP error: \(httpResponse.statusCode)")
-                return []
-            }
-
-
-            // Debug: log raw response
-            if let responseString = String(data: data, encoding: .utf8) {
-                print("📥 fetchQuotesForBook response: \(responseString.prefix(500))")
-            }
-
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                return []
-            }
-
-            if let errors = json["errors"] as? [[String: Any]], !errors.isEmpty {
-                print("❌ fetchQuotesForBook errors: \(errors)")
-                return []
-            }
-
-            guard let dataObj = json["data"] as? [String: Any],
-                  let userBooks = dataObj["user_books"] as? [[String: Any]] else {
-                return []
-            }
-
-            var allQuotes: [Quote] = []
-
-            for userBook in userBooks {
-                guard let book = userBook["book"] as? [String: Any],
-                      let bookTitle = book["title"] as? String,
-                      let journals = userBook["reading_journals"] as? [[String: Any]] else {
-                    continue
-                }
-
-                let contributions = book["contributions"] as? [[String: Any]] ?? []
-                let authorName = contributions.compactMap { contrib -> String? in
-                    (contrib["author"] as? [String: Any])?["name"] as? String
-                }.joined(separator: ", ")
-
-                for journal in journals {
-                    guard let journalId = journal["id"] as? Int,
-                          let entry = journal["entry"] as? String else { continue }
-
-                    let page = Self.extractPage(from: journal)
-                    let quote = Quote(
-                        id: journalId,
-                        entry: entry,
-                        bookId: journal["book_id"] as? Int ?? bookId,
-                        createdAt: journal["created_at"] as? String ?? "",
-                        bookTitle: bookTitle,
-                        authorName: authorName.isEmpty ? "Unknown Author" : authorName,
-                        editionId: journal["edition_id"] as? Int,
-                        privacySettingId: journal["privacy_setting_id"] as? Int,
-                        page: page
-                    )
-                    allQuotes.append(quote)
-                }
-            }
-
-            print("[Quotes] Fetched \(allQuotes.count) quotes for book \(bookId)")
-            return allQuotes
-
+            let user = try await LibraryAPI.identity()
+            let data = try await LibraryAPI.request(BookDetailQueries.quotes, variables: ["bookID": bookId, "userID": user.id])
+            return try Quote.decodeBookResponse(data, bookID: bookId)
         } catch {
-            print("❌ fetchQuotesForBook error: \(error)")
+            HardcoverReadScope.failure?.record(error)
             return []
         }
     }
@@ -369,7 +226,7 @@ extension HardcoverService {
         }
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await HardcoverHTTP.shared.data(for: request)
 
             if let httpResponse = response as? HTTPURLResponse {
                 print("📡 Create quote response status: \(httpResponse.statusCode)")
@@ -441,7 +298,7 @@ extension HardcoverService {
         request.httpBody = jsonData
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await HardcoverHTTP.shared.data(for: request)
 
             if let httpResponse = response as? HTTPURLResponse {
                 print("📡 Update quote response status: \(httpResponse.statusCode)")
@@ -500,7 +357,7 @@ extension HardcoverService {
         request.httpBody = jsonData
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await HardcoverHTTP.shared.data(for: request)
 
             if let httpResponse = response as? HTTPURLResponse {
                 print("📡 Delete quote response status: \(httpResponse.statusCode)")

@@ -22,7 +22,7 @@ struct OtherUserFriendsView: View {
             // Segmented Control
             Picker("Filter", selection: $selectedFilter) {
                 ForEach(FriendsFilter.allCases, id: \.self) { filter in
-                    Text(filter.rawValue).tag(filter)
+                    Text(LocalizedStringKey(filter.rawValue)).tag(filter)
                 }
             }
             .pickerStyle(.segmented)
@@ -62,9 +62,9 @@ struct OtherUserFriendsView: View {
                         Image(systemName: selectedFilter == .following ? "person.2" : "person.wave.2")
                             .font(.system(size: 50))
                             .foregroundColor(.secondary)
-                        Text(selectedFilter == .following ? "Not following anyone" : "No followers")
+                        Text(selectedFilter == .following ? LocalizedStringKey("Not following anyone") : LocalizedStringKey("No followers"))
                             .font(.headline)
-                        Text(selectedFilter == .following ? "@\(username) is not following anyone yet" : "@\(username) doesn't have any followers yet")
+                        Text(selectedFilter == .following ? LocalizedStringKey("@\(username) is not following anyone yet") : LocalizedStringKey("@\(username) doesn't have any followers yet"))
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)

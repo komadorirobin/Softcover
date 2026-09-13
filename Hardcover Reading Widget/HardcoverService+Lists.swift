@@ -1,5 +1,32 @@
 import Foundation
 
+struct CommunityList: Identifiable {
+    let id: Int
+    let name: String
+    let description: String?
+    let creatorUsername: String
+    let creatorImage: String?
+    let bookCount: Int
+    let bookCovers: [String]
+    let books: [ListBook]
+}
+
+struct CommunityUpcomingBook: Identifiable {
+    let id: Int
+    let title: String
+    let author: String
+    let coverUrl: String?
+    let releaseDate: String?
+    let contributionsCount: Int
+
+    func toBookProgress() -> BookProgress {
+        BookProgress(id: "\(id)", title: title, author: author,
+                     coverImageData: nil, coverImageUrl: coverUrl, progress: 0,
+                     totalPages: 0, currentPage: 0, bookId: id, userBookId: nil, editionId: nil,
+                     originalTitle: title, editionAverageRating: nil, userRating: nil, bookDescription: nil)
+    }
+}
+
 // MARK: - User Lists Models
 struct UserList: Identifiable, Codable {
     let id: Int
@@ -65,43 +92,18 @@ struct ListBook: Identifiable, Codable, Hashable {
 extension HardcoverService {
     /// Fetch lists for any user by parsing their lists page
     static func fetchUserLists(username: String) async -> [UserList] {
-        guard !HardcoverConfig.apiKey.isEmpty else {
-            print("❌ No API key available")
-            return []
-        }
-
-        guard let url = URL(string: "https://hardcover.app/@\(username)/lists") else {
-            print("❌ Invalid URL")
-            return []
-        }
-
-        var req = URLRequest(url: url)
-        req.httpMethod = "GET"
-        req.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
-
         do {
-            let (data, _) = try await URLSession.shared.data(for: req)
-
-            guard let html = String(data: data, encoding: .utf8) else {
-                print("❌ Could not decode HTML")
-                return []
-            }
-
-            // Extract lists from HTML
-            if let lists = extractListsFromHTML(html) {
-                print("✅ Fetched \(lists.count) lists for @\(username)")
-                return lists
-            }
-
-            return []
+            let html = try await communityHTML("https://hardcover.app/@\(username)/lists")
+            guard let lists = extractListsFromHTML(html) else { throw HardcoverNetworkError.invalidResponse }
+            return lists
         } catch {
-            print("❌ Failed to fetch user lists: \(error)")
+            HardcoverReadScope.failure?.record(error)
             return []
         }
     }
 
     /// Extract lists from Inertia.js data-page attribute
-    private static func extractListsFromHTML(_ html: String) -> [UserList]? {
+    static func extractListsFromHTML(_ html: String) -> [UserList]? {
         // Find data-page attribute
         guard let dataPageRange = html.range(of: "data-page=\"") else {
             print("❌ Could not find data-page attribute")
@@ -152,43 +154,18 @@ extension HardcoverService {
 
     /// Fetch books in a specific list
     static func fetchListBooks(username: String, listSlug: String) async -> [ListBook] {
-        guard !HardcoverConfig.apiKey.isEmpty else {
-            print("❌ No API key available")
-            return []
-        }
-
-        guard let url = URL(string: "https://hardcover.app/@\(username)/lists/\(listSlug)") else {
-            print("❌ Invalid URL")
-            return []
-        }
-
-        var req = URLRequest(url: url)
-        req.httpMethod = "GET"
-        req.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
-
         do {
-            let (data, _) = try await URLSession.shared.data(for: req)
-
-            guard let html = String(data: data, encoding: .utf8) else {
-                print("❌ Could not decode HTML")
-                return []
-            }
-
-            // Extract books from HTML
-            if let books = extractListBooksFromHTML(html) {
-                print("✅ Fetched \(books.count) books from list")
-                return books
-            }
-
-            return []
+            let html = try await communityHTML("https://hardcover.app/@\(username)/lists/\(listSlug)")
+            guard let books = extractListBooksFromHTML(html) else { throw HardcoverNetworkError.invalidResponse }
+            return books
         } catch {
-            print("❌ Failed to fetch list books: \(error)")
+            HardcoverReadScope.failure?.record(error)
             return []
         }
     }
 
     /// Extract books from list detail page
-    private static func extractListBooksFromHTML(_ html: String) -> [ListBook]? {
+    static func extractListBooksFromHTML(_ html: String) -> [ListBook]? {
         // Find data-page attribute
         guard let dataPageRange = html.range(of: "data-page=\"") else {
             print("❌ Could not find data-page attribute")
@@ -250,7 +227,7 @@ extension HardcoverService {
     }
 
     /// Parse books from array of dictionaries
-    private static func parseBooks(_ books: [[String: Any]]) -> [ListBook] {
+    private static func parseBooks(_ books: [[String: Any]]) -> [ListBook]? {
         var listBooks: [ListBook] = []
 
         // Debug first book structure
@@ -268,7 +245,7 @@ extension HardcoverService {
             guard let edition = bookDict["edition"] as? [String: Any],
                   let editionId = edition["id"] as? Int,
                   let rawTitle = edition["title"] as? String else {
-                continue
+                return nil
             }
 
             let title = rawTitle.decodedHTMLEntities
@@ -315,64 +292,28 @@ extension HardcoverService {
 
     /// Fetch community lists (featured or popular)
     static func fetchCommunityLists(filter: String) async -> [CommunityList] {
-        guard !HardcoverConfig.apiKey.isEmpty else {
-            print("❌ fetchCommunityLists: No API key available")
-            return []
-        }
-
-        // Use filter to get featured or popular lists
-        let endpoint = filter == "featured" ? "https://hardcover.app/lists" : "https://hardcover.app/lists/\(filter)"
-        guard let url = URL(string: endpoint) else {
-            print("❌ fetchCommunityLists: Invalid URL: \(endpoint)")
-            return []
-        }
-
-        print("[Lists] Fetching \(filter) lists from: \(endpoint)")
-
-        var req = URLRequest(url: url)
-        req.httpMethod = "GET"
-        req.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
-        req.timeoutInterval = 30 // Add timeout
-
-        do {
-            let (data, response) = try await URLSession.shared.data(for: req)
-
-            // Check HTTP status
-            if let httpResponse = response as? HTTPURLResponse {
-                print("[Lists] Status code: \(httpResponse.statusCode)")
-                guard (200...299).contains(httpResponse.statusCode) else {
-                    print("❌ HTTP error: \(httpResponse.statusCode)")
-                    return []
-                }
-            }
-
-            guard let html = String(data: data, encoding: .utf8) else {
-                print("❌ Could not decode HTML response")
-                return []
-            }
-
-            print("[Lists] HTML length: \(html.count) characters")
-
-            // Extract community lists from HTML
-            if let lists = extractCommunityListsFromHTML(html) {
-                print("[Lists] Successfully fetched \(lists.count) \(filter) community lists")
-                return lists
-            } else {
-                print("❌ Failed to extract lists from HTML")
-            }
-
-            return []
-        } catch let error as URLError {
-            print("❌ Network error fetching community lists: \(error.localizedDescription) (code: \(error.code.rawValue))")
-            return []
-        } catch {
-            print("❌ Unexpected error fetching community lists: \(error)")
+        do { return try await communityLists(filter: filter) }
+        catch {
+            HardcoverReadScope.failure?.record(error)
             return []
         }
     }
 
+    static func communityLists(filter: String) async throws -> [CommunityList] {
+        guard !HardcoverConfig.apiKey.isEmpty else { throw HardcoverNetworkError.signIn }
+        let endpoint = filter == "featured" ? "https://hardcover.app/lists" : "https://hardcover.app/lists/popular"
+        var request = URLRequest(url: URL(string: endpoint)!)
+        request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
+        let (data, _) = try await HardcoverHTTP.shared.data(for: request)
+        try Task.checkCancellation()
+        guard let html = String(data: data, encoding: .utf8),
+              let lists = extractCommunityListsFromHTML(html) else { throw HardcoverNetworkError.invalidResponse }
+        return lists
+    }
+
+
     /// Extract community lists from Inertia.js data-page attribute
-    private static func extractCommunityListsFromHTML(_ html: String) -> [CommunityList]? {
+    static func extractCommunityListsFromHTML(_ html: String) -> [CommunityList]? {
         // Find data-page attribute
         guard let dataPageRange = html.range(of: "data-page=\"") else {
             print("❌ Could not find data-page attribute in HTML")
@@ -418,7 +359,7 @@ extension HardcoverService {
             guard let listsArray = props["lists"] as? [[String: Any]] else {
                 print("❌ Could not find 'lists' array in props")
                 // Try alternative structures
-                if let listData = props["list"] as? [String: Any] {
+                if props["list"] is [String: Any] {
                     print("[Lists] Found 'list' (singular) instead of 'lists'")
                 }
                 return nil
@@ -431,7 +372,7 @@ extension HardcoverService {
             for listDict in listsArray {
                 guard let id = listDict["id"] as? Int,
                       let name = listDict["name"] as? String else {
-                    continue
+                    return nil
                 }
 
                 let description = listDict["description"] as? String
@@ -530,144 +471,94 @@ extension HardcoverService {
 
     /// Fetch books in a community list
     static func fetchCommunityListBooks(listId: Int) async -> [ListBook] {
-        guard !HardcoverConfig.apiKey.isEmpty else {
-            print("❌ No API key available")
-            return []
-        }
-
-        guard let url = URL(string: "https://hardcover.app/lists/\(listId)") else {
-            print("❌ Invalid URL")
-            return []
-        }
-
-        var req = URLRequest(url: url)
-        req.httpMethod = "GET"
-        req.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
-
         do {
-            let (data, _) = try await URLSession.shared.data(for: req)
-
-            guard let html = String(data: data, encoding: .utf8) else {
-                print("❌ Could not decode HTML")
-                return []
-            }
-
-            // Reuse the existing extraction method
-            if let books = extractListBooksFromHTML(html) {
-                print("✅ Fetched \(books.count) books for community list \(listId)")
-                return books
-            }
-
-            return []
+            let html = try await communityHTML("https://hardcover.app/lists/\(listId)")
+            guard let books = extractListBooksFromHTML(html) else { throw HardcoverNetworkError.invalidResponse }
+            return books
         } catch {
-            print("❌ Failed to fetch community list books: \(error)")
+            HardcoverReadScope.failure?.record(error)
             return []
         }
+    }
+
+    private static func communityHTML(_ address: String) async throws -> String {
+        guard !HardcoverConfig.apiKey.isEmpty else { throw HardcoverNetworkError.signIn }
+        guard let url = URL(string: address) else { throw HardcoverNetworkError.invalidResponse }
+        var request = URLRequest(url: url)
+        request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
+        let (data, _) = try await HardcoverHTTP.shared.data(for: request)
+        try Task.checkCancellation()
+        guard let html = String(data: data, encoding: .utf8) else { throw HardcoverNetworkError.invalidResponse }
+        return html
     }
 
     // MARK: - Community Upcoming Releases
 
+    typealias CommunityUpcomingInterval = CommunityQueries.UpcomingInterval
+
+    static func communityUpcomingInterval(filter: String, now: Date = Date()) -> CommunityUpcomingInterval {
+        CommunityQueries.upcomingInterval(filter: filter, now: now)
+    }
+
     /// Fetch popular upcoming releases from community
     static func fetchCommunityUpcomingReleases(filter: String) async -> [CommunityUpcomingBook] {
-        guard !HardcoverConfig.apiKey.isEmpty else {
-            print("❌ No API key configured for community upcoming releases")
+        do { return try await communityUpcomingReleases(filter: filter) }
+        catch {
+            HardcoverReadScope.failure?.record(error)
             return []
         }
-
-        let limit = 25
-
-        let popularBooks = await fetchCommunityUpcomingBooks(limit: limit)
-        if !popularBooks.isEmpty {
-            return popularBooks
-        }
-
-        return await fetchCommunityUpcomingEditions(limit: limit)
     }
 
-    private static func fetchCommunityUpcomingBooks(limit: Int) async -> [CommunityUpcomingBook] {
-        let query = """
-        query CommunityUpcomingBooks($today: date!, $limit: Int!) {
-          books(
-            where: {
-              release_date: { _gte: $today }
-            },
-            order_by: [{ users_count: desc }, { release_date: asc }],
-            limit: $limit
-          ) {
-            id
-            title
-            release_date
-            users_count
-            users_read_count
-            contributions(limit: 1) { author { name } }
-            image { url }
-          }
-        }
-        """
+    static func communityUpcomingReleases(filter: String, now: Date = Date()) async throws -> [CommunityUpcomingBook] {
+        guard !HardcoverConfig.apiKey.isEmpty else { throw HardcoverNetworkError.signIn }
+        let interval = communityUpcomingInterval(filter: filter, now: now)
+        let popularBooks = try await fetchCommunityUpcomingBooks(interval: interval, limit: 25)
+        if !popularBooks.isEmpty { return popularBooks }
+        try Task.checkCancellation()
+        return try await fetchCommunityUpcomingEditions(interval: interval, limit: 25)
+    }
 
-        guard let root = await performCommunityUpcomingGraphQL(
-            query: query,
+    static let communityUpcomingBooksQuery = CommunityQueries.upcomingBooks
+
+    private static func fetchCommunityUpcomingBooks(interval: CommunityUpcomingInterval, limit: Int) async throws -> [CommunityUpcomingBook] {
+        let root = try await performCommunityUpcomingGraphQL(
+            query: communityUpcomingBooksQuery,
             variables: [
-                "today": communityUpcomingDateString(Date()),
+                "start": interval.start,
+                "end": interval.endExclusive,
                 "limit": max(limit, 1)
             ]
-        ),
-              let data = root["data"] as? [String: Any],
+        )
+        guard let data = root["data"] as? [String: Any],
               let rows = data["books"] as? [[String: Any]] else {
-            return []
+            throw HardcoverNetworkError.invalidResponse
         }
-
-        return rows.compactMap { makeCommunityUpcomingBook(fromBook: $0) }
+        let books = rows.compactMap { makeCommunityUpcomingBook(fromBook: $0) }
+        guard books.count == rows.count else { throw HardcoverNetworkError.invalidResponse }
+        return books
     }
 
-    private static func fetchCommunityUpcomingEditions(limit: Int) async -> [CommunityUpcomingBook] {
-        let query = """
-        query CommunityUpcomingEditions($today: date!, $limit: Int!) {
-          editions(
-            where: {
-              release_date: { _gte: $today }
-            },
-            order_by: [{ users_count: desc }, { release_date: asc }],
-            limit: $limit
-          ) {
-            id
-            book_id
-            title
-            release_date
-            users_count
-            users_read_count
-            contributions(limit: 1) { author { name } }
-            image { url }
-            book {
-              id
-              title
-              release_date
-              users_count
-              users_read_count
-              contributions(limit: 1) { author { name } }
-              image { url }
-            }
-          }
-        }
-        """
+    static let communityUpcomingEditionsQuery = CommunityQueries.upcomingEditions
 
-        guard let root = await performCommunityUpcomingGraphQL(
-            query: query,
+    private static func fetchCommunityUpcomingEditions(interval: CommunityUpcomingInterval, limit: Int) async throws -> [CommunityUpcomingBook] {
+        let root = try await performCommunityUpcomingGraphQL(
+            query: communityUpcomingEditionsQuery,
             variables: [
-                "today": communityUpcomingDateString(Date()),
+                "start": interval.start,
+                "end": interval.endExclusive,
                 "limit": max(limit * 4, 80)
             ]
-        ),
-              let data = root["data"] as? [String: Any],
+        )
+        guard let data = root["data"] as? [String: Any],
               let rows = data["editions"] as? [[String: Any]] else {
-            return []
+            throw HardcoverNetworkError.invalidResponse
         }
 
         var booksById: [Int: CommunityUpcomingBook] = [:]
 
         for row in rows {
             guard let book = makeCommunityUpcomingBook(fromEdition: row) else {
-                continue
+                throw HardcoverNetworkError.invalidResponse
             }
 
             if let existing = booksById[book.id] {
@@ -698,52 +589,12 @@ extension HardcoverService {
         return formatter.string(from: date)
     }
 
-    private static func performCommunityUpcomingGraphQL(query: String, variables: [String: Any]) async -> [String: Any]? {
-        guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else {
-            return nil
+    private static func performCommunityUpcomingGraphQL(query: String, variables: [String: Any]) async throws -> [String: Any] {
+        let data = try await LibraryAPI.request(query, variables: variables)
+        guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw HardcoverNetworkError.invalidResponse
         }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(HardcoverConfig.authorizationHeaderValue, forHTTPHeaderField: "Authorization")
-        request.setValue("Softcover iOS", forHTTPHeaderField: "User-Agent")
-
-        do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: [
-                "query": query,
-                "variables": variables
-            ])
-
-            let (data, response) = try await URLSession.shared.data(for: request)
-            if let http = response as? HTTPURLResponse, http.statusCode != 200 {
-                print("❌ Community upcoming GraphQL HTTP \(http.statusCode)")
-                return nil
-            }
-
-            guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                return nil
-            }
-
-            if let error = root["error"] as? String, !error.isEmpty {
-                print("❌ Community upcoming GraphQL Error: \(error)")
-                return nil
-            }
-
-            if let errors = root["errors"] as? [[String: Any]], !errors.isEmpty {
-                for error in errors {
-                    if let message = error["message"] as? String {
-                        print("❌ Community upcoming GraphQL Error: \(message)")
-                    }
-                }
-                return nil
-            }
-
-            return root
-        } catch {
-            print("❌ Community upcoming GraphQL request failed: \(error)")
-            return nil
-        }
+        return root
     }
 
     private static func makeCommunityUpcomingBook(fromBook dict: [String: Any]) -> CommunityUpcomingBook? {

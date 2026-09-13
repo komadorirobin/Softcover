@@ -22,32 +22,22 @@ struct Provider: AppIntentTimelineProvider {
     }
 
     func snapshot(for configuration: BookSelectionIntent, in context: Context) async -> SimpleEntry {
-        logDiagnostics(context: "snapshot")
         if context.isPreview {
             return placeholder(in: context)
         }
         // Widgets: använd mindre bilder för att spara minne/bandbredd
-        let allBooks = await HardcoverService.fetchCurrentlyReading(forWidget: true)
-        let filteredBooks = filterBooks(allBooks: allBooks, configuration: configuration)
-        if filteredBooks.isEmpty && context.isPreview {
-            return placeholder(in: context)
-        }
-        return SimpleEntry(date: Date(), books: filteredBooks, configuration: configuration)
+        let loaded = await WidgetReaders.reading(selectedIDs: configuration.displayMode == .manualSelection ? (configuration.books ?? []).map(\.id) : [])
+        let filteredBooks = filterBooks(allBooks: loaded.value, configuration: configuration)
+        return SimpleEntry(date: loaded.date, books: filteredBooks, configuration: configuration, failed: loaded.failed)
     }
     
     func timeline(for configuration: BookSelectionIntent, in context: Context) async -> Timeline<SimpleEntry> {
-        logDiagnostics(context: "timeline")
-        // Widgets: använd mindre bilder för att spara minne/bandbredd
-        let allBooks = await HardcoverService.fetchCurrentlyReading(forWidget: true)
-        let filteredBooks = filterBooks(allBooks: allBooks, configuration: configuration)
-        let entry = SimpleEntry(date: Date(), books: filteredBooks, configuration: configuration)
-
-        let nextUpdate: Date
-        if HardcoverConfig.apiKey.isEmpty || filteredBooks.isEmpty {
-            nextUpdate = Calendar.current.date(byAdding: .minute, value: 5, to: Date())!
-        } else {
-            nextUpdate = Calendar.current.date(byAdding: .minute, value: 30, to: Date())!
-        }
+        let loaded = await WidgetReaders.reading(selectedIDs: configuration.displayMode == .manualSelection ? (configuration.books ?? []).map(\.id) : [])
+        let filteredBooks = filterBooks(allBooks: loaded.value, configuration: configuration)
+        let entry = SimpleEntry(date: loaded.date, books: filteredBooks, configuration: configuration, failed: loaded.failed)
+        // A signed-out or genuinely empty library does not need a five-minute poll.
+        let interval: TimeInterval = HardcoverConfig.apiKey.isEmpty ? 21600 : (loaded.failed ? 900 : 1800)
+        let nextUpdate = Date().addingTimeInterval(interval)
         return Timeline(entries: [entry], policy: .after(nextUpdate))
     }
     
@@ -78,19 +68,13 @@ struct Provider: AppIntentTimelineProvider {
         return filtered
     }
 
-    private func logDiagnostics(context: String) {
-        let hasKey = !HardcoverConfig.apiKey.isEmpty
-        let usesSuite = (AppGroup.defaults != .standard)
-        let keyLength = HardcoverConfig.apiKey.count
-        let ping = AppGroup.defaults.string(forKey: "WidgetPing") ?? "nil"
-        print("🧪 Widget \(context): apiKey present? \(hasKey), length=\(keyLength), using App Group suite? \(usesSuite), ping=\(ping)")
-    }
 }
 
 struct SimpleEntry: TimelineEntry {
     let date: Date
     let books: [BookProgress]
     let configuration: BookSelectionIntent
+    var failed = false
 }
 
 struct ReadingProgressWidgetEntryView: View {
@@ -100,19 +84,24 @@ struct ReadingProgressWidgetEntryView: View {
     @ViewBuilder
     var body: some View {
         let firstBook = entry.books.first
-        switch family {
-        case .systemSmall:
-            SmallWidgetView(book: firstBook)
+        if entry.failed && entry.books.isEmpty {
+            NoBooksView(unavailable: true)
                 .containerBackground(.fill.tertiary, for: .widget)
-        case .systemMedium:
-            MediumWidgetView(books: Array(entry.books.prefix(2)))
-                .containerBackground(.fill.tertiary, for: .widget)
-        case .systemLarge:
-            LargeWidgetView(books: Array(entry.books.prefix(4)), lastUpdated: entry.date)
-                .containerBackground(.fill.tertiary, for: .widget)
-        default:
-            MediumWidgetView(books: Array(entry.books.prefix(2)))
-                .containerBackground(.fill.tertiary, for: .widget)
+        } else {
+            switch family {
+            case .systemSmall:
+                SmallWidgetView(book: firstBook)
+                    .containerBackground(.fill.tertiary, for: .widget)
+            case .systemMedium:
+                MediumWidgetView(books: Array(entry.books.prefix(2)))
+                    .containerBackground(.fill.tertiary, for: .widget)
+            case .systemLarge:
+                LargeWidgetView(books: Array(entry.books.prefix(4)), lastUpdated: entry.date)
+                    .containerBackground(.fill.tertiary, for: .widget)
+            default:
+                MediumWidgetView(books: Array(entry.books.prefix(2)))
+                    .containerBackground(.fill.tertiary, for: .widget)
+            }
         }
     }
 }

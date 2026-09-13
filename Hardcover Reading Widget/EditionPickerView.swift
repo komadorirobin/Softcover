@@ -9,11 +9,13 @@ struct EditionPickerView: View {
     }
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Group {
                 if viewModel.isLoading {
                     loadingView
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if !viewModel.errorMessage.isEmpty && viewModel.editions.isEmpty {
+                    InlineLoadError(message: viewModel.errorMessage) { Task { await viewModel.loadEditions() } }.padding()
                 } else if viewModel.editions.isEmpty {
                     emptyView
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
