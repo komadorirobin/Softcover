@@ -484,9 +484,12 @@ struct CatalogEditionEditor: View {
                 CatalogTextField("Title", text: $draft.title)
                 CatalogTextField("Subtitle", text: $draft.subtitle)
                 Picker("Format", selection: $draft.readingFormatID) {
-                    ForEach(lookups.formats) { Text($0.displayName).tag($0.id) }
-                    if !lookups.formats.contains(where: { $0.id == draft.readingFormatID }) {
-                        Text("Unknown format").tag(draft.readingFormatID)
+                    ForEach(lookups.editionReadingFormats) { Text($0.displayName).tag($0.id) }
+                    if !lookups.editionReadingFormats.contains(where: { $0.id == draft.readingFormatID }) {
+                        Text(lookups.formats.first { $0.id == draft.readingFormatID }?.displayName
+                             ?? NSLocalizedString("Unknown format", comment: ""))
+                            .tag(draft.readingFormatID)
+                            .disabled(true)
                     }
                 }
                 CatalogTextField("Binding / edition format", text: $draft.editionFormat)

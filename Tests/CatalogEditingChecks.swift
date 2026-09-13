@@ -90,6 +90,20 @@ struct CatalogEditingChecks {
         try check(try CatalogBookDraft(book).patch(from: book).isEmpty, "Unchanged book produced a patch")
         try check(try CatalogEditionDraft(edition).patch(from: edition).isEmpty, "Unchanged edition produced a patch")
 
+        let formatRegistry = [
+            CatalogFormat(id: 1, format: "Read"),
+            CatalogFormat(id: 2, format: "Listened"),
+            CatalogFormat(id: 3, format: "Both"),
+            CatalogFormat(id: 4, format: "Ebook")
+        ]
+        let formatLookups = CatalogLookups(formats: formatRegistry, roles: [])
+        try check(formatLookups.editionReadingFormats.map(\.id) == [1, 2, 4], "Edition picker differs from Hardcover's supported formats")
+        try check(formatLookups.editionReadingFormats.map(\.displayName) == ["Physical book", "Audiobook", "E-book"],
+                  "Registry activity labels leaked into the edition picker")
+        try check(formatLookups.formats.contains(where: { $0.id == CatalogFormat.legacyBothID }),
+                  "Legacy format was discarded instead of being preserved for existing editions")
+        print("PASS: Hardcover reading-format names, order and legacy preservation")
+
         let editionRoleNames = ["Author", "Illustrator", "Editor", "Translator", "Narrator", "Foreword", "Introduction", "Cover Artist", "Other"]
         let editorRoles = editionRoleNames.enumerated().map { CatalogEntity(id: 100 + $0.offset, name: $0.element) }
         let legacyRole = CatalogEntity(id: 500, name: "Art Director")

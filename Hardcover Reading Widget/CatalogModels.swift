@@ -112,11 +112,22 @@ struct CatalogEdition: Decodable, Equatable, Identifiable {
 }
 
 struct CatalogFormat: Decodable, Equatable, Identifiable {
+    static let physicalBookID = 1
     static let audiobookID = 2
+    static let legacyBothID = 3
+    static let ebookID = 4
     let id: Int
     let format: String
 
     var displayName: String {
+        // Hardcover's registry labels describe activity (Read/Listened), while
+        // its edition editor presents the user-facing reading format names.
+        switch id {
+        case Self.physicalBookID: return NSLocalizedString("Physical book", comment: "")
+        case Self.audiobookID: return NSLocalizedString("Audiobook", comment: "")
+        case Self.ebookID: return NSLocalizedString("E-book", comment: "")
+        default: break
+        }
         switch format.lowercased() {
         case "ebook", "e-book": return NSLocalizedString("E-book", comment: "")
         case "physical", "physical book": return NSLocalizedString("Physical book", comment: "")
@@ -129,6 +140,12 @@ struct CatalogFormat: Decodable, Equatable, Identifiable {
 struct CatalogLookups: Decodable {
     let formats: [CatalogFormat]
     let roles: [CatalogEntity]
+
+    private static let editionReadingFormatIDs = [
+        CatalogFormat.physicalBookID,
+        CatalogFormat.audiobookID,
+        CatalogFormat.ebookID
+    ]
 
     private static let editionRoleNames = [
         "Author", "Illustrator", "Editor", "Translator", "Narrator",
@@ -144,6 +161,12 @@ struct CatalogLookups: Decodable {
 
     var defaultContributorRoleID: Int? {
         roles.first { $0.name?.caseInsensitiveCompare("Author") == .orderedSame }?.id
+    }
+
+    // "Both" is a legacy registry value. Hardcover's edition editor offers
+    // only Physical Book, Audiobook and Ebook for new changes.
+    var editionReadingFormats: [CatalogFormat] {
+        Self.editionReadingFormatIDs.compactMap { id in formats.first { $0.id == id } }
     }
 }
 

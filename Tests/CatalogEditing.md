@@ -60,6 +60,10 @@ for a non-audio format. Existing hidden server metadata is not silently cleared.
 Foundation checks cover all these draft transitions, unknown formats, numeric
 validation, and sparse duration updates.
 
+The format picker maps Hardcover's registry IDs to its edition-editor labels:
+Physical Book, Audiobook and Ebook. The legacy Both value remains readable on
+existing records but is not offered as a new selection.
+
 To validate the actual Swift GraphQL documents against Hardcover's current schema:
 
 ```sh
