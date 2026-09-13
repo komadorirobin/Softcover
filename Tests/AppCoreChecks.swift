@@ -45,6 +45,7 @@ struct AppCoreChecks {
         print("UIKit HTML entity decoding and actual HTML parsing are not tested by this executable.")
 
         await checkDatesAndModels()
+        await checkWantToRead()
         await checkHTTP()
         await checkLibrary()
         await checkSnapshots()
@@ -54,6 +55,66 @@ struct AppCoreChecks {
         if !failures.isEmpty {
             for failure in failures { FileHandle.standardError.write(Data("\(failure)\n".utf8)) }
             exit(1)
+        }
+    }
+
+    static func checkWantToRead() async {
+        let utc = TimeZone(secondsFromGMT: 0)!
+        let now = ReleaseDate.parse("2026-09-13")!.addingTimeInterval(43200)
+        func book(_ id: Int, _ date: String?) -> BookProgress {
+            var book = coreBook(id: id, status: 1)
+            book.releaseDate = date
+            book.parsedReleaseDate = ReleaseDate.parse(date)
+            return book
+        }
+        let books = [book(9, nil), book(8, "2026-09-12"), book(7, "2027-01-01"), book(6, "2026-09-13"),
+                     book(5, "2020-01-01"), book(4, "2026-09-14"), book(3, "2026-09-14"), book(2, "invalid")]
+        await run("Want to Read sorts nearest releases before published and unknown dates") {
+            func ids(_ sort: WantToReadSort) -> [String] {
+                WantToReadPresentation.books(books, query: "", filter: .all, sort: sort, now: now, timeZone: utc).map(\.id)
+            }
+            try require(ids(.nearestRelease) == ["6", "3", "4", "7", "8", "5", "2", "9"], "Nearest release ordering or stable ties are wrong")
+            try require(ids(.newestRelease) == ["7", "3", "4", "6", "8", "5", "2", "9"], "Newest ordering is wrong")
+            try require(ids(.oldestRelease) == ["5", "8", "6", "3", "4", "7", "2", "9"], "Oldest ordering is wrong")
+            try require(ids(.recentlyAdded) == books.map(\.id), "Recently added changed server order")
+        }
+        await run("Want to Read filters and search preserve release ordering and date fallback") {
+            let upcoming = WantToReadPresentation.books(books, query: "", filter: .upcoming, sort: .nearestRelease, now: now, timeZone: utc)
+            let published = WantToReadPresentation.books(books, query: "", filter: .recent, sort: .nearestRelease, now: now, timeZone: utc)
+            try require(upcoming.map(\.id) == ["6", "3", "4", "7"], "Today excluded or unknown date included in upcoming")
+            try require(published.map(\.id) == ["8", "5"], "Published books are not newest first")
+            var fallback = book(10, "2026-09-14")
+            fallback.parsedReleaseDate = nil
+            fallback.title = "A MATCH in the title"
+            var authorMatch = book(11, "2026-09-15")
+            authorMatch.author = "Matching Author"
+            let matches = WantToReadPresentation.books([authorMatch, fallback] + books, query: "  match \n", filter: .upcoming,
+                                                       sort: .nearestRelease, now: now, timeZone: utc)
+            try require(matches.map(\.id) == ["10", "11"], "Search lost author, title, whitespace or raw date fallback")
+        }
+        await run("Release countdown uses local calendar days across midnight, DST and time zones") {
+            let cases: [(String, String, String, Int)] = [
+                ("2026-09-13T22:30:00Z", "Europe/Stockholm", "2026-09-14", 0),
+                ("2026-09-13T22:30:00Z", "America/Los_Angeles", "2026-09-14", 1),
+                ("2026-09-14T06:30:00Z", "America/Los_Angeles", "2026-09-14", 1),
+                ("2026-09-13T21:59:59Z", "Europe/Stockholm", "2026-09-14", 1),
+                ("2026-09-13T22:00:00Z", "Europe/Stockholm", "2026-09-14", 0),
+                ("2026-03-28T23:30:00Z", "Europe/Stockholm", "2026-03-30", 1),
+                ("2026-10-24T22:30:00Z", "Europe/Stockholm", "2026-10-26", 1),
+                ("2024-02-28T12:00:00Z", "Europe/Stockholm", "2024-03-01", 2),
+                ("2026-12-31T12:00:00Z", "Europe/Stockholm", "2027-01-01", 1),
+                ("2026-09-15T12:00:00Z", "Europe/Stockholm", "2026-09-14", -1)
+            ]
+            for (instant, zone, release, expected) in cases {
+                let now = ISO8601DateFormatter().date(from: instant)!
+                let days = WantToReadPresentation.daysUntil(ReleaseDate.parse(release)!, now: now, timeZone: TimeZone(identifier: zone)!)
+                try require(days == expected, "Wrong day count for \(instant) in \(zone): \(days)")
+            }
+            let release = book(12, "2026-09-14")
+            let localMidnight = ISO8601DateFormatter().date(from: "2026-09-14T22:00:00Z")!
+            let remaining = WantToReadPresentation.books([release], query: "", filter: .upcoming, sort: .nearestRelease,
+                                                        now: localMidnight, timeZone: TimeZone(identifier: "Europe/Stockholm")!)
+            try require(remaining.isEmpty, "Published book remained in upcoming after local midnight")
         }
     }
 
@@ -709,6 +770,33 @@ struct AppCoreChecks {
             await store.load()
             await store.loadMore()
             try require(AppCoreMockProtocol.requests.count == count, "Loaded store or final page refetched automatically")
+        }
+        await run("Want to Read release sorting includes later pages after initial load and refresh") {
+            AppGroup.useAccount()
+            await HardcoverHTTP.shared.invalidate()
+            AppCoreMockProtocol.reset { record in
+                if record.query == LibraryAPI.identityQuery { return .init(["data": ["me": [["id": 1, "username": "fixture"]]]]) }
+                let offset = record.variables["offset"] as? Int ?? 0
+                let limit = record.variables["limit"] as? Int ?? 0
+                let rows = (offset..<min(offset + limit, 125)).map { index -> [String: Any] in
+                    var row = libraryRow(id: index + 1)
+                    row["status_id"] = 1
+                    var edition = row["edition"] as! [String: Any]
+                    edition["release_date"] = index == 124 ? "2026-09-14" : "2026-10-01"
+                    row["edition"] = edition
+                    return row
+                }
+                return .init(["data": ["user_books": rows]])
+            }
+            let store = LibraryListStore(status: 1)
+            for refresh in [false, true] {
+                await store.load(refresh: refresh)
+                await store.ensureAllLoaded()
+                let sorted = WantToReadPresentation.books(store.books, query: "", filter: .all, sort: .nearestRelease,
+                                                          now: ReleaseDate.parse("2026-09-13")!, timeZone: TimeZone(secondsFromGMT: 0)!)
+                try require(sorted.count == 125 && sorted.first?.id == "125" && !store.hasMore,
+                            "Nearest release on the third page was lost (refresh: \(refresh))")
+            }
         }
         await run("Library store refresh failure preserves data and displays error") {
             AppGroup.useAccount()

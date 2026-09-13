@@ -23,6 +23,8 @@ SDKROOT="$sdk" xcrun swiftc -target arm64-apple-ios26.0-simulator -sdk "$sdk" -p
   "Hardcover Reading Widget/LibraryListStore.swift" \
   "Hardcover Reading Widget/BookTagExtractor.swift" \
   "Hardcover Reading Widget/BookRow.swift" \
+  "Hardcover Reading Widget/WantToReadPresentation.swift" \
+  WantToReadView.swift \
   "Hardcover Reading Widget/BookDetailStore.swift" \
   "Hardcover Reading Widget/BookDetailQueries.swift" \
   "Hardcover Reading Widget/Quote.swift" \

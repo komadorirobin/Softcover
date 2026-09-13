@@ -539,14 +539,15 @@ struct CatalogEditionEditor: View {
             CatalogEntitySearch(kind: kind, service: service, excluded: []) { entity in
                 if kind == .publisher { draft.publisher = entity }
                 else {
-                    draft.contributors.append(CatalogContributorDraft(author: entity))
+                    draft.contributors.append(CatalogContributorDraft(author: entity, roleID: lookups.defaultContributorRoleID))
                 }
             }
         }
     }
 
     private var contributorsSection: some View {
-        Section("Authors and contributors") {
+        let roles = lookups.editionContributorRoles
+        return Section("Authors and contributors") {
             ForEach($draft.contributors) { $contributor in
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
@@ -559,10 +560,12 @@ struct CatalogEditionEditor: View {
                             .accessibilityLabel("Remove contributor").buttonStyle(.borderless)
                     }
                     Picker("Role", selection: $contributor.roleID) {
-                        Text("Unspecified").tag(Int?.none)
-                        ForEach(lookups.roles) { role in Text(role.displayName).tag(Optional(role.id)) }
-                        if let id = contributor.roleID, !lookups.roles.contains(where: { $0.id == id }) {
-                            Text("#\(id)").tag(Optional(id))
+                        ForEach(roles) { role in Text(role.displayName).tag(Optional(role.id)) }
+                        if let id = contributor.roleID, !roles.contains(where: { $0.id == id }) {
+                            Text(lookups.roles.first { $0.id == id }?.displayName ?? "#\(id)")
+                                .tag(Optional(id)).disabled(true)
+                        } else if contributor.roleID == nil {
+                            Text("Unspecified").tag(Int?.none).disabled(true)
                         }
                     }
                     .disabled(contributor.specializationID != nil)

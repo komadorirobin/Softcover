@@ -129,6 +129,22 @@ struct CatalogFormat: Decodable, Equatable, Identifiable {
 struct CatalogLookups: Decodable {
     let formats: [CatalogFormat]
     let roles: [CatalogEntity]
+
+    private static let editionRoleNames = [
+        "Author", "Illustrator", "Editor", "Translator", "Narrator",
+        "Foreword", "Introduction", "Cover Artist", "Other"
+    ]
+
+    // Keep the full registry for existing data, but offer only Hardcover's edition editor roles.
+    var editionContributorRoles: [CatalogEntity] {
+        Self.editionRoleNames.compactMap { name in
+            roles.first { $0.name?.caseInsensitiveCompare(name) == .orderedSame }
+        }
+    }
+
+    var defaultContributorRoleID: Int? {
+        roles.first { $0.name?.caseInsensitiveCompare("Author") == .orderedSame }?.id
+    }
 }
 
 struct CatalogContributorDraft: Identifiable, Equatable {

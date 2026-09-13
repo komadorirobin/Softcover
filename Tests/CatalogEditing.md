@@ -95,6 +95,11 @@ Authors are edition contributions, not edits to the global author record. Series
 editing changes book membership and position, not the global series name. Existing
 contributor specializations and series details are preserved. Specialized contributor
 roles are retained; removing and re-adding a contribution can select a new role.
+Edition role choices match Hardcover's editor: Author, Illustrator, Editor,
+Translator, Narrator, Foreword, Introduction, Cover Artist and Other, in that order.
+IDs come from the server registry; new contributors default to Author when available.
+Legacy, unknown and unspecified current roles remain visible but are not selectable
+as new values. Opening the editor or editing unrelated fields never normalizes them.
 
 Covers support an existing edition image or URL import using `insert_image`.
 There is no local-photo upload endpoint in the documented GraphQL image input.

@@ -1,6 +1,30 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Nearest release" : {
+      "extractionState": "manual",
+      "localizations": { "sv": { "stringUnit": { "state": "translated", "value": "Närmaste release" } } }
+    },
+    "Release date (newest first)" : {
+      "extractionState": "manual",
+      "localizations": { "sv": { "stringUnit": { "state": "translated", "value": "Utgivningsdatum (nyast först)" } } }
+    },
+    "Release date (oldest first)" : {
+      "extractionState": "manual",
+      "localizations": { "sv": { "stringUnit": { "state": "translated", "value": "Utgivningsdatum (äldst först)" } } }
+    },
+    "Sort by" : {
+      "extractionState": "manual",
+      "localizations": { "sv": { "stringUnit": { "state": "translated", "value": "Sortera efter" } } }
+    },
+    "Releases tomorrow" : {
+      "extractionState": "manual",
+      "localizations": { "sv": { "stringUnit": { "state": "translated", "value": "Släpps i morgon" } } }
+    },
+    "Release date unknown" : {
+      "extractionState": "manual",
+      "localizations": { "sv": { "stringUnit": { "state": "translated", "value": "Utgivningsdatum saknas" } } }
+    },
     "Finish" : {
       "extractionState": "manual",
       "localizations": {

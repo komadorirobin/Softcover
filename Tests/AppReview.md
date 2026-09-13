@@ -22,6 +22,9 @@ All subsequent checks can run offline.
 - Format-aware progress, strict release dates, format/language/year presentation,
   and quote page metadata. UIKit HTML entity decoding is explicitly stubbed in the
   core executable; actual web-page parsing is covered by the social fixtures.
+- Want to Read release sorting across all pages and after refresh, deterministic
+  ties, missing dates, search/filters, and local-day countdowns across time zones,
+  midnight, daylight-saving changes, leap days and year boundaries.
 - History cancellation and resume, Explore filter races and release intervals,
   malformed versus legitimately empty HTML lists/goals.
 - Widget snapshots, selective reload batching, exact deep links, bounded disk cache,
@@ -40,7 +43,7 @@ app.softcover.book-ui-fixture. It compiles the production book rows, book detail
 progress editor, review sheet and reading navigation with synthetic covers and
 in-memory dependencies. Network access fails closed.
 
-Launch arguments include detail, progress audio dark, finish, large-text,
+Launch arguments include want-to-read, detail, progress audio dark, finish, large-text,
 reduce-motion, offline, social, and save-error. The fixture also asserts
 progress-unit correctness and ordering of competing detail loads.
 

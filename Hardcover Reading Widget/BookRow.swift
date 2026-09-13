@@ -3,6 +3,7 @@ import SwiftUI
 struct BookRow: View {
     let book: BookProgress
     var subtitle: String? = nil
+    var releaseReferenceDate: Date? = nil
     var isWorking = false
     var actionIcon: String? = nil
     var actionLabel: LocalizedStringKey = ""
@@ -27,7 +28,9 @@ struct BookRow: View {
                             Label(book.displayFormat, systemImage: book.isAudiobook ? "headphones" : "book.closed")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
-                        if let subtitle {
+                        if let releaseReferenceDate {
+                            releaseSummary(relativeTo: releaseReferenceDate)
+                        } else if let subtitle {
                             Text(subtitle).font(.caption).foregroundStyle(.secondary)
                         } else if book.statusId == 2 || book.currentUnits > 0 {
                             Text(BookProgressPresentation.summary(book)).font(.caption)
@@ -68,6 +71,25 @@ struct BookRow: View {
             }
         }
         .padding(.vertical, 8)
+    }
+
+    @ViewBuilder private func releaseSummary(relativeTo reference: Date) -> some View {
+        if let date = book.parsedReleaseDate ?? ReleaseDate.parse(book.releaseDate) {
+            let days = WantToReadPresentation.daysUntil(date, now: reference)
+            if days >= 0 {
+                Label {
+                    if days == 0 { Text("Releases today") }
+                    else if days == 1 { Text("Releases tomorrow") }
+                    else { Text(String(format: NSLocalizedString("%d days left", comment: ""), days)) }
+                } icon: { Image(systemName: "calendar") }
+                .font(.caption.weight(.medium)).foregroundStyle(.tint).monospacedDigit()
+            }
+            Text(date, format: Date.FormatStyle(date: .abbreviated, time: .omitted,
+                                               calendar: Calendar(identifier: .gregorian), timeZone: TimeZone(secondsFromGMT: 0)!))
+                .font(.caption).foregroundStyle(.secondary)
+        } else {
+            Text("Release date unknown").font(.caption).foregroundStyle(.secondary)
+        }
     }
 }
 

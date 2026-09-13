@@ -11,11 +11,21 @@ enum HardcoverNetworkError: LocalizedError {
     case invalidResponse, accountChanged
     var errorDescription: String? { "Fixture response unavailable." }
 }
+enum HardcoverReadScope {
+    static func checked<T>(_ operation: () async -> T) async throws -> T { await operation() }
+}
+enum NotificationManager {
+    static let mutedReleaseIds: Set<Int> = []
+    static let isEnabled = false
+    static func setMuted(_ muted: Bool, for id: Int) { }
+    static func scheduleReleaseNotification(for release: HardcoverService.UpcomingRelease) async { }
+    static func removeNotification(for id: Int) async { }
+}
 extension String { var decodedHTMLEntities: String { self } }
 enum ReleaseDate {
     static func parse(_ string: String?) -> Date? {
         guard let string else { return nil }
-        return ISO8601DateFormatter().date(from: string + "T12:00:00Z")
+        return ISO8601DateFormatter().date(from: string + "T00:00:00Z")
     }
 }
 struct LibraryPage { let books: [BookProgress]; let hasMore: Bool; let nextOffset: Int }
@@ -46,6 +56,16 @@ enum WidgetSync {
             bookId: 3, userBookId: 103, editionId: 203, originalTitle: "En riktigt lång svensk boktitel som ska kunna läsas även med större text",
             readingFormat: "Physical", statusId: 2)
     ]
+    static var wantToReadBooks: [BookProgress] {
+        [14, -1, 1, 0, -365, Int.max].enumerated().map { index, days in
+            let sample = books[index % books.count]
+            let date = days == Int.max ? nil : WantToReadPresentation.today(now: Date()).addingTimeInterval(Double(days) * 86400)
+            return BookProgress(id: "\(200 + index)", title: sample.title, author: sample.author,
+                                coverImageData: sample.coverImageData, bookId: sample.bookId, userBookId: 200 + index,
+                                originalTitle: sample.originalTitle, readingFormat: sample.readingFormat,
+                                statusId: 1, parsedReleaseDate: date)
+        }
+    }
     static func cover(_ text: String, color: UIColor) -> Data {
         UIGraphicsImageRenderer(size: CGSize(width: 180, height: 270)).image { context in
             color.setFill(); context.fill(CGRect(x: 0, y: 0, width: 180, height: 270))
@@ -75,7 +95,8 @@ enum WidgetSync {
     }
     static func page(status: Int, offset: Int = 0, username: String? = nil, fresh: Bool = false) async throws -> LibraryPage {
         if CommandLine.arguments.contains("offline") { throw HardcoverNetworkError.invalidResponse }
-        return LibraryPage(books: FixtureData.books, hasMore: false, nextOffset: 3)
+        let books = status == 1 ? FixtureData.wantToReadBooks : FixtureData.books
+        return LibraryPage(books: books, hasMore: false, nextOffset: books.count)
     }
     static func request(_ query: String, variables: [String: Any] = [:], fresh: Bool = false, cost: Int = 1) async throws -> Data {
         if CommandLine.arguments.contains("offline") { throw HardcoverNetworkError.invalidResponse }
@@ -101,6 +122,9 @@ enum WidgetSync {
 }
 struct Edition: Identifiable { let id: Int; let title: String? }
 @MainActor enum HardcoverService {
+    struct UpcomingRelease {
+        let id: Int; let bookId: Int; let title: String; let author: String; let releaseDate: Date; let coverImageData: Data?
+    }
     struct PublicReview: Identifiable {
         let id: Int; let rating: Double?; let reviewedAt: Date?; let text: String?; let username: String?
         let likesCount: Int; let userHasLiked: Bool
@@ -147,7 +171,6 @@ struct BookQuotesView: View {
     let bookId: Int; let bookTitle: String; let editionId: Int?; let totalPages: Int?; let highlightQuoteId: Int?
     var body: some View { Text("Quotes") }
 }
-struct WantToReadView: View { let onComplete: (Bool) -> Void; var body: some View { Text("Want to Read") } }
 struct ExplorerView: View { let onComplete: (Bool) -> Void; var body: some View { Text("Explore") } }
 struct SearchBooksView: View { let onDone: (Bool) -> Void; var body: some View { Text("Search Books") } }
 struct ProfileView: View { var body: some View { Text("Profile") } }
@@ -157,6 +180,7 @@ struct ApiKeySettingsView: View { let onSaved: (String) -> Void; var body: some 
 @main struct BookUIFixture: App {
     init() {
         UserDefaults.standard.set("book-ui-fixture", forKey: "HardcoverAPIKey")
+        UserDefaults.standard.set(WantToReadSort.nearestRelease.rawValue, forKey: "WantToReadSortOrder")
         // Fail closed: URL loading is disabled, even if a future view introduces a request.
         URLProtocol.registerClass(NoNetworkProtocol.self)
         var audio = ReadingProgressDraft(book: FixtureData.books[1])
@@ -204,7 +228,9 @@ struct ApiKeySettingsView: View { let onSaved: (String) -> Void; var body: some 
 }
 private struct FixtureRoot: View {
     var body: some View {
-        if CommandLine.arguments.contains("progress") {
+        if CommandLine.arguments.contains("want-to-read") {
+            WantToReadView { _ in }
+        } else if CommandLine.arguments.contains("progress") {
             ReadingProgressEditor(book: FixtureData.books[CommandLine.arguments.contains("audio") ? 1 : 0]) { _ in }
         } else if CommandLine.arguments.contains("finish") {
             FinishRateReviewSheet(book: FixtureData.books[0], markFinished: true) { _ in }

@@ -1,11 +1,13 @@
 import SwiftUI
 
 struct WantToReadView: View {
-    enum FilterType: String, CaseIterable { case all = "All", upcoming = "Upcoming", recent = "Recent" }
     @StateObject private var store = LibraryListStore(status: 1)
     @AppStorage("HardcoverAPIKey", store: AppGroup.defaults) private var apiKey = ""
+    @AppStorage("WantToReadSortOrder", store: AppGroup.defaults) private var selectedSort: WantToReadSort = .nearestRelease
+    @Environment(\.scenePhase) private var scenePhase
     @State private var searchText = ""
-    @State private var selectedFilter: FilterType = .all
+    @State private var selectedFilter: WantToReadFilter = .all
+    @State private var referenceDate = Date()
     @State private var visibleBooks: [BookProgress] = []
     @State private var selectedBook: BookProgress?
     @State private var pendingDelete: BookProgress?
@@ -16,13 +18,14 @@ struct WantToReadView: View {
     @State private var notificationsEnabled = NotificationManager.isEnabled
     let onComplete: (Bool) -> Void
 
-    private var filterRequest: String { apiKey + "|" + searchText + "|" + selectedFilter.rawValue }
+    private var filterRequest: String { apiKey + "|" + searchText + "|" + selectedFilter.rawValue + "|" + selectedSort.rawValue }
+    private var needsCompleteList: Bool { selectedSort != .recentlyAdded || selectedFilter != .all || !searchText.isEmpty }
 
     var body: some View {
         NavigationStack {
             List {
                 if let error = store.error {
-                    InlineLoadError(message: error) { Task { await store.load(refresh: true) } }
+                    InlineLoadError(message: error) { Task { await loadBooks(refresh: true) } }
                 }
                 if let actionError {
                     InlineLoadError(message: actionError) { self.actionError = nil }
@@ -33,6 +36,7 @@ struct WantToReadView: View {
                 ForEach(visibleBooks) { book in
                     BookRow(
                         book: book,
+                        releaseReferenceDate: referenceDate,
                         isWorking: workingID == book.id,
                         actionIcon: "book",
                         actionLabel: "Start Reading",
@@ -63,7 +67,7 @@ struct WantToReadView: View {
                         }
                         Spacer()
                     }
-                    .task { if selectedFilter == .all && searchText.isEmpty { await store.loadMore() } }
+                    .task { if !needsCompleteList { await store.loadMore() } }
                 }
                 if !store.isLoading, !store.hasMore, visibleBooks.isEmpty, store.error == nil {
                     ContentUnavailableView(
@@ -79,11 +83,21 @@ struct WantToReadView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Menu {
                         Picker("Filter", selection: $selectedFilter) {
-                            ForEach(FilterType.allCases, id: \.self) { Text(LocalizedStringKey($0.rawValue)).tag($0) }
+                            ForEach(WantToReadFilter.allCases, id: \.self) { Text(LocalizedStringKey($0.rawValue)).tag($0) }
                         }
                     } label: {
                         Label(LocalizedStringKey(selectedFilter.rawValue), systemImage: "line.3.horizontal.decrease")
                     }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Picker("Sort by", selection: $selectedSort) {
+                            ForEach(WantToReadSort.allCases, id: \.self) { Text(LocalizedStringKey($0.title)).tag($0) }
+                        }
+                    } label: {
+                        Label("Sort by", systemImage: "arrow.up.arrow.down")
+                    }
+                    .accessibilityValue(Text(LocalizedStringKey(selectedSort.title)))
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { showingSettings = true } label: { Image(systemName: "gearshape") }
@@ -100,47 +114,51 @@ struct WantToReadView: View {
             } message: { Text($0.title) }
             .task(id: apiKey) {
                 selectedBook = nil
-                await store.load()
-                refreshVisibleBooks()
+                await loadBooks()
             }
             .task(id: filterRequest) {
                 refreshVisibleBooks()
-                guard !searchText.isEmpty || selectedFilter != .all else { return }
+                guard needsCompleteList else { return }
                 do { try await Task.sleep(for: .milliseconds(300)) } catch { return }
+                guard store.error == nil else { return }
                 await store.ensureAllLoaded()
             }
             .onChange(of: store.books) { _, _ in refreshVisibleBooks() }
             .onChange(of: searchText) { _, _ in refreshVisibleBooks() }
             .onChange(of: selectedFilter) { _, _ in refreshVisibleBooks() }
+            .onChange(of: selectedSort) { _, _ in refreshVisibleBooks() }
             .onReceive(NotificationCenter.default.publisher(for: .libraryDidChange)) { _ in
-                Task { await store.load(refresh: true) }
+                Task { await loadBooks(refresh: true) }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
+                refreshDay()
+            }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { refreshDay() }
             }
             .onAppear {
                 notificationsEnabled = NotificationManager.isEnabled
                 mutedIDs = NotificationManager.mutedReleaseIds
+                refreshDay()
             }
-            .refreshable { await store.load(refresh: true) }
+            .refreshable { await loadBooks(refresh: true) }
         }
     }
 
     private func refreshVisibleBooks() {
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let today = ReleaseDate.parse(ReleaseDate.string(Date())) ?? Date()
-        var filtered = store.books.filter {
-            query.isEmpty || $0.title.localizedCaseInsensitiveContains(query) || $0.author.localizedCaseInsensitiveContains(query)
-        }
-        if selectedFilter != .all {
-            filtered = filtered.filter {
-                guard let date = $0.parsedReleaseDate else { return false }
-                return selectedFilter == .upcoming ? date >= today : date < today
-            }
-            filtered.sort {
-                let a = $0.parsedReleaseDate ?? .distantPast, b = $1.parsedReleaseDate ?? .distantPast
-                if a == b { return $0.id < $1.id }
-                return selectedFilter == .upcoming ? a < b : a > b
-            }
-        }
-        visibleBooks = filtered
+        visibleBooks = WantToReadPresentation.books(store.books, query: searchText, filter: selectedFilter,
+                                                    sort: selectedSort, now: referenceDate)
+    }
+
+    private func refreshDay() {
+        referenceDate = Date()
+        refreshVisibleBooks()
+    }
+
+    private func loadBooks(refresh: Bool = false) async {
+        await store.load(refresh: refresh)
+        if needsCompleteList, store.error == nil { await store.ensureAllLoaded() }
+        refreshVisibleBooks()
     }
 
     private func startReading(_ book: BookProgress) async {

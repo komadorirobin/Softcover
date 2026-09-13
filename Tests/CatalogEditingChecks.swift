@@ -90,6 +90,43 @@ struct CatalogEditingChecks {
         try check(try CatalogBookDraft(book).patch(from: book).isEmpty, "Unchanged book produced a patch")
         try check(try CatalogEditionDraft(edition).patch(from: edition).isEmpty, "Unchanged edition produced a patch")
 
+        let editionRoleNames = ["Author", "Illustrator", "Editor", "Translator", "Narrator", "Foreword", "Introduction", "Cover Artist", "Other"]
+        let editorRoles = editionRoleNames.enumerated().map { CatalogEntity(id: 100 + $0.offset, name: $0.element) }
+        let legacyRole = CatalogEntity(id: 500, name: "Art Director")
+        let lookups = CatalogLookups(formats: [], roles: [legacyRole, CatalogEntity(id: 501, name: "Bibliographer"),
+                                                       CatalogEntity(id: 502, name: nil)] + editorRoles.reversed())
+        try check(lookups.editionContributorRoles.map(\.displayName) == editionRoleNames, "Edition roles differ from Hardcover or use registry ordering")
+        try check(lookups.editionContributorRoles.map(\.id) == Array(100...108), "Edition role IDs were guessed or replaced")
+        try check(lookups.roles.contains(legacyRole), "Filtering removed the original role needed for legacy display")
+        let newContributor = CatalogContributorDraft(author: CatalogEntity(id: 62, name: "New author"), roleID: lookups.defaultContributorRoleID)
+        try check(newContributor.roleID == 100, "New contributor does not default to the server's Author role")
+        let missingRoles = CatalogLookups(formats: [], roles: [legacyRole])
+        try check(missingRoles.editionContributorRoles.isEmpty && missingRoles.defaultContributorRoleID == nil, "Missing roles must not invent IDs or select a legacy role")
+        let mixedCase = CatalogLookups(formats: [], roles: [CatalogEntity(id: 701, name: "author"), CatalogEntity(id: 702, name: "COVER ARTIST")])
+        try check(mixedCase.editionContributorRoles.map(\.id) == [701, 702] && mixedCase.defaultContributorRoleID == 701, "Role matching is case sensitive")
+        for roleID: Int? in [500, 999, nil] {
+            var originalJSON = try object(editionJSON)
+            var originalContributions = originalJSON["contributions"] as! [[String: Any]]
+            originalContributions[0]["roleID"] = roleID as Any? ?? NSNull()
+            originalJSON["contributions"] = originalContributions
+            let original = try decoder.decode(CatalogEdition.self, from: JSONSerialization.data(withJSONObject: originalJSON))
+            var preserved = CatalogEditionDraft(original)
+            try check(try preserved.patch(from: original).isEmpty, "Legacy/unknown/missing role dirtied an unchanged edition")
+            preserved.pages = "200"
+            let pageDTO = try preserved.patch(from: original)["dto"] as! [String: Any]
+            try check(pageDTO["contributions"] == nil, "Page change overwrote a legacy/unknown/missing role")
+            preserved.contributors.append(newContributor)
+            let roleDTO = try preserved.patch(from: original)["dto"] as! [String: Any]
+            let inputs = roleDTO["contributions"] as! [[String: Any]]
+            try check(inputs[0]["contributor_role_id"] as? Int == roleID, "Adding an author changed an existing role")
+            try check(inputs[0]["contributor_specialization_id"] as? Int == 5 && inputs[0]["contribution"] as? String == "Illustrator", "Adding an author lost legacy contribution metadata")
+            try check(inputs[1]["contributor_role_id"] as? Int == 100, "New author role not serialized")
+            preserved.contributors[1].roleID = editorRoles.last!.id
+            let otherDTO = try preserved.patch(from: original)["dto"] as! [String: Any]
+            try check((otherDTO["contributions"] as! [[String: Any]])[1]["contributor_role_id"] as? Int == 108, "Other role not serialized")
+        }
+        print("PASS: edition role allowlist, server IDs, Author default, Other selection and legacy contribution preservation")
+
         var bookDraft = CatalogBookDraft(book)
         bookDraft.title = "New \"title\"\nSecond line"
         let titlePatch = try bookDraft.patch(from: book)
