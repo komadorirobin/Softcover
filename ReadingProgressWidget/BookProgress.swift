@@ -1,5 +1,30 @@
 import Foundation
 
+enum HardcoverReadingFormat {
+    static func displayName(for rawValue: String?, assumeAudiobook: Bool = false) -> String {
+        if assumeAudiobook {
+            return NSLocalizedString("Audiobook", comment: "Audio reading format")
+        }
+
+        let value = rawValue?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        switch value.lowercased() {
+        case "ebook", "e-book":
+            return NSLocalizedString("E-book", comment: "Electronic book reading format")
+        case "read", "physical", "physical book":
+            return NSLocalizedString("Physical book", comment: "Printed book reading format")
+        case "listened", "audio", "audiobook", "audio book":
+            return NSLocalizedString("Audiobook", comment: "Audio reading format")
+        default:
+            return value.isEmpty ? NSLocalizedString("Unknown format", comment: "Edition has no reading format") : value
+        }
+    }
+
+    static func isAudiobook(_ rawValue: String?) -> Bool {
+        let value = rawValue?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return ["listened", "audio", "audiobook", "audio book"].contains(value)
+    }
+}
+
 // This is now the only place where the "recipe" for BookProgress exists.
 struct BookProgress: Identifiable, Codable, Hashable, Sendable {
     let id: String
@@ -33,11 +58,7 @@ struct BookProgress: Identifiable, Codable, Hashable, Sendable {
     var currentUnits: Int { isAudiobook ? currentMinute : currentPage }
     var totalUnits: Int { isAudiobook ? totalMinutes : totalPages }
     var displayFormat: String {
-        let format = readingFormat?.lowercased() ?? ""
-        if isAudiobook { return NSLocalizedString("Audiobook", comment: "") }
-        if format == "ebook" || format == "e-book" { return NSLocalizedString("E-book", comment: "") }
-        if format == "physical" || format == "physical book" { return NSLocalizedString("Physical book", comment: "") }
-        return readingFormat ?? NSLocalizedString("Unknown format", comment: "")
+        HardcoverReadingFormat.displayName(for: readingFormat, assumeAudiobook: isAudiobook)
     }
 
     func withProgress(_ units: Int) -> BookProgress {

@@ -163,25 +163,12 @@ struct Edition: Codable, Identifiable {
     }
 
     var displayFormat: String {
-        guard let format = readingFormat?.format?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !format.isEmpty else {
-            return NSLocalizedString("Unknown format", comment: "Edition has no reading format")
-        }
-        switch format.lowercased() {
-        case "ebook", "e-book":
-            return NSLocalizedString("E-book", comment: "Electronic book reading format")
-        case "physical", "physical book":
-            return NSLocalizedString("Physical book", comment: "Printed book reading format")
-        case "audio", "audiobook", "audio book":
-            return NSLocalizedString("Audiobook", comment: "Audio reading format")
-        default:
-            return format
-        }
+        HardcoverReadingFormat.displayName(for: readingFormat?.format)
     }
 
     var isAudiobook: Bool {
-        if let format = readingFormat?.format?.lowercased() {
-            return ["audio", "audiobook", "audio book"].contains(format)
+        if readingFormat?.format != nil {
+            return HardcoverReadingFormat.isAudiobook(readingFormat?.format)
         }
         return (audioSeconds ?? 0) > 0
     }

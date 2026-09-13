@@ -176,7 +176,12 @@ struct AppCoreChecks {
             try require(book.coverImageUrl == "https://images.invalid/edition.jpg", "Edition cover not preferred")
             try require(book.releaseDate == "2026-09-01" && book.parsedReleaseDate == ReleaseDate.parse("2026-09-01"), "Wrong release mapping")
             try require(!book.isAudiobook && book.readingFormat == "Ebook" && book.currentPage == 80, "Duration overrode explicit ebook format")
+            try require(book.displayFormat == NSLocalizedString("E-book", comment: ""), "Ebook format label was not normalized")
             try require(abs(book.progress - 1.0 / 3.0) < 0.0001, "Ebook used audio progress")
+            let physical = LibraryAPI.makeBook(try decodeRow(libraryRow(id: 17, format: "Read")))!
+            try require(physical.displayFormat == NSLocalizedString("Physical book", comment: ""), "Hardcover Read label leaked into the library")
+            let listened = LibraryAPI.makeBook(try decodeRow(libraryRow(id: 18, format: "Listened")))!
+            try require(listened.isAudiobook && listened.displayFormat == NSLocalizedString("Audiobook", comment: ""), "Hardcover Listened label was not mapped as audio")
             var fallback = libraryRow(id: 8)
             fallback["edition"] = NSNull()
             let mapped = LibraryAPI.makeBook(try decodeRow(fallback))
@@ -205,6 +210,9 @@ struct AppCoreChecks {
             let audio = try JSONDecoder().decode(Edition.self, from: JSONSerialization.data(withJSONObject: source))
             try require(audio.isAudiobook && audio.displayInfo.contains("1h 0m") && !audio.displayInfo.contains(pages), "Audio length presented as pages")
             try require(audio.displayInfo.contains("Fixture Language"), "Language-name fallback lost")
+            source["reading_format"] = ["format": "Read"]
+            let physical = try JSONDecoder().decode(Edition.self, from: JSONSerialization.data(withJSONObject: source))
+            try require(!physical.isAudiobook && physical.displayFormat == NSLocalizedString("Physical book", comment: ""), "Edition Read label was not normalized")
             source["language"] = NSNull()
             source["release_date"] = "2026-02-30"
             let missing = try JSONDecoder().decode(Edition.self, from: JSONSerialization.data(withJSONObject: source))
