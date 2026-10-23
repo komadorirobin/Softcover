@@ -11,7 +11,7 @@ final class EditionPickerViewModel: ObservableObject {
 
     let book: BookProgress
     private let onComplete: (Bool) -> Void
-    private let account = HardcoverConfig.authorizationHeaderValue
+    private let account = HardcoverConfig.accountIdentifier
     private var generation = UUID()
 
     init(book: BookProgress, onComplete: @escaping (Bool) -> Void) {
@@ -29,10 +29,10 @@ final class EditionPickerViewModel: ObservableObject {
         defer { if generation == token { isLoading = false } }
         do {
             let values = try await HardcoverReadScope.checked { await HardcoverService.fetchEditions(for: id) }
-            guard generation == token, account == HardcoverConfig.authorizationHeaderValue else { return }
+            guard generation == token, account == HardcoverConfig.accountIdentifier else { return }
             editions = values
         } catch is CancellationError { }
-        catch { if account == HardcoverConfig.authorizationHeaderValue { errorMessage = error.localizedDescription } }
+        catch { if account == HardcoverConfig.accountIdentifier { errorMessage = error.localizedDescription } }
     }
 
     func saveEdition(dismiss: @escaping () -> Void) async {
@@ -40,14 +40,14 @@ final class EditionPickerViewModel: ObservableObject {
         isSaving = true
         defer { isSaving = false }
         do {
-            guard account == HardcoverConfig.authorizationHeaderValue else { throw HardcoverNetworkError.accountChanged }
+            guard account == HardcoverConfig.accountIdentifier else { throw HardcoverNetworkError.accountChanged }
             guard let own = try await LibraryAPI.ownBook(bookID: bookID, fresh: true), let ownID = own.userBookId else {
                 throw HardcoverNetworkError.invalidResponse
             }
             let success = try await HardcoverReadScope.checked {
                 await HardcoverService.updateEdition(userBookId: ownID, editionId: editionID)
             }
-            guard account == HardcoverConfig.authorizationHeaderValue else { throw HardcoverNetworkError.accountChanged }
+            guard account == HardcoverConfig.accountIdentifier else { throw HardcoverNetworkError.accountChanged }
             guard success else { throw HardcoverNetworkError.invalidResponse }
             WidgetSync.libraryChanged(statuses: [own.statusId ?? 2])
             onComplete(true)

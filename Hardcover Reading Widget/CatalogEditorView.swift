@@ -4,27 +4,30 @@ import WidgetKit
 extension CatalogService {
     static func live() -> CatalogService {
         let authorization = HardcoverConfig.authorizationHeaderValue
+        let account = HardcoverConfig.accountIdentifier
         return CatalogService(authorization: authorization,
                        currentAuthorization: { HardcoverConfig.authorizationHeaderValue },
+                       accountIdentifier: account,
+                       currentAccountIdentifier: { HardcoverConfig.accountIdentifier },
                        beforeRequest: { query in
                            let cost = query == editionEditingQuery ? 3 : ([overviewQuery, lookupsQuery].contains(query) ? 2 : 1)
-                           try await HardcoverRequestScheduler.shared.acquire(authorization: authorization, cost: cost)
+                           try await HardcoverRequestScheduler.shared.acquire(authorization: account, cost: cost)
                        },
-                       afterResponse: { await HardcoverRequestScheduler.shared.observe($0, authorization: authorization) },
-                       afterMutation: { await HardcoverHTTP.shared.invalidateReads(authorization: authorization) })
+                       afterResponse: { await HardcoverRequestScheduler.shared.observe($0, authorization: account) },
+                       afterMutation: { await HardcoverHTTP.shared.invalidateReads(authorization: account) })
     }
 }
 
 private struct CatalogAccessRequest: Hashable {
     let bookID: Int?
-    let apiKey: String
+    let authRevision: String
 }
 
 private struct CatalogEditingModifier: ViewModifier {
     let bookID: Int?
     let currentEditionID: Int?
     let onSaved: () -> Void
-    @AppStorage("HardcoverAPIKey", store: AppGroup.defaults) private var apiKey = ""
+    @AppStorage("HardcoverAuthRevision", store: AppGroup.defaults) private var authRevision = ""
     @State private var checkingAccess = true
     @State private var allowed = false
     @State private var accessError: String?
@@ -33,7 +36,7 @@ private struct CatalogEditingModifier: ViewModifier {
     @State private var changed = false
 
     private var accessRequest: CatalogAccessRequest {
-        CatalogAccessRequest(bookID: bookID, apiKey: apiKey)
+        CatalogAccessRequest(bookID: bookID, authRevision: authRevision)
     }
 
     func body(content: Content) -> some View {
@@ -85,7 +88,7 @@ private struct CatalogEditingModifier: ViewModifier {
         defer {
             if !Task.isCancelled, accessRequest == request { checkingAccess = false }
         }
-        guard bookID != nil, !apiKey.isEmpty else { return }
+        guard bookID != nil, HardcoverConfig.isSignedIn else { return }
         do {
             let granted = try await CatalogService.live().canEdit()
             guard !Task.isCancelled, accessRequest == request else { return }

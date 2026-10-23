@@ -92,6 +92,7 @@ struct SmallWidgetView: View {
                                 }
                             }
                         }
+                        WidgetProgressButton(book: book)
                     }
                     .padding(.top, 6)
                     .padding(.bottom, 10)
@@ -303,6 +304,7 @@ struct LargeBookProgressRow: View {
                         .tint(progressTint)
                 }
             }
+            WidgetProgressButton(book: book)
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 8)
@@ -416,6 +418,7 @@ struct MediumBookProgressRow: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            WidgetProgressButton(book: book)
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 6)

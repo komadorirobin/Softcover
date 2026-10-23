@@ -100,7 +100,7 @@ final class BookDetailStore: ObservableObject {
     }
 
     func apply(_ book: BookProgress) {
-        guard account == HardcoverConfig.authorizationHeaderValue else { return }
+        guard account == HardcoverConfig.accountIdentifier else { return }
         personalGeneration = UUID()
         ownBook = book
         hasLoadedOwnBook = true
@@ -182,7 +182,7 @@ final class BookDetailStore: ObservableObject {
     static let quotesQuery = BookDetailQueries.quotes
 
     private func resetIfAccountChanged() {
-        let auth = HardcoverConfig.authorizationHeaderValue
+        let auth = HardcoverConfig.accountIdentifier
         guard account != auth else { return }
         account = auth
         metadata = nil
@@ -203,7 +203,7 @@ final class BookDetailStore: ObservableObject {
     }
 
     private func isCurrent(_ authorization: String) -> Bool {
-        account == authorization && authorization == HardcoverConfig.authorizationHeaderValue
+        account == authorization && authorization == HardcoverConfig.accountIdentifier
     }
 
     private static func timestamp(_ value: String?) -> Date? {
@@ -230,12 +230,12 @@ enum BookPersonalActions {
     }
 
     static func requireOwnBook(bookID: Int?, authorization: String) async throws -> BookProgress {
-        guard authorization == HardcoverConfig.authorizationHeaderValue else { throw HardcoverNetworkError.accountChanged }
+        guard authorization == HardcoverConfig.accountIdentifier else { throw HardcoverNetworkError.accountChanged }
         guard let bookID, let own = try await LibraryAPI.ownBook(bookID: bookID, fresh: true), own.userBookId != nil else {
             throw Failure.missingBook
         }
         try Task.checkCancellation()
-        guard authorization == HardcoverConfig.authorizationHeaderValue else { throw HardcoverNetworkError.accountChanged }
+        guard authorization == HardcoverConfig.accountIdentifier else { throw HardcoverNetworkError.accountChanged }
         return own
     }
 }

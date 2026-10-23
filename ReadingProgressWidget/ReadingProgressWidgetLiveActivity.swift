@@ -1,80 +1,90 @@
-//
-//  ReadingProgressWidgetLiveActivity.swift
-//  ReadingProgressWidget
-//
-//  Created by Robin Bolinsson on 2025-08-22.
-//
-
 import ActivityKit
-import WidgetKit
 import SwiftUI
-
-struct ReadingProgressWidgetAttributes: ActivityAttributes {
-    public struct ContentState: Codable, Hashable {
-        // Dynamic stateful properties about your activity go here!
-        var emoji: String
-    }
-
-    // Fixed non-changing properties about your activity go here!
-    var name: String
-}
+import WidgetKit
 
 struct ReadingProgressWidgetLiveActivity: Widget {
     var body: some WidgetConfiguration {
-        ActivityConfiguration(for: ReadingProgressWidgetAttributes.self) { context in
-            // Lock screen/banner UI goes here
-            VStack {
-                Text("Hello \(context.state.emoji)")
+        ActivityConfiguration(for: ReadingSessionActivityAttributes.self) { context in
+            HStack(spacing: 14) {
+                Image(systemName: context.state.isPaused ? "pause.circle.fill" : "book.fill")
+                    .font(.title2).foregroundStyle(.tint)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(context.attributes.title).font(.headline).lineLimit(1)
+                    HStack(spacing: 8) {
+                        sessionTimer(context.state).font(.title3.weight(.semibold)).monospacedDigit()
+                        Text(context.state.isPaused ? "Paused" : "Reading")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                Spacer()
+                progressLabel(context)
             }
-            .activityBackgroundTint(Color.cyan)
+            .padding(.horizontal, 4)
+            .activityBackgroundTint(Color(.secondarySystemBackground))
             .activitySystemActionForegroundColor(.primary)
-
+            .widgetURL(sessionURL(context.attributes.bookID))
         } dynamicIsland: { context in
             DynamicIsland {
-                // Expanded UI goes here.  Compose the expanded UI through
-                // various regions, like leading/trailing/center/bottom
                 DynamicIslandExpandedRegion(.leading) {
-                    Text("Leading")
+                    Label("Reading", systemImage: "book.fill").font(.caption)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    Text("Trailing")
+                    sessionTimer(context.state).font(.caption.weight(.semibold)).monospacedDigit()
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    Text("Bottom \(context.state.emoji)")
-                    // more content
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(context.attributes.title).font(.headline).lineLimit(1)
+                            if !context.attributes.author.isEmpty {
+                                Text(context.attributes.author).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                            }
+                        }
+                        Spacer()
+                        progressLabel(context)
+                    }
                 }
             } compactLeading: {
-                Text("L")
+                Image(systemName: context.state.isPaused ? "pause.fill" : "book.fill")
             } compactTrailing: {
-                Text("T \(context.state.emoji)")
+                sessionTimer(context.state).font(.caption2).monospacedDigit()
             } minimal: {
-                Text(context.state.emoji)
+                Image(systemName: "book.fill")
             }
-            .widgetURL(URL(string: "http://www.apple.com"))
-            .keylineTint(Color.red)
+            .widgetURL(sessionURL(context.attributes.bookID))
+            .keylineTint(.accentColor)
         }
     }
-}
 
-extension ReadingProgressWidgetAttributes {
-    fileprivate static var preview: ReadingProgressWidgetAttributes {
-        ReadingProgressWidgetAttributes(name: "World")
+    @ViewBuilder private func sessionTimer(_ state: ReadingSessionActivityAttributes.ContentState) -> some View {
+        if let resumedAt = state.resumedAt, !state.isPaused {
+            let start = resumedAt.addingTimeInterval(TimeInterval(-state.accumulatedSeconds))
+            Text(timerInterval: start...Date.distantFuture, countsDown: false)
+        } else {
+            Text(Self.duration(state.accumulatedSeconds))
+        }
     }
-}
 
-extension ReadingProgressWidgetAttributes.ContentState {
-    fileprivate static var smiley: ReadingProgressWidgetAttributes.ContentState {
-        ReadingProgressWidgetAttributes.ContentState(emoji: "😀")
-     }
-     
-     fileprivate static var starEyes: ReadingProgressWidgetAttributes.ContentState {
-         ReadingProgressWidgetAttributes.ContentState(emoji: "🤩")
-     }
-}
+    private func progressLabel(_ context: ActivityViewContext<ReadingSessionActivityAttributes>) -> some View {
+        Group {
+            if context.attributes.isAudiobook {
+                Text(Self.minutes(context.state.currentUnits))
+            } else {
+                Text("p. \(context.state.currentUnits)")
+            }
+        }
+        .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+    }
 
-#Preview("Notification", as: .content, using: ReadingProgressWidgetAttributes.preview) {
-   ReadingProgressWidgetLiveActivity()
-} contentStates: {
-    ReadingProgressWidgetAttributes.ContentState.smiley
-    ReadingProgressWidgetAttributes.ContentState.starEyes
+    private func sessionURL(_ bookID: Int) -> URL? {
+        URL(string: "softcover://session?bookId=\(bookID)")
+    }
+
+    private static func duration(_ seconds: Int) -> String {
+        String(format: "%02d:%02d:%02d", max(0, seconds) / 3600,
+               (max(0, seconds) / 60) % 60, max(0, seconds) % 60)
+    }
+
+    private static func minutes(_ value: Int) -> String {
+        String(format: "%dh %02dm", max(0, value) / 60, max(0, value) % 60)
+    }
 }

@@ -1,6 +1,6 @@
 # Privacy Policy for Softcover
 
-**Last Updated: January 1, 2026**
+**Last Updated: October 22, 2026**
 
 ## Overview
 
@@ -8,10 +8,11 @@ Softcover ("the App") is a native iOS client for Hardcover.app that helps you tr
 
 ## Information We Collect
 
-### API Key
-- The App requires a Hardcover API key to function
-- Your API key is stored **locally on your device only** using secure iOS keychain storage
-- We never transmit your API key to any server other than Hardcover's official API
+### Hardcover Sign-In Credentials
+- The App uses Hardcover OAuth to connect your account
+- OAuth access and refresh tokens are stored **locally on your device only** using iOS Keychain
+- Existing users may continue to use a personal Hardcover API key; it is also stored in Keychain
+- Credentials are transmitted only to Hardcover's official authorization and API services
 
 ### No Personal Data Collection
 We do not collect, store, or transmit any of the following:
@@ -25,7 +26,7 @@ We do not collect, store, or transmit any of the following:
 ## How We Use Information
 
 ### API Communication
-- The App uses your API key to communicate directly with Hardcover's API (api.hardcover.app)
+- The App uses your OAuth access token or legacy API key to communicate directly with Hardcover's API (api.hardcover.app)
 - All reading data (books, progress, lists, etc.) is retrieved from and stored on Hardcover's servers
 - We act solely as a client interface to Hardcover's service
 
@@ -42,7 +43,9 @@ The App communicates exclusively with Hardcover.app's API. Please review Hardcov
 ## Data Retention
 
 - All data is stored locally on your device or on Hardcover's servers
-- Deleting the App removes all locally stored data, including your API key
+- Disconnecting Hardcover revokes the OAuth refresh token when possible and removes local credentials
+- Disconnecting before deletion removes Keychain credentials; iOS may otherwise retain Keychain items for a later reinstall
+- Deleting the App removes its caches and ordinary local app data
 - To delete your reading data, you must do so through your Hardcover account
 
 ## Children's Privacy
@@ -53,7 +56,7 @@ The App does not knowingly collect information from children under 13. If you ar
 
 You have the right to:
 - Delete all local data by uninstalling the App
-- Revoke the API key through your Hardcover account settings
+- Disconnect the Hardcover session in Softcover or revoke access through your Hardcover account
 - Request information about data stored by Hardcover through their service
 
 ## Changes to This Policy
@@ -62,7 +65,7 @@ We may update this Privacy Policy from time to time. Changes will be posted on t
 
 ## Data Security
 
-- API keys are stored using iOS Keychain (secure encrypted storage)
+- OAuth tokens and legacy API keys are stored using iOS Keychain
 - All communication with Hardcover uses HTTPS encryption
 - No data is shared with third parties other than Hardcover
 

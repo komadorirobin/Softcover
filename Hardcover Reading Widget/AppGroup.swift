@@ -22,3 +22,23 @@ enum AppGroup {
         print("🧪 AppGroup[\(context)]: identifier=\(identifier), usingSuite=\(ok)")
     }
 }
+
+/// A verified StoreKit entitlement mirrored into the App Group so widgets can
+/// render supporter-only appearances without making their own StoreKit calls.
+enum SupporterAccess {
+    // Product policy: this entitlement may gate cosmetic appearances only.
+    // Reading, library, statistics, sharing, sync, and widget capabilities stay free.
+    static let standardProductID = "komadori.softcover.supporter.lifetime"
+    static let generousProductID = "komadori.softcover.supporter.generous"
+    static let productIDs = [standardProductID, generousProductID]
+    static let entitlementKey = "SoftcoverSupporterLifetimeUnlocked"
+
+    static func grantsEntitlement(_ productID: String) -> Bool {
+        productIDs.contains(productID)
+    }
+
+    static var isUnlocked: Bool {
+        get { AppGroup.defaults.bool(forKey: entitlementKey) }
+        set { AppGroup.defaults.set(newValue, forKey: entitlementKey) }
+    }
+}

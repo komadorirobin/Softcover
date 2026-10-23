@@ -18,7 +18,8 @@ struct AppCoreChecks {
 
     static func main() async throws {
         if CommandLine.arguments.contains("--queries") {
-            let queries = [LibraryAPI.identityQuery, LibraryAPI.pageQuery, LibraryAPI.currentBookQuery, LibraryAPI.editionsQuery,
+            let queries = [LibraryAPI.identityQuery, LibraryAPI.pageQuery, LibraryAPI.otherUserPageQuery,
+                           LibraryAPI.currentBookQuery, LibraryAPI.editionsQuery,
                            BookSearchAPI.query, BookSearchAPI.hydrateQuery, BookSearchAPI.usersQuery, BookSearchAPI.statusQuery,
                            CommunityQueries.upcomingBooks, CommunityQueries.upcomingEditions, CommunityQueries.history,
                            BookDetailQueries.metadata, BookDetailQueries.reviews, BookDetailQueries.reviewLikes, BookDetailQueries.quotes]
@@ -45,6 +46,9 @@ struct AppCoreChecks {
         print("UIKit HTML entity decoding and actual HTML parsing are not tested by this executable.")
 
         await checkDatesAndModels()
+        await checkFinishWorkflow()
+        await checkReadingActivity()
+        await checkReadingAtlas()
         await checkWantToRead()
         await checkHTTP()
         await checkLibrary()
@@ -55,6 +59,163 @@ struct AppCoreChecks {
         if !failures.isEmpty {
             for failure in failures { FileHandle.standardError.write(Data("\(failure)\n".utf8)) }
             exit(1)
+        }
+    }
+
+    static func checkReadingAtlas() async {
+        await run("Reading Atlas deduplicates authors and counts each genre once per book") {
+            let shared = ReadingAtlasAggregation.Author(id: 1, genderID: 2, isBIPOC: true, isLGBTQ: false)
+            let books = [
+                ReadingAtlasAggregation.Book(genres: ["Fantasy", "Fantasy", " Adventure "], authors: [shared]),
+                ReadingAtlasAggregation.Book(genres: ["Fantasy"], authors: [shared,
+                    .init(id: 2, genderID: nil, isBIPOC: nil, isLGBTQ: true)]),
+                ReadingAtlasAggregation.Book(genres: [], authors: [])
+            ]
+            let atlas = ReadingAtlasAggregation.make(books: books)
+            try require(atlas.finishedBooks == 3 && atlas.taggedBooks == 2, "Book totals are wrong")
+            try require(atlas.genres.first == .init(name: "Fantasy", books: 2), "Genres were duplicated or sorted incorrectly")
+            try require(atlas.distinctAuthors == 2, "The same author was counted twice")
+            try require(atlas.bipoc.first(where: { $0.label == "Yes" })?.count == 1, "BIPOC totals are wrong")
+            try require(atlas.lgbtq.first(where: { $0.label == "Yes" })?.count == 1, "LGBTQ totals are wrong")
+        }
+    }
+
+    static func checkReadingActivity() async {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = DateComponents(calendar: calendar, timeZone: calendar.timeZone,
+                                 year: 2026, month: 10, day: 23, hour: 12).date!
+
+        await run("Reading deadlines calculate an inclusive daily pace") {
+            let target = calendar.date(byAdding: .day, value: 3, to: now)!
+            let deadline = ReadingDeadline(bookID: 1, targetDate: target, createdAt: now)
+            try require(deadline.unitsPerDay(currentUnits: 60, totalUnits: 100, now: now, calendar: calendar) == 10,
+                        "Deadline pace did not include today")
+            let expired = ReadingDeadline(bookID: 1,
+                targetDate: calendar.date(byAdding: .day, value: -1, to: now)!, createdAt: now)
+            try require(expired.unitsPerDay(currentUnits: 60, totalUnits: 100, now: now, calendar: calendar) == nil,
+                        "Expired deadline should not return a pace")
+        }
+
+        await run("Reading sessions survive pause and resume without counting paused time") {
+            var session = ActiveReadingSession(id: UUID(), bookID: 1, userBookID: 2, editionID: 3,
+                title: "Test", author: "Reader", isAudiobook: false, totalUnits: 300, startingUnits: 20,
+                accumulatedSeconds: 0, resumedAt: now, startedAt: now)
+            session.pause(at: now.addingTimeInterval(90))
+            try require(session.elapsed(at: now.addingTimeInterval(600)) == 90, "Paused time kept advancing")
+            session.resume(at: now.addingTimeInterval(600))
+            try require(session.elapsed(at: now.addingTimeInterval(630)) == 120, "Resumed time was not accumulated")
+        }
+
+        await run("Reading session corrections validate time and progress") {
+            let original = ReadingSessionRecord(
+                id: UUID(), bookID: 1, title: "Test", isAudiobook: false,
+                startedAt: now, endedAt: now.addingTimeInterval(1_800), durationSeconds: 1_200,
+                startingUnits: 20, endingUnits: 40
+            )
+            let corrected = original.corrected(
+                startedAt: now, endedAt: now.addingTimeInterval(2_000), durationSeconds: 1_500,
+                startingUnits: 22, endingUnits: 55
+            )
+            try require(corrected?.progressedUnits == 33, "Corrected session progress is wrong")
+            try require(original.corrected(
+                startedAt: now, endedAt: now.addingTimeInterval(100), durationSeconds: 102,
+                startingUnits: 20, endingUnits: 40
+            ) == nil, "Focused time longer than the session was accepted")
+            try require(original.corrected(
+                startedAt: now, endedAt: now.addingTimeInterval(1_800), durationSeconds: 1_200,
+                startingUnits: 40, endingUnits: 20
+            ) == nil, "Backwards progress was accepted")
+        }
+
+        await run("Reading sessions retain a stable link to their activity event") {
+            struct LegacyEvent: Codable {
+                let id: UUID
+                let bookID: Int
+                let date: Date
+                let kind: ReadingActivityEvent.Kind
+                let unitDelta: Int
+                let isAudiobook: Bool
+            }
+            let session = ReadingSessionRecord(
+                id: UUID(), bookID: 7, title: "Linked", isAudiobook: false,
+                startedAt: now, endedAt: now.addingTimeInterval(600), durationSeconds: 600,
+                startingUnits: 10, endingUnits: 25
+            )
+            let legacy = ReadingActivityEvent(
+                id: UUID(), bookID: 7, date: session.endedAt, kind: .session,
+                unitDelta: 15, isAudiobook: false
+            )
+            try require(ReadingSessionEventLink.index(for: session, in: [legacy]) == 0,
+                        "A legacy session event was not found")
+            let migrated = try JSONDecoder().decode(ReadingActivityEvent.self, from: JSONEncoder().encode(
+                LegacyEvent(id: legacy.id, bookID: legacy.bookID, date: legacy.date, kind: legacy.kind,
+                            unitDelta: legacy.unitDelta, isAudiobook: legacy.isAudiobook)
+            ))
+            try require(migrated.sessionID == nil, "A legacy event without a session id did not decode")
+            let linked = ReadingSessionEventLink.event(for: session, preservingID: legacy.id)
+            try require(linked.sessionID == session.id && linked.id == legacy.id,
+                        "The explicit session link or event identity was lost")
+        }
+
+        await run("Reading streak counts unique consecutive activity days") {
+            let events = [-3, -2, -1, -1].enumerated().map { index, offset in
+                ReadingActivityEvent(id: UUID(), bookID: index + 1,
+                    date: calendar.date(byAdding: .day, value: offset, to: now)!, kind: .progress,
+                    unitDelta: 10, isAudiobook: false)
+            }
+            let metrics = ReadingActivityMetrics.calculate(events: events, sessions: [], now: now, calendar: calendar)
+            try require(metrics.currentStreak == 3, "Yesterday's streak should remain active")
+            try require(metrics.activeDays == 3, "Multiple updates on one day were counted twice")
+            try require(metrics.pagesProgressed == 40, "Progress units were not accumulated")
+        }
+    }
+
+    static func checkFinishWorkflow() async {
+        await run("Finishing an open read happens before the status change") {
+            let action = FinishBookWorkflow.readAction(ongoingReadId: 42, alreadyFinishedToday: false,
+                                                       existingStartDate: "2026-10-16")
+            var calls: [String] = []
+            var receivedAction: FinishBookReadAction?
+            let success = await FinishBookWorkflow.run(action: action) { received in
+                calls.append("read")
+                receivedAction = received
+                return true
+            } updateStatus: {
+                calls.append("status")
+                return true
+            }
+            try require(receivedAction == .update(readId: 42), "Wrong read was selected")
+            try require(success && calls == ["read", "status"], "Status changed before the open read was finished")
+        }
+        await run("A missing open read creates one completion with the preserved start date") {
+            let action = FinishBookWorkflow.readAction(ongoingReadId: nil, alreadyFinishedToday: false,
+                                                       existingStartDate: "2026-10-16")
+            try require(action == .insert(startedAt: "2026-10-16"), "Start date was not preserved")
+        }
+        await run("Retrying a completion from today does not insert another read") {
+            let action = FinishBookWorkflow.readAction(ongoingReadId: nil, alreadyFinishedToday: true,
+                                                       existingStartDate: "2026-10-16")
+            var finishCalls = 0
+            var statusCalls = 0
+            let success = await FinishBookWorkflow.run(action: action) { _ in
+                finishCalls += 1
+                return true
+            } updateStatus: {
+                statusCalls += 1
+                return true
+            }
+            try require(success && finishCalls == 0 && statusCalls == 1, "Retry created a duplicate read")
+        }
+        await run("A failed read update cannot mark the book finished") {
+            let action = FinishBookWorkflow.readAction(ongoingReadId: 42, alreadyFinishedToday: false,
+                                                       existingStartDate: nil)
+            var statusCalls = 0
+            let success = await FinishBookWorkflow.run(action: action) { _ in false } updateStatus: {
+                statusCalls += 1
+                return true
+            }
+            try require(!success && statusCalls == 0, "Status changed after the read update failed")
         }
     }
 
@@ -514,6 +675,22 @@ struct AppCoreChecks {
             let response = HTTPURLResponse(url: limited.url!, statusCode: 429, httpVersion: nil, headerFields: ["Retry-After": "Wed, 01 Jan 2031 00:00:00 GMT"])!
             try require(ReleaseDate.string(HardcoverRequestScheduler.retryDate(response)) == "2031-01-01", "HTTP-date Retry-After not parsed")
         }
+        await run("Rate limiter clamps an impossible local cost instead of waiting forever") {
+            let scheduler = HardcoverRequestScheduler()
+            let authorization = "Bearer oversized-cost"
+            try await scheduler.acquire(authorization: authorization, cost: 10_000)
+            let snapshot = await scheduler.testSnapshot(authorization: authorization)
+            try require(snapshot.capacity == 5 && snapshot.available == 0, "Oversized cost was not clamped to the bucket")
+        }
+        await run("Rate limiter adopts Hardcover X-Ratelimit headers") {
+            let scheduler = HardcoverRequestScheduler()
+            let authorization = "Bearer server-budget"
+            let response = HTTPURLResponse(url: URL(string: "https://api.hardcover.app/v1/graphql")!, statusCode: 200,
+                httpVersion: nil, headerFields: ["X-Ratelimit-Limit": "15", "X-Ratelimit-Remaining": "2"])!
+            await scheduler.observe(response, authorization: authorization)
+            let snapshot = await scheduler.testSnapshot(authorization: authorization)
+            try require(snapshot.capacity == 15 && snapshot.available == 2, "Server budget headers were ignored")
+        }
         await run("Legacy checked read does not turn swallowed transport errors into empty success") {
             let http = HardcoverHTTP(session: AppCoreMockProtocol.session(), scheduler: HardcoverRequestScheduler())
             AppCoreMockProtocol.reset { _ in .init([:], status: 500) }
@@ -546,16 +723,15 @@ struct AppCoreChecks {
             AppGroup.defaults.removeObject(forKey: "CurrentlyReadingSortOrder")
             await HardcoverHTTP.shared.invalidate()
             AppCoreMockProtocol.reset { record in
-                if record.query == LibraryAPI.identityQuery { return .init(["data": ["me": [["id": 42, "username": "fixture"]]]]) }
                 try require(record.query == LibraryAPI.pageQuery, "Unexpected library query")
-                try require(record.variables["userID"] as? Int == 42 && record.variables["status"] as? Int == 2, "Identity/status not forwarded")
+                try require(record.variables["userID"] == nil && record.variables["status"] as? Int == 2, "Current-user page should be rooted at me")
                 let offset = record.variables["offset"] as? Int ?? -1
                 let limit = record.variables["limit"] as? Int ?? 0
                 let order = record.variables["order"] as? [[String: String]]
                 try require(order == [["updated_at": "desc"], ["id": "desc"]], "Unstable reading order")
                 try require(offset >= 0 && limit == 51, "Pagination does not request one lookahead row")
                 let rows = offset < 125 ? (offset..<min(125, offset + limit)).map { libraryRow(id: $0 + 1) } : []
-                return .init(["data": ["user_books": rows]])
+                return .init(["data": ["me": [["user_books": rows]]]])
             }
             var books: [BookProgress] = []
             var offset = 0
@@ -567,14 +743,14 @@ struct AppCoreChecks {
             }
             try require(books.count == 125 && Set(books.map(\.id)).count == 125, "Pagination lost or duplicated books beyond 100")
             try require(offsets == [50, 100, 125], "Wrong cursor offsets: \(offsets)")
-            try require(AppCoreMockProtocol.requests.count == 4, "Identity repeated or per-book requests detected")
+            try require(AppCoreMockProtocol.requests.count == 3, "Current-user pages spent an extra identity request")
         }
         await run("Library successful empty page and absent own book") {
             AppGroup.useAccount()
             await HardcoverHTTP.shared.invalidate()
             AppCoreMockProtocol.reset { record in
                 if record.query == LibraryAPI.identityQuery { return .init(["data": ["me": [["id": 1, "username": "fixture"]]]]) }
-                return .init(["data": ["user_books": []]])
+                return .init(["data": ["me": [["user_books": []]]]])
             }
             let empty = try await LibraryAPI.page(status: 1, offset: 100)
             try require(empty.books.isEmpty && !empty.hasMore && empty.nextOffset == 100, "Empty page has more or advances cursor")

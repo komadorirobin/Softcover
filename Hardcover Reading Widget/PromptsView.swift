@@ -97,13 +97,13 @@ struct PromptsView: View {
     
     @MainActor private func loadPrompts() async {
         let request = UUID()
-        let account = HardcoverConfig.authorizationHeaderValue
+        let account = HardcoverConfig.accountIdentifier
         generation = request
         isLoading = true; errorMessage = nil
         defer { if generation == request { isLoading = false } }
 
         let received: @MainActor (PromptAnswer) -> Void = { answer in
-            guard !Task.isCancelled, generation == request, account == HardcoverConfig.authorizationHeaderValue else { return }
+            guard !Task.isCancelled, generation == request, account == HardcoverConfig.accountIdentifier else { return }
             if let index = prompts.firstIndex(where: { $0.id == answer.id }) { prompts[index] = answer }
             else { prompts.append(answer) }
         }
@@ -116,10 +116,10 @@ struct PromptsView: View {
                 return await HardcoverService.fetchAnsweredPrompts(onPromptLoaded: received)
             }
             try Task.checkCancellation()
-            guard generation == request, account == HardcoverConfig.authorizationHeaderValue else { return }
+            guard generation == request, account == HardcoverConfig.accountIdentifier else { return }
             prompts = fetched
         } catch {
-            guard !Task.isCancelled, generation == request, account == HardcoverConfig.authorizationHeaderValue else { return }
+            guard !Task.isCancelled, generation == request, account == HardcoverConfig.accountIdentifier else { return }
             errorMessage = error.localizedDescription
         }
     }

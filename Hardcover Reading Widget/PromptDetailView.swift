@@ -106,7 +106,7 @@ struct PromptDetailView: View {
     
     @MainActor private func loadAnswers() async {
         let request = UUID()
-        let account = HardcoverConfig.authorizationHeaderValue
+        let account = HardcoverConfig.accountIdentifier
         generation = request
         isLoading = true; errorMessage = nil
         defer { if generation == request { isLoading = false } }
@@ -116,17 +116,17 @@ struct PromptDetailView: View {
                 await HardcoverService.fetchUsername(forUserId: promptAnswer.userId)
             }
             try Task.checkCancellation()
-            guard generation == request, account == HardcoverConfig.authorizationHeaderValue else { return }
+            guard generation == request, account == HardcoverConfig.accountIdentifier else { return }
             guard let username, !username.isEmpty else { throw HardcoverNetworkError.invalidResponse }
             let fetched = try await HardcoverReadScope.checked {
                 await HardcoverService.fetchPromptAnswers(promptId: promptAnswer.prompt.id, userId: promptAnswer.userId,
                                                          username: username, slug: promptAnswer.prompt.slug)
             }
             try Task.checkCancellation()
-            guard generation == request, account == HardcoverConfig.authorizationHeaderValue else { return }
+            guard generation == request, account == HardcoverConfig.accountIdentifier else { return }
             answers = fetched
         } catch {
-            guard !Task.isCancelled, generation == request, account == HardcoverConfig.authorizationHeaderValue else { return }
+            guard !Task.isCancelled, generation == request, account == HardcoverConfig.accountIdentifier else { return }
             errorMessage = error.localizedDescription
         }
     }

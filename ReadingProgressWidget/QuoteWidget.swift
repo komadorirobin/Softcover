@@ -83,13 +83,17 @@ struct QuoteWidgetView: View {
 
     // Older widget configurations don't contain appearance parameters.
     private var theme: QuoteColorTheme { entry.configuration.colorTheme ?? .classic }
+    private var isLocked: Bool { theme.requiresSupporter && !SupporterAccess.isUnlocked }
     private var fontDesign: Font.Design { (entry.configuration.font ?? .system).design }
     private var foregroundColor: Color {
         renderingMode == .fullColor && showsBackground ? theme.textColor : .primary
     }
 
     var body: some View {
-        content
+        Group {
+            if isLocked { lockedContent }
+            else { content }
+        }
             .foregroundStyle(foregroundColor)
             .containerBackground(for: .widget) {
                 if (entry.configuration.background ?? .gradient) == .solid {
@@ -102,6 +106,21 @@ struct QuoteWidgetView: View {
                     )
                 }
             }
+    }
+
+    private var lockedContent: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "lock.fill")
+                .font(.title2)
+            Text("Supporter theme")
+                .font(.headline)
+            Text("Open Softcover to unlock")
+                .font(.caption)
+                .multilineTextAlignment(.center)
+                .opacity(0.8)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding()
     }
 
     @ViewBuilder
@@ -214,11 +233,19 @@ struct QuoteWidget: Widget {
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: kind, intent: QuoteUpdateIntervalIntent.self, provider: QuoteWidgetProvider()) { entry in
             QuoteWidgetView(entry: entry)
-                .widgetURL(entry.deepLinkURL)
+                .widgetURL(widgetURL(for: entry))
         }
         .configurationDisplayName("Reading Quote")
         .description("Display a random quote from your Reading Journal")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+    }
+
+    private func widgetURL(for entry: QuoteEntry) -> URL? {
+        let theme = entry.configuration.colorTheme ?? .classic
+        if theme.requiresSupporter && !SupporterAccess.isUnlocked {
+            return URL(string: "softcover://support")
+        }
+        return entry.deepLinkURL
     }
 }
 

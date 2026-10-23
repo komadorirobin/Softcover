@@ -14,7 +14,7 @@ struct SearchBooksView: View {
     @State private var showingScanner = false
     @State private var actionError: String?
     @State private var searchRevision = 0
-    @AppStorage("HardcoverAPIKey", store: AppGroup.defaults) private var apiKey = ""
+    @AppStorage("HardcoverAuthRevision", store: AppGroup.defaults) private var authRevision = ""
     @AppStorage("SkipEditionPickerOnAdd", store: AppGroup.defaults) private var skipEditionPicker = false
 
     let onDone: (Bool) -> Void
@@ -25,7 +25,7 @@ struct SearchBooksView: View {
     }
 
     private var request: BookSearchStore.Request {
-        .init(text: query, type: searchType.queryType, account: HardcoverConfig.authorizationHeaderValue)
+        .init(text: query, type: searchType.queryType, account: HardcoverConfig.accountIdentifier)
     }
     private var taskID: String { "\(request.account)|\(request.type)|\(request.text)|\(searchRevision)" }
     private var historyKey: String { "SearchHistory.\(HardcoverRequestScheduler.accountKey(request.account))" }
@@ -136,7 +136,7 @@ struct SearchBooksView: View {
                 await store.search(request)
                 if store.completed { rememberQuery() }
             }
-            .task(id: apiKey) {
+            .task(id: authRevision) {
                 selectedBook = nil
                 pendingBook = nil
                 showingEditions = false
@@ -211,7 +211,7 @@ struct SearchBooksView: View {
                 return
             }
             let success = try await HardcoverReadScope.checked {
-                await HardcoverService.addBookToWantToRead(bookId: id, editionId: editionID)
+                await OfflineWriteQueue.shared.perform(.add(bookID: id, editionID: editionID, statusID: 1))
             }
             guard account == request.account else { return }
             guard success else { throw HardcoverNetworkError.invalidResponse }

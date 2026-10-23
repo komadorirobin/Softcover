@@ -3,6 +3,7 @@ import SwiftUI
 struct BookRow: View {
     let book: BookProgress
     var subtitle: String? = nil
+    var supplementalText: String? = nil
     var releaseReferenceDate: Date? = nil
     var isWorking = false
     var actionIcon: String? = nil
@@ -46,6 +47,11 @@ struct BookRow: View {
                             Label(String(format: "%.1f", rating), systemImage: "star.fill")
                                 .font(.caption).foregroundStyle(.secondary)
                                 .accessibilityLabel(Text("Average \(rating, specifier: "%.1f")"))
+                        }
+                        if let supplementalText {
+                            Label(supplementalText, systemImage: "calendar.badge.clock")
+                                .font(.caption.weight(.medium)).foregroundStyle(.tint)
+                                .lineLimit(typeSize.isAccessibilitySize ? nil : 2)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)

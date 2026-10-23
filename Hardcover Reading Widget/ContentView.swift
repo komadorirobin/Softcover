@@ -3,14 +3,18 @@ import UIKit
 
 struct ContentView: View {
     @StateObject private var library = LibraryListStore(status: 2)
-    @AppStorage("HardcoverAPIKey", store: AppGroup.defaults) private var apiKey = ""
+    @ObservedObject private var activity = ReadingActivityStore.shared
+    @AppStorage("HardcoverAuthRevision", store: AppGroup.defaults) private var authRevision = ""
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var selectedTab = 0
     @State private var readingPath: [BookProgress] = []
     @State private var showingSettings = false
+    @State private var showingSupporterPack = false
     @State private var checkedOnboarding = false
     @State private var progressBook: BookProgress?
     @State private var finishBook: BookProgress?
+    @State private var sessionBook: BookProgress?
+    @State private var deadlineBook: BookProgress?
     @State private var removeBook: BookProgress?
     @State private var workingBookID: String?
     @State private var actionError: String?
@@ -18,6 +22,7 @@ struct ContentView: View {
     @State private var quoteLink: QuoteDeepLink?
     @State private var showingGoals = false
     @State private var goalID: Int?
+    @AppStorage("ShowReadingStreak", store: AppGroup.defaults) private var showReadingStreak = true
 
     private struct QuoteDeepLink: Identifiable {
         let id = UUID()
@@ -29,25 +34,30 @@ struct ContentView: View {
     var body: some View {
         TabView(selection: $selectedTab) {
             Tab("Reading", systemImage: "book", value: 0) { readingView }
-            Tab("Want to Read", systemImage: "bookmark", value: 1) {
-                WantToReadView { started in
-                    if started { selectedTab = 0 }
-                }
-            }
+            Tab("Library", systemImage: "books.vertical", value: 1) { LibraryHubView() }
             Tab("Explore", systemImage: "safari", value: 2) { ExplorerView { _ in } }
             Tab("Profile", systemImage: "person.crop.circle.fill", value: 3) { ProfileView() }
             Tab(value: 4, role: .search) { SearchBooksView { _ in } }
         }
         .tabViewStyle(.sidebarAdaptable)
-        .task(id: apiKey) {
+        .safeAreaInset(edge: .top, spacing: 0) { OfflineQueueBanner() }
+        .task(id: authRevision) {
             readingPath = []
             progressBook = nil
             finishBook = nil
+            sessionBook = nil
+            deadlineBook = nil
+            activity.reload()
+            await OfflineWriteQueue.shared.accountChanged()
             await library.load()
             if !checkedOnboarding {
                 checkedOnboarding = true
-                showingSettings = HardcoverConfig.apiKey.isEmpty
+                showingSettings = !HardcoverConfig.isSignedIn
             }
+        }
+        .task {
+            await SupporterStore.refreshSharedEntitlement()
+            await OfflineWriteQueue.shared.drain()
         }
         .onReceive(NotificationCenter.default.publisher(for: .libraryDidChange)) { note in
             let statuses = note.userInfo?["statuses"] as? Set<Int>
@@ -60,6 +70,16 @@ struct ContentView: View {
         .sheet(isPresented: $showingSettings) {
             ApiKeySettingsView { _ in Task { await library.load(refresh: true) } }
         }
+        .sheet(isPresented: $showingSupporterPack) {
+            NavigationStack {
+                TipJarView()
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Close") { showingSupporterPack = false }
+                        }
+                    }
+            }
+        }
         .sheet(item: $progressBook) { book in
             ReadingProgressEditor(book: book) { updated in library.apply(book: updated) }
         }
@@ -69,6 +89,12 @@ struct ContentView: View {
                 finishedTitle = updated.title
                 if !reduceMotion { UINotificationFeedbackGenerator().notificationOccurred(.success) }
             }
+        }
+        .sheet(item: $sessionBook) { book in
+            ReadingSessionView(book: book) { updated in library.apply(book: updated) }
+        }
+        .sheet(item: $deadlineBook) { book in
+            ReadingDeadlineView(book: book)
         }
         .sheet(item: $quoteLink) { link in
             BookQuotesView(bookId: link.bookID, bookTitle: link.bookTitle,
@@ -97,6 +123,31 @@ struct ContentView: View {
     private var readingView: some View {
         NavigationStack(path: $readingPath) {
             List {
+                if (showReadingStreak && activity.metrics.currentStreak > 0) || activity.activeSession != nil {
+                    Section {
+                        HStack(spacing: 12) {
+                            Image(systemName: activity.activeSession == nil ? "flame.fill" : "timer")
+                                .font(.title2)
+                                .foregroundStyle(activity.activeSession == nil ? Color.orange : Color.accentColor)
+                            VStack(alignment: .leading, spacing: 3) {
+                                if let session = activity.activeSession {
+                                    Text("Reading session active").font(.headline)
+                                    Text(session.title).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                } else {
+                                    Text("\(activity.metrics.currentStreak)-day reading streak").font(.headline)
+                                    Text("Keep it going today").font(.caption).foregroundStyle(.secondary)
+                                }
+                            }
+                            Spacer()
+                            if let session = activity.activeSession {
+                                Button("Open") {
+                                    sessionBook = library.books.first { $0.bookId == session.bookID }
+                                        ?? session.asBookProgress
+                                }.buttonStyle(.bordered)
+                            }
+                        }
+                    }
+                }
                 if let title = finishedTitle {
                     HStack(alignment: .top) {
                         Label {
@@ -125,10 +176,15 @@ struct ContentView: View {
                     }.listRowSeparator(.hidden)
                 }
                 ForEach(library.books) { book in
-                    BookRow(book: book, isWorking: workingBookID == book.id,
+                    BookRow(book: book,
+                        supplementalText: ReadingPacePresentation.summary(
+                            book: book, deadline: activity.deadline(for: book.bookId)),
+                        isWorking: workingBookID == book.id,
                         actionIcon: "slider.horizontal.3", actionLabel: "Update progress",
                         onAction: { progressBook = book }, onOpen: { readingPath.append(book) })
                         .contextMenu {
+                            Button("Start reading session", systemImage: "timer") { sessionBook = book }
+                            Button("Reading deadline", systemImage: "calendar.badge.clock") { deadlineBook = book }
                             Button("Update progress", systemImage: "slider.horizontal.3") { progressBook = book }
                             Button("Mark as finished", systemImage: "checkmark.circle") { finishBook = book }
                             Button("Want to Read", systemImage: "bookmark") { Task { await updateLibrary(book, remove: false) } }
@@ -170,15 +226,15 @@ struct ContentView: View {
         guard workingBookID == nil else { return }
         workingBookID = source.id
         defer { workingBookID = nil; removeBook = nil }
-        let auth = HardcoverConfig.authorizationHeaderValue
+        let account = HardcoverConfig.accountIdentifier
         do {
-            let own = try await BookPersonalActions.requireOwnBook(bookID: source.bookId, authorization: auth)
+            let own = try await BookPersonalActions.requireOwnBook(bookID: source.bookId, authorization: account)
             guard let id = own.userBookId else { throw BookPersonalActions.Failure.missingBook }
             let success: Bool
-            if remove { success = await HardcoverService.deleteUserBook(userBookId: id) }
-            else { success = await HardcoverService.updateUserBookStatus(userBookId: id, statusId: 1) }
+            if remove { success = await OfflineWriteQueue.shared.perform(.delete(userBookID: id)) }
+            else { success = await OfflineWriteQueue.shared.perform(.status(userBookID: id, statusID: 1, userDate: nil)) }
             guard success else { throw BookPersonalActions.Failure.saveFailed }
-            guard auth == HardcoverConfig.authorizationHeaderValue else { throw HardcoverNetworkError.accountChanged }
+            guard account == HardcoverConfig.accountIdentifier else { throw HardcoverNetworkError.accountChanged }
             library.remove(id: own.id)
             WidgetSync.libraryChanged(statuses: remove ? [own.statusId ?? 2] : [own.statusId ?? 2, 1])
         } catch { actionError = error.localizedDescription }
@@ -189,7 +245,8 @@ struct ContentView: View {
         let values = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
         func value(_ key: String) -> String? { values.first { $0.name == key }?.value }
         let host = url.host?.lowercased() ?? ""
-        progressBook = nil; finishBook = nil; showingSettings = false
+        progressBook = nil; finishBook = nil; sessionBook = nil; deadlineBook = nil
+        showingSettings = false; showingSupporterPack = false
         if host == "goals" || url.path.contains("/goals") {
             goalID = value("goalId").flatMap(Int.init)
             selectedTab = 3
@@ -197,6 +254,11 @@ struct ContentView: View {
         } else if host == "quote" || url.path.contains("/quote") {
             guard let quoteID = value("quoteId").flatMap(Int.init), let bookID = value("bookId").flatMap(Int.init) else { return }
             quoteLink = QuoteDeepLink(quoteID: quoteID, bookID: bookID, bookTitle: value("bookTitle") ?? "")
+        } else if host == "support" || url.path.contains("/support") {
+            showingSupporterPack = true
+        } else if host == "session" || url.path.contains("/session") {
+            guard let session = activity.activeSession else { return }
+            sessionBook = library.books.first { $0.bookId == session.bookID } ?? session.asBookProgress
         } else if host == "upcoming" || host == "book" || url.path.contains("/upcoming") {
             guard let bookID = value("bookId").flatMap(Int.init) else { selectedTab = 1; return }
             let cached = library.books.first { $0.bookId == bookID }
@@ -207,6 +269,16 @@ struct ContentView: View {
             selectedTab = 0
             readingPath = [book]
         }
+    }
+}
+
+private extension ActiveReadingSession {
+    var asBookProgress: BookProgress {
+        BookProgress(id: "session-\(bookID)", title: title, author: author, progress: 0,
+                     totalPages: isAudiobook ? 0 : totalUnits, currentPage: isAudiobook ? 0 : startingUnits,
+                     bookId: bookID, userBookId: userBookID, editionId: editionID, originalTitle: title,
+                     isAudiobook: isAudiobook, totalMinutes: isAudiobook ? totalUnits : 0,
+                     currentMinute: isAudiobook ? startingUnits : 0, statusId: 2)
     }
 }
 

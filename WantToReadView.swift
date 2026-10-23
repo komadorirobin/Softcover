@@ -2,7 +2,7 @@ import SwiftUI
 
 struct WantToReadView: View {
     @StateObject private var store = LibraryListStore(status: 1)
-    @AppStorage("HardcoverAPIKey", store: AppGroup.defaults) private var apiKey = ""
+    @AppStorage("HardcoverAuthRevision", store: AppGroup.defaults) private var authRevision = ""
     @AppStorage("WantToReadSortOrder", store: AppGroup.defaults) private var selectedSort: WantToReadSort = .nearestRelease
     @Environment(\.scenePhase) private var scenePhase
     @State private var searchText = ""
@@ -18,7 +18,7 @@ struct WantToReadView: View {
     @State private var notificationsEnabled = NotificationManager.isEnabled
     let onComplete: (Bool) -> Void
 
-    private var filterRequest: String { apiKey + "|" + searchText + "|" + selectedFilter.rawValue + "|" + selectedSort.rawValue }
+    private var filterRequest: String { authRevision + "|" + searchText + "|" + selectedFilter.rawValue + "|" + selectedSort.rawValue }
     private var needsCompleteList: Bool { selectedSort != .recentlyAdded || selectedFilter != .all || !searchText.isEmpty }
 
     var body: some View {
@@ -112,7 +112,7 @@ struct WantToReadView: View {
                 Button("Remove", role: .destructive) { Task { await remove(book) } }
                 Button("Cancel", role: .cancel) { pendingDelete = nil }
             } message: { Text($0.title) }
-            .task(id: apiKey) {
+            .task(id: authRevision) {
                 selectedBook = nil
                 await loadBooks()
             }
@@ -164,11 +164,11 @@ struct WantToReadView: View {
     private func startReading(_ book: BookProgress) async {
         guard workingID == nil, let id = book.userBookId else { return }
         workingID = book.id
-        let authorization = HardcoverConfig.authorizationHeaderValue
+        let account = HardcoverConfig.accountIdentifier
         defer { workingID = nil }
         do {
-            let success = try await HardcoverReadScope.checked { await HardcoverService.updateUserBookStatus(userBookId: id, statusId: 2) }
-            guard authorization == HardcoverConfig.authorizationHeaderValue else { return }
+            let success = await OfflineWriteQueue.shared.perform(.status(userBookID: id, statusID: 2, userDate: nil))
+            guard account == HardcoverConfig.accountIdentifier else { return }
             guard success else { throw HardcoverNetworkError.invalidResponse }
             store.remove(id: book.id)
             WidgetSync.libraryChanged(statuses: [1, 2])
@@ -180,11 +180,11 @@ struct WantToReadView: View {
         guard workingID == nil, let id = book.userBookId else { return }
         workingID = book.id
         pendingDelete = nil
-        let authorization = HardcoverConfig.authorizationHeaderValue
+        let account = HardcoverConfig.accountIdentifier
         defer { workingID = nil }
         do {
-            let success = try await HardcoverReadScope.checked { await HardcoverService.deleteUserBook(userBookId: id) }
-            guard authorization == HardcoverConfig.authorizationHeaderValue else { return }
+            let success = await OfflineWriteQueue.shared.perform(.delete(userBookID: id))
+            guard account == HardcoverConfig.accountIdentifier else { return }
             guard success else { throw HardcoverNetworkError.invalidResponse }
             store.remove(id: book.id)
             WidgetSync.libraryChanged(statuses: [1])

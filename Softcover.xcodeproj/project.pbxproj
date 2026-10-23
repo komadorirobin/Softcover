@@ -87,7 +87,10 @@
 		CB61E9822E58923100C42D11 /* Exceptions for "ReadingProgressWidget" folder in "ReadingProgressWidgetExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Config.plist,
+				HardcoverService.swift.backup,
 				Info.plist,
+				"Localizable.strings (sv)",
 				"ReadingGoalWidget 2.swift",
 			);
 			target = CB73FB772E583D6B00B36269 /* ReadingProgressWidgetExtension */;
@@ -98,13 +101,13 @@
 				AppGroup.swift,
 				BarcodeScannerView.swift,
 				FinishedBookEntry.swift,
-				TipJarView.swift,
 			);
 			target = CB73FB772E583D6B00B36269 /* ReadingProgressWidgetExtension */;
 		};
 		CB11DE112F00000100ABCDEF /* Exceptions for "Hardcover Reading Widget" folder in "Softcover" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				CHANGES_SUMMARY.md,
 				Info.plist,
 			);
 			target = CB73FB492E583D0300B36269 /* Softcover */;
@@ -113,13 +116,14 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				BookProgress.swift,
+				ReadingSessionActivity.swift,
+				HardcoverOAuthCredentials.swift,
 				HardcoverNetwork.swift,
 				HardcoverModels.swift,
 				LibraryAPI.swift,
 				WidgetSync.swift,
 				WidgetReaders.swift,
 				HardcoverGoalPage.swift,
-				Config.plist,
 				HardcoverService.swift,
 			);
 			target = CB73FB492E583D0300B36269 /* Softcover */;
@@ -598,15 +602,18 @@
 		CB73FB6C2E583D0500B36269 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "AppIconAurora AppIconSunset AppIconInk AppIconVellum";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Softcover.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 202609131151;
+				CURRENT_PROJECT_VERSION = 202610231041;
 				DEVELOPMENT_TEAM = 7G6FEZ22K2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				HARDCOVER_OAUTH_CLIENT_ID = "cd6e5cc4-5d77-408a-a8d9-b8d12b77f649";
 				INFOPLIST_FILE = "Hardcover Reading Widget/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Softcover;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Softcover uses the camera to scan book barcodes (ISBN).";
@@ -619,7 +626,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1.8;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = "komadori.Hardcover-Reading-Widget";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -632,15 +639,18 @@
 		CB73FB6D2E583D0500B36269 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "AppIconAurora AppIconSunset AppIconInk AppIconVellum";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Softcover.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 202609131151;
+				CURRENT_PROJECT_VERSION = 202610231041;
 				DEVELOPMENT_TEAM = 7G6FEZ22K2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				HARDCOVER_OAUTH_CLIENT_ID = "cd6e5cc4-5d77-408a-a8d9-b8d12b77f649";
 				INFOPLIST_FILE = "Hardcover Reading Widget/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Softcover;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Softcover uses the camera to scan book barcodes (ISBN).";
@@ -653,7 +663,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1.8;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = "komadori.Hardcover-Reading-Widget";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -743,9 +753,10 @@
 				CODE_SIGN_ENTITLEMENTS = ReadingProgressWidgetExtension.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 202609131151;
+				CURRENT_PROJECT_VERSION = 202610231041;
 				DEVELOPMENT_TEAM = 7G6FEZ22K2;
 				GENERATE_INFOPLIST_FILE = YES;
+				HARDCOVER_OAUTH_CLIENT_ID = "cd6e5cc4-5d77-408a-a8d9-b8d12b77f649";
 				INFOPLIST_FILE = ReadingProgressWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Softcover;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Softcover uses the camera to scan book barcodes (ISBN).";
@@ -755,7 +766,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.1.8;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = "komadori.Hardcover-Reading-Widget.ReadingProgressWidget";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -775,9 +786,10 @@
 				CODE_SIGN_ENTITLEMENTS = ReadingProgressWidgetExtension.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 202609131151;
+				CURRENT_PROJECT_VERSION = 202610231041;
 				DEVELOPMENT_TEAM = 7G6FEZ22K2;
 				GENERATE_INFOPLIST_FILE = YES;
+				HARDCOVER_OAUTH_CLIENT_ID = "cd6e5cc4-5d77-408a-a8d9-b8d12b77f649";
 				INFOPLIST_FILE = ReadingProgressWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Softcover;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Softcover uses the camera to scan book barcodes (ISBN).";
@@ -787,7 +799,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.1.8;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = "komadori.Hardcover-Reading-Widget.ReadingProgressWidget";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";

@@ -15,6 +15,8 @@ enum AppGroup {
 enum HardcoverConfig {
     static var apiKey: String { AppGroup.defaults.string(forKey: "HardcoverAPIKey") ?? "" }
     static var authorizationHeaderValue: String { apiKey.isEmpty ? "" : "Bearer \(apiKey)" }
+    static var accountIdentifier: String { authorizationHeaderValue }
+    static var isSignedIn: Bool { !apiKey.isEmpty }
 }
 
 extension String {

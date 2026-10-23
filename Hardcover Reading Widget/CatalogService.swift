@@ -19,6 +19,8 @@ struct CatalogService {
     let authorization: String
     var session: URLSession = .shared
     var currentAuthorization: () -> String
+    var accountIdentifier: String? = nil
+    var currentAccountIdentifier: (() -> String)? = nil
     var requestGate = CatalogRequestGate.shared
     var now: () -> Date = Date.init
     var sleep: (TimeInterval) async throws -> Void = { try await Task.sleep(for: .seconds($0)) }
@@ -297,7 +299,11 @@ struct CatalogService {
 
     private func checkAccount() throws {
         guard !authorization.isEmpty, authorization != "Bearer " else { throw CatalogError.permission }
-        guard authorization == currentAuthorization() else { throw CatalogError.accountChanged }
+        if let accountIdentifier, let currentAccountIdentifier {
+            guard accountIdentifier == currentAccountIdentifier() else { throw CatalogError.accountChanged }
+        } else {
+            guard authorization == currentAuthorization() else { throw CatalogError.accountChanged }
+        }
         try Task.checkCancellation()
     }
 
@@ -326,15 +332,29 @@ struct CatalogService {
         request.setValue(authorization, forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONSerialization.data(withJSONObject: ["query": query, "variables": variables])
+        #if !SOFTCOVER_CATALOG_TESTS
+        request = try await HardcoverOAuthSession.shared.authorize(request)
+        #endif
         // Only reads may be retried. A mutation is never replayed automatically.
         for attempt in 0...1 {
             try await waitForRateLimit(allowWaiting: retryRateLimit)
             try await beforeRequest(query)
             try checkAccount()
-            let (data, response) = try await session.data(for: request)
+            var (data, response) = try await session.data(for: request)
             try checkAccount()
-            guard let http = response as? HTTPURLResponse else { throw CatalogError.invalidResponse }
+            guard var http = response as? HTTPURLResponse else { throw CatalogError.invalidResponse }
             await afterResponse(http)
+            #if !SOFTCOVER_CATALOG_TESTS
+            if http.statusCode == 401,
+               let replacement = try await HardcoverOAuthSession.shared.replacementAuthorization(
+                afterUnauthorized: request.value(forHTTPHeaderField: "Authorization") ?? "") {
+                request.setValue(replacement, forHTTPHeaderField: "Authorization")
+                (data, response) = try await session.data(for: request)
+                guard let retryHTTP = response as? HTTPURLResponse else { throw CatalogError.invalidResponse }
+                http = retryHTTP
+                await afterResponse(http)
+            }
+            #endif
             if http.statusCode == 429 {
                 let date = Self.retryDate(response: http, now: now())
                 await requestGate.deferRequests(for: authorization, until: date, now: now())
@@ -344,12 +364,12 @@ struct CatalogService {
                 continue
             }
             if http.statusCode == 401 {
-                throw CatalogError.message(NSLocalizedString("Your Hardcover API key has expired or is invalid.", comment: ""))
+                throw CatalogError.message(NSLocalizedString("Your Hardcover session has expired or is invalid.", comment: ""))
             }
             if http.statusCode == 403 {
                 let body = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
                 let detail = body?["error_description"] as? String ?? ""
-                throw CatalogError.message(NSLocalizedString("Hardcover denied access. The API key needs read:me:roles and write:catalog:edit, as well as catalog read and search access.", comment: "") + (detail.isEmpty ? "" : "\n\n" + detail))
+                throw CatalogError.message(NSLocalizedString("Hardcover denied catalog access. Reconnect your account to approve catalog read and edit permissions.", comment: "") + (detail.isEmpty ? "" : "\n\n" + detail))
             }
             guard (200..<300).contains(http.statusCode) else {
                 throw CatalogError.message(String(format: NSLocalizedString("Hardcover request failed (HTTP %d). Try again later.", comment: ""), http.statusCode))

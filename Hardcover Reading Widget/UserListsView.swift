@@ -2,11 +2,13 @@ import SwiftUI
 
 struct UserListsView: View {
     let username: String
+    var canCreate = false
     @State private var lists: [UserList] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var generation = UUID()
     @State private var retryTask: Task<Void, Never>?
+    @State private var showingCreate = false
     
     var body: some View {
         ScrollView {
@@ -73,6 +75,18 @@ struct UserListsView: View {
         .background(Color(UIColor.systemGroupedBackground))
         .navigationTitle("@\(username)'s Lists")
         .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            if canCreate {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("New List", systemImage: "plus") { showingCreate = true }
+                }
+            }
+        }
+        .sheet(isPresented: $showingCreate) {
+            CreateListView(existingNames: lists.map(\.name)) {
+                retryTask?.cancel(); retryTask = Task { await loadLists() }
+            }
+        }
         .task {
             await loadLists()
         }
@@ -96,7 +110,7 @@ struct UserListsView: View {
     
     @MainActor private func loadLists() async {
         let request = UUID()
-        let account = HardcoverConfig.authorizationHeaderValue
+        let account = HardcoverConfig.accountIdentifier
         generation = request
         isLoading = true; errorMessage = nil
         defer { if generation == request { isLoading = false } }
@@ -104,10 +118,10 @@ struct UserListsView: View {
             try Task.checkCancellation()
             let fetched = try await HardcoverReadScope.checked { await HardcoverService.fetchUserLists(username: username) }
             try Task.checkCancellation()
-            guard generation == request, account == HardcoverConfig.authorizationHeaderValue else { return }
+            guard generation == request, account == HardcoverConfig.accountIdentifier else { return }
             lists = fetched
         } catch {
-            guard !Task.isCancelled, generation == request, account == HardcoverConfig.authorizationHeaderValue else { return }
+            guard !Task.isCancelled, generation == request, account == HardcoverConfig.accountIdentifier else { return }
             errorMessage = error.localizedDescription
         }
     }
@@ -225,7 +239,7 @@ struct ListCard: View {
         .task {
             guard bookCovers.isEmpty, !isLoadingCovers else { return }
             let request = UUID()
-            let account = HardcoverConfig.authorizationHeaderValue
+            let account = HardcoverConfig.accountIdentifier
             coverGeneration = request
             isLoadingCovers = true
             defer { if coverGeneration == request { isLoadingCovers = false } }
@@ -236,7 +250,7 @@ struct ListCard: View {
                     await HardcoverService.fetchListBooks(username: username, listSlug: slug)
                 }
                 try Task.checkCancellation()
-                guard coverGeneration == request, account == HardcoverConfig.authorizationHeaderValue else { return }
+                guard coverGeneration == request, account == HardcoverConfig.accountIdentifier else { return }
                 bookCovers = books.prefix(3).compactMap { $0.coverUrl }
             } catch {
                 // Decorative previews retain their fallback; the actual list reports read failures.

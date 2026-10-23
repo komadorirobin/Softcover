@@ -1,5 +1,29 @@
 import Foundation
 
+enum FinishBookReadAction: Equatable {
+    case none
+    case update(readId: Int)
+    case insert(startedAt: String?)
+}
+
+enum FinishBookWorkflow {
+    static func readAction(ongoingReadId: Int?, alreadyFinishedToday: Bool,
+                           existingStartDate: String?) -> FinishBookReadAction {
+        if let ongoingReadId { return .update(readId: ongoingReadId) }
+        if alreadyFinishedToday { return .none }
+        return .insert(startedAt: existingStartDate)
+    }
+
+    static func run(action: FinishBookReadAction,
+                    finishRead: (FinishBookReadAction) async -> Bool,
+                    updateStatus: () async -> Bool) async -> Bool {
+        if action != .none {
+            guard await finishRead(action) else { return false }
+        }
+        return await updateStatus()
+    }
+}
+
 // MARK: - GraphQL Models
 struct GraphQLMeResponse: Codable {
     let data: MeData?

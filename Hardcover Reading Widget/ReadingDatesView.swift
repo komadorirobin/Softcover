@@ -13,13 +13,6 @@ struct ReadingDatesView: View {
     @State private var errorMessage: String?
     @State private var loadGeneration = UUID()
     
-    private var dateFormatter: DateFormatter {
-        let df = DateFormatter()
-        df.dateStyle = .medium
-        df.timeStyle = .none
-        return df
-    }
-    
     var body: some View {
         NavigationStack {
             List {
@@ -95,17 +88,17 @@ struct ReadingDatesView: View {
     }
     
     @MainActor private func loadReadingDates() async {
-        let token = UUID(), account = HardcoverConfig.authorizationHeaderValue
+        let token = UUID(), account = HardcoverConfig.accountIdentifier
         loadGeneration = token
         isLoading = readingDates.isEmpty
         errorMessage = nil
         defer { if loadGeneration == token { isLoading = false } }
         do {
             let dates = try await HardcoverReadScope.checked { await HardcoverService.fetchReadingDates(userBookId: userBookId) }
-            guard token == loadGeneration, account == HardcoverConfig.authorizationHeaderValue else { return }
+            guard token == loadGeneration, account == HardcoverConfig.accountIdentifier else { return }
             readingDates = dates
         } catch is CancellationError { }
-        catch { if token == loadGeneration, account == HardcoverConfig.authorizationHeaderValue { errorMessage = error.localizedDescription } }
+        catch { if token == loadGeneration, account == HardcoverConfig.accountIdentifier { errorMessage = error.localizedDescription } }
     }
     
     private func editRead(_ read: HardcoverService.ReadingDate) {
@@ -115,14 +108,14 @@ struct ReadingDatesView: View {
     
     private func deleteRead(_ read: HardcoverService.ReadingDate) {
         Task {
-            let account = HardcoverConfig.authorizationHeaderValue
+            let account = HardcoverConfig.accountIdentifier
             do {
                 let success = try await HardcoverReadScope.checked { await HardcoverService.deleteReadingDate(readId: read.id) }
-                guard account == HardcoverConfig.authorizationHeaderValue else { return }
+                guard account == HardcoverConfig.accountIdentifier else { return }
                 guard success else { throw HardcoverNetworkError.invalidResponse }
                 WidgetSync.libraryChanged(statuses: [2, 3])
                 await loadReadingDates()
-            } catch { if account == HardcoverConfig.authorizationHeaderValue { errorMessage = error.localizedDescription } }
+            } catch { if account == HardcoverConfig.accountIdentifier { errorMessage = error.localizedDescription } }
             pendingDelete = nil
         }
     }
@@ -132,13 +125,6 @@ struct ReadingDateRow: View {
     let read: HardcoverService.ReadingDate
     let onEdit: () -> Void
     let onDelete: () -> Void
-    
-    private var dateFormatter: DateFormatter {
-        let df = DateFormatter()
-        df.dateStyle = .medium
-        df.timeStyle = .none
-        return df
-    }
     
     var body: some View {
         Button {
@@ -151,7 +137,7 @@ struct ReadingDateRow: View {
                             Image(systemName: "book.fill")
                                 .font(.caption)
                                 .foregroundColor(.blue)
-                            Text("Started: \(dateFormatter.string(from: startDate))")
+                            Text("Started: \(SoftcoverDateFormatting.string(from: startDate))")
                                 .font(.subheadline)
                         }
                     }
@@ -161,7 +147,7 @@ struct ReadingDateRow: View {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.caption)
                                 .foregroundColor(.green)
-                            Text("Finished: \(dateFormatter.string(from: endDate))")
+                            Text("Finished: \(SoftcoverDateFormatting.string(from: endDate))")
                                 .font(.subheadline)
                         }
                     } else {

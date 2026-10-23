@@ -7,6 +7,7 @@ extension Notification.Name {
 struct ExplorerView: View {
     @State private var selectedSection = 0
     @State private var showingApiSettings = false
+    @State private var showingHiddenSuggestions = false
     let onDone: (Bool) -> Void
 
     var body: some View {
@@ -16,6 +17,7 @@ struct ExplorerView: View {
                     Text("Trending").tag(0)
                     Text("Upcoming").tag(1)
                     Text("Lists").tag(2)
+                    Text("Series").tag(3)
                 }
                 .pickerStyle(.segmented)
                 .padding(.horizontal)
@@ -35,16 +37,35 @@ struct ExplorerView: View {
                         .opacity(selectedSection == 2 ? 1 : 0)
                         .allowsHitTesting(selectedSection == 2)
                         .accessibilityHidden(selectedSection != 2)
+                    SeriesSuggestionsView()
+                        .opacity(selectedSection == 3 ? 1 : 0)
+                        .allowsHitTesting(selectedSection == 3)
+                        .accessibilityHidden(selectedSection != 3)
                 }
             }
             .navigationTitle("Explore")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                if selectedSection == 3 {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Hidden", systemImage: "eye.slash") { showingHiddenSuggestions = true }
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Settings", systemImage: "gearshape") { showingApiSettings = true }
                 }
             }
             .sheet(isPresented: $showingApiSettings) { ApiKeySettingsView() }
+            .sheet(isPresented: $showingHiddenSuggestions) {
+                NavigationStack {
+                    HiddenSuggestionsView()
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button("Close") { showingHiddenSuggestions = false }
+                            }
+                        }
+                }
+            }
         }
     }
 }

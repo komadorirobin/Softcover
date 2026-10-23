@@ -12,13 +12,17 @@ struct BookDetailView: View {
     var onLibraryChange: ((BookProgress?) -> Void)?
     var onAddToWantToRead: ((Int?) -> Void)?
     @StateObject private var store: BookDetailStore
-    @AppStorage("HardcoverAPIKey", store: AppGroup.defaults) private var apiKey = ""
+    @ObservedObject private var activity = ReadingActivityStore.shared
+    @ObservedObject private var ownedEditions = OwnedEditionsStore.shared
+    @AppStorage("HardcoverAuthRevision", store: AppGroup.defaults) private var authRevision = ""
     @AppStorage("SkipEditionPickerOnAdd", store: AppGroup.defaults) private var skipEditionPicker = false
     @State private var working = false
     @State private var actionError: String?
     @State private var progressBook: BookProgress?
     @State private var editionBook: BookProgress?
     @State private var datesBook: BookProgress?
+    @State private var sessionBook: BookProgress?
+    @State private var deadlineBook: BookProgress?
     @State private var reviewBook: BookProgress?
     @State private var finishing = false
     @State private var showQuotes = false
@@ -28,6 +32,8 @@ struct BookDetailView: View {
     @State private var editions: [Edition] = []
     @State private var showEditionSelection = false
     @State private var completedBook = false
+    @State private var showShareCard = false
+    @State private var showTags = false
 
     init(book: BookProgress, showFinishAction: Bool = true, allowStandaloneReviewButton: Bool = true,
          isOwnBook: Bool = true, onLibraryChange: ((BookProgress?) -> Void)? = nil,
@@ -62,15 +68,39 @@ struct BookDetailView: View {
         }
         .navigationTitle("Book Details")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Button("Share book card", systemImage: "square.and.arrow.up") { showShareCard = true }
+                    if book.bookId != nil {
+                        Button("Edit tags", systemImage: "tag") { showTags = true }
+                    }
+                    if let editionID = store.ownBook?.editionId ?? book.editionId {
+                        Button(ownedEditions.entry(editionID: editionID) == nil ? "Mark edition as owned" : "Unmark edition as owned",
+                               systemImage: ownedEditions.entry(editionID: editionID) == nil ? "books.vertical" : "books.vertical.fill") {
+                            Task { await toggleOwned(editionID: editionID) }
+                        }.disabled(working)
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle").frame(width: 44, height: 44)
+                }
+                .accessibilityLabel("More book actions")
+            }
+        }
         .catalogEditing(book: $book) { _ in Task { await store.load(fresh: true) } }
-        .task(id: apiKey) {
-            await store.load()
+        .task(id: authRevision) {
+            activity.reload()
+            async let detailLoad: Void = store.load()
+            async let ownedLoad: Void = ownedEditions.load()
+            _ = await (detailLoad, ownedLoad)
             if highlightQuoteId != nil { showQuotes = true }
         }
-        .onChange(of: apiKey) { _, _ in
+        .onChange(of: authRevision) { _, _ in
             progressBook = nil
             editionBook = nil
             datesBook = nil
+            sessionBook = nil
+            deadlineBook = nil
             reviewBook = nil
             showQuotes = false
             showEditionSelection = false
@@ -106,6 +136,12 @@ struct BookDetailView: View {
                 ReadingDatesView(userBookId: userBookID, editionId: own.editionId)
             }
         }
+        .sheet(item: $sessionBook) { own in
+            ReadingSessionView(book: own) { updated in libraryChanged(updated) }
+        }
+        .sheet(item: $deadlineBook) { own in
+            ReadingDeadlineView(book: own)
+        }
         .sheet(item: $reviewBook) { own in
             FinishRateReviewSheet(book: own, markFinished: finishing) { updated in
                 libraryChanged(updated)
@@ -130,6 +166,12 @@ struct BookDetailView: View {
                     pendingStatus = nil
                     Task { await changeStatus(status, editionID: id) }
                 })
+        }
+        .sheet(isPresented: $showShareCard) {
+            BookShareView(book: book, metadata: store.metadata)
+        }
+        .sheet(isPresented: $showTags) {
+            if let id = book.bookId { BookTagsView(bookID: id) }
         }
         .confirmationDialog("Remove book?", isPresented: $showRemoveConfirmation, titleVisibility: .visible) {
             Button("Remove from library", role: .destructive) { Task { await removeBook() } }
@@ -196,6 +238,10 @@ struct BookDetailView: View {
                 if store.ownBook != nil {
                     Menu {
                         Button("Dates Read", systemImage: "calendar") { Task { await openPersonalSheet(.dates) } }
+                        if let own = store.ownBook, own.statusId == 2 {
+                            Button("Reading session", systemImage: "timer") { sessionBook = own }
+                            Button("Reading deadline", systemImage: "calendar.badge.clock") { deadlineBook = own }
+                        }
                         if store.ownBook?.statusId != 1 {
                             Button("Want to Read", systemImage: "bookmark") { Task { await prepareStatus(1) } }
                         }
@@ -225,6 +271,15 @@ struct BookDetailView: View {
                 if own.statusId == 2 {
                     Text(BookProgressPresentation.summary(own)).font(.subheadline).monospacedDigit()
                     if own.totalUnits > 0 { ProgressView(value: min(1, max(0, own.progress))) }
+                    if let pace = ReadingPacePresentation.summary(
+                        book: own, deadline: activity.deadline(for: own.bookId)) {
+                        Label(pace, systemImage: "calendar.badge.clock")
+                            .font(.subheadline.weight(.medium)).foregroundStyle(.tint)
+                    }
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 8) { readingTools(for: own) }
+                        VStack(alignment: .leading, spacing: 8) { readingTools(for: own) }
+                    }
                     Button { Task { await openPersonalSheet(.progress) } } label: {
                         Label("Update progress", systemImage: "slider.horizontal.3").frame(minHeight: 32)
                     }.buttonStyle(.borderedProminent).disabled(working)
@@ -258,6 +313,17 @@ struct BookDetailView: View {
                 Label("Marked as finished", systemImage: "checkmark.seal.fill").foregroundStyle(.green)
             }
         }
+    }
+
+    @ViewBuilder private func readingTools(for own: BookProgress) -> some View {
+        Button { sessionBook = own } label: {
+            Label(activity.activeSession?.bookID == own.bookId ? "Open session" : "Reading session", systemImage: "timer")
+                .frame(minHeight: 32)
+        }.buttonStyle(.bordered).disabled(working)
+        Button { deadlineBook = own } label: {
+            Label(activity.deadline(for: own.bookId) == nil ? "Set deadline" : "Edit deadline",
+                  systemImage: "calendar.badge.clock").frame(minHeight: 32)
+        }.buttonStyle(.bordered).disabled(working)
     }
 
     @ViewBuilder private var addButtons: some View {
@@ -302,7 +368,7 @@ struct BookDetailView: View {
             else if store.quotes.isEmpty && store.quotesError == nil {
                 Button("Add your first quote...", systemImage: "plus") { showQuotes = true }.frame(minHeight: 44)
             }
-        }.task(id: apiKey) { await store.loadQuotes() }
+        }.task(id: authRevision) { await store.loadQuotes() }
     }
 
     private var reviewsSection: some View {
@@ -317,7 +383,7 @@ struct BookDetailView: View {
             else if store.hasMoreReviews {
                 Button("Load more") { Task { await store.loadReviews(more: true) } }.frame(minHeight: 44)
             }
-        }.task(id: apiKey) { await store.loadReviews() }
+        }.task(id: authRevision) { await store.loadReviews() }
     }
 
     private var technicalDetails: some View {
@@ -355,7 +421,7 @@ struct BookDetailView: View {
         working = true
         defer { working = false }
         do {
-            let own = try await BookPersonalActions.requireOwnBook(bookID: book.bookId, authorization: HardcoverConfig.authorizationHeaderValue)
+            let own = try await BookPersonalActions.requireOwnBook(bookID: book.bookId, authorization: HardcoverConfig.accountIdentifier)
             store.apply(own)
             switch sheet {
             case .progress: progressBook = own
@@ -368,15 +434,23 @@ struct BookDetailView: View {
 
     @MainActor private func prepareStatus(_ status: Int) async {
         guard !working, let bookID = book.bookId else { return }
+        if OfflineWriteQueue.shared.isOffline {
+            if status == 3 {
+                presentFinish(store.ownBook, editionID: store.ownBook?.editionId ?? book.editionId)
+            } else {
+                await changeStatusOffline(status, editionID: store.ownBook?.editionId ?? book.editionId)
+            }
+            return
+        }
         working = true
-        let auth = HardcoverConfig.authorizationHeaderValue
+        let account = HardcoverConfig.accountIdentifier
         do {
             let own = try await LibraryAPI.ownBook(bookID: bookID, fresh: true)
-            guard auth == HardcoverConfig.authorizationHeaderValue else { throw HardcoverNetworkError.accountChanged }
+            guard account == HardcoverConfig.accountIdentifier else { throw HardcoverNetworkError.accountChanged }
             if let own { store.apply(own) }
             if own == nil && !skipEditionPicker {
                 let values = await HardcoverService.fetchEditions(for: bookID)
-                guard auth == HardcoverConfig.authorizationHeaderValue else { throw HardcoverNetworkError.accountChanged }
+                guard account == HardcoverConfig.accountIdentifier else { throw HardcoverNetworkError.accountChanged }
                 if values.count > 1 {
                     editions = values; pendingStatus = status; showEditionSelection = true; working = false
                     return
@@ -394,45 +468,68 @@ struct BookDetailView: View {
         guard !working, let bookID = book.bookId else { return }
         working = true
         defer { working = false }
-        let auth = HardcoverConfig.authorizationHeaderValue
+        let account = HardcoverConfig.accountIdentifier
         do {
             var own = try await LibraryAPI.ownBook(bookID: bookID, fresh: true)
-            guard auth == HardcoverConfig.authorizationHeaderValue else { throw HardcoverNetworkError.accountChanged }
+            guard account == HardcoverConfig.accountIdentifier else { throw HardcoverNetworkError.accountChanged }
             if status == 1, let onAddToWantToRead, own == nil { onAddToWantToRead(editionID); return }
             if status == 3 {
-                if own == nil {
-                    guard await HardcoverService.addBookToWantToRead(bookId: bookID, editionId: editionID) else { throw BookPersonalActions.Failure.saveFailed }
-                    own = try await BookPersonalActions.requireOwnBook(bookID: bookID, authorization: auth)
-                    WidgetSync.libraryChanged(statuses: [1])
-                }
-                if let own { store.apply(own); finishing = true; reviewBook = own }
+                presentFinish(own, editionID: editionID)
                 return
             }
             let success: Bool
-            if status == 2 {
-                success = await HardcoverService.startReadingBook(bookId: bookID, editionId: own?.editionId ?? editionID)
-            } else if let userBookID = own?.userBookId {
-                success = await HardcoverService.updateUserBookStatus(userBookId: userBookID, statusId: status)
+            if let userBookID = own?.userBookId {
+                success = await OfflineWriteQueue.shared.perform(.status(userBookID: userBookID, statusID: status, userDate: nil))
             } else {
-                success = await HardcoverService.addBookToWantToRead(bookId: bookID, editionId: editionID)
+                success = await OfflineWriteQueue.shared.perform(.add(bookID: bookID, editionID: editionID, statusID: status))
             }
             guard success else { throw BookPersonalActions.Failure.saveFailed }
-            guard auth == HardcoverConfig.authorizationHeaderValue else { throw HardcoverNetworkError.accountChanged }
+            guard account == HardcoverConfig.accountIdentifier else { throw HardcoverNetworkError.accountChanged }
             WidgetSync.libraryChanged(statuses: [own?.statusId ?? 1, status])
             await store.refreshOwnBook()
             onLibraryChange?(store.ownBook)
         } catch { actionError = error.localizedDescription }
     }
 
+    @MainActor private func presentFinish(_ own: BookProgress?, editionID: Int?) {
+        if let own { store.apply(own) }
+        var candidate = own ?? book
+        if candidate.editionId == nil { candidate.editionId = editionID }
+        finishing = true
+        reviewBook = candidate
+    }
+
+    @MainActor private func changeStatusOffline(_ status: Int, editionID: Int?) async {
+        guard let bookID = book.bookId else { return }
+        let current = store.ownBook
+        let operation: OfflineWriteOperation
+        if let userBookID = current?.userBookId {
+            operation = .status(userBookID: userBookID, statusID: status, userDate: nil)
+        } else {
+            operation = .add(bookID: bookID, editionID: editionID, statusID: status)
+        }
+        guard await OfflineWriteQueue.shared.perform(operation) else {
+            actionError = BookPersonalActions.Failure.saveFailed.localizedDescription
+            return
+        }
+        var updated = current ?? book
+        if updated.editionId == nil { updated.editionId = editionID }
+        let oldStatus = updated.statusId ?? 1
+        updated.statusId = status
+        store.apply(updated)
+        WidgetSync.libraryChanged(statuses: [oldStatus, status])
+        onLibraryChange?(updated)
+    }
+
     @MainActor private func removeBook() async {
         guard !working else { return }
         working = true
         defer { working = false }
-        let auth = HardcoverConfig.authorizationHeaderValue
+        let account = HardcoverConfig.accountIdentifier
         do {
-            let own = try await BookPersonalActions.requireOwnBook(bookID: book.bookId, authorization: auth)
-            guard let id = own.userBookId, await HardcoverService.deleteUserBook(userBookId: id) else { throw BookPersonalActions.Failure.saveFailed }
-            guard auth == HardcoverConfig.authorizationHeaderValue else { throw HardcoverNetworkError.accountChanged }
+            let own = try await BookPersonalActions.requireOwnBook(bookID: book.bookId, authorization: account)
+            guard let id = own.userBookId, await OfflineWriteQueue.shared.perform(.delete(userBookID: id)) else { throw BookPersonalActions.Failure.saveFailed }
+            guard account == HardcoverConfig.accountIdentifier else { throw HardcoverNetworkError.accountChanged }
             WidgetSync.libraryChanged(statuses: [own.statusId ?? 1])
             onLibraryChange?(nil)
             dismiss()
@@ -443,6 +540,20 @@ struct BookDetailView: View {
         store.apply(updated)
         if isOwnBook { mergeOwnBook(updated) }
         onLibraryChange?(updated)
+    }
+
+    @MainActor private func toggleOwned(editionID: Int) async {
+        guard !working else { return }; working = true; defer { working = false }
+        do {
+            if let entry = ownedEditions.entry(editionID: editionID) {
+                guard await OfflineWriteQueue.shared.perform(.unown(listBookID: entry.id)) else { throw BookPersonalActions.Failure.saveFailed }
+                ownedEditions.optimisticRemove(entry)
+            } else {
+                guard await OfflineWriteQueue.shared.perform(.own(editionID: editionID, book: book)) else { throw BookPersonalActions.Failure.saveFailed }
+                ownedEditions.optimisticMark(editionID: editionID, book: book)
+                if !OfflineWriteQueue.shared.isOffline { await ownedEditions.load(refresh: true) }
+            }
+        } catch { actionError = error.localizedDescription }
     }
 
     private func mergeOwnBook(_ own: BookProgress) {
@@ -461,7 +572,7 @@ private struct EditionSelectionLoader: View {
     @State private var loading = true
     @State private var saving = false
     @State private var error: String?
-    @State private var authorization = HardcoverConfig.authorizationHeaderValue
+    @State private var authorization = HardcoverConfig.accountIdentifier
 
     var body: some View {
         NavigationStack {

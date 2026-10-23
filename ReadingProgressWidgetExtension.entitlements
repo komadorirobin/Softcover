@@ -6,5 +6,9 @@
 	<array>
 		<string>group.komadori.Hardcover-Reading-Widget</string>
 	</array>
+	<key>keychain-access-groups</key>
+	<array>
+		<string>$(AppIdentifierPrefix)komadori.Hardcover-Reading-Widget.shared</string>
+	</array>
 </dict>
 </plist>

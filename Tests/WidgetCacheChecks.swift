@@ -60,7 +60,8 @@ struct WidgetCacheChecks {
         WidgetSync.progressChanged(book: updated)
         let manualPatched = WidgetSnapshotStore.load([BookProgress].self, token: WidgetSnapshotStore.token(kind: reading, variant: "manual-test"), maxAge: 300)
         require(manualPatched?.payload.first?.currentPage == 23, "manual widget variants receive local progress")
-        require(WidgetSync.kindsForLibraryChange(statuses: [1]) == [WidgetSync.upcomingKind], "want-to-read reloads only upcoming")
+        require(WidgetSync.kindsForLibraryChange(statuses: [1]) == [WidgetSync.upcomingKind, WidgetSync.randomKind],
+                "want-to-read reloads only widgets backed by that shelf")
         require(WidgetSync.kindsForLibraryChange(statuses: [2]) == [reading, goal], "reading change excludes quote and upcoming")
         let recorder = ReloadRecorder()
         let coordinator = WidgetReloadCoordinator(delay: 60, reload: { recorder.reload($0) }, notify: { recorder.notify($0) })

@@ -30,13 +30,27 @@ extension ImageCache {
 // MARK: - Configuration
 struct HardcoverConfig {
     private static var rawApiKey: String {
+        if let key = try? HardcoverLegacyAPIKeyStore.load(), !key.isEmpty { return key }
         if let key = AppGroup.defaults.string(forKey: "HardcoverAPIKey"), !key.isEmpty {
+            do {
+                try HardcoverLegacyAPIKeyStore.save(key)
+                AppGroup.defaults.removeObject(forKey: "HardcoverAPIKey")
+            } catch { }
             return key
         }
         return ""
     }
-    static var apiKey: String { normalize(rawApiKey) }
-    static var authorizationHeaderValue: String { headerValue(for: rawApiKey) }
+    private static var oauthCredentials: HardcoverOAuthCredentials? {
+        try? HardcoverOAuthCredentialsStore.load()
+    }
+    static var apiKey: String { oauthCredentials?.accessToken ?? normalize(rawApiKey) }
+    static var authorizationHeaderValue: String { oauthCredentials?.authorizationHeader ?? headerValue(for: rawApiKey) }
+    static var accountIdentifier: String {
+        if let sessionID = oauthCredentials?.sessionID { return "oauth:\(sessionID)" }
+        return authorizationHeaderValue
+    }
+    static var isSignedIn: Bool { !authorizationHeaderValue.isEmpty }
+    static var usesOAuth: Bool { oauthCredentials != nil }
     static func normalize(_ key: String) -> String {
         var k = key.trimmingCharacters(in: .whitespacesAndNewlines)
         let lower = k.lowercased()
@@ -66,6 +80,85 @@ struct HardcoverConfig {
         var u = username.trimmingCharacters(in: .whitespacesAndNewlines)
         if u.hasPrefix("@") { u = String(u.dropFirst()) }
         return u
+    }
+}
+
+struct ReadingProgressWriteRequest: Codable, Sendable {
+    let bookID: Int
+    let userBookID: Int?
+    let editionID: Int?
+    let expectedUnits: Int?
+    let totalUnits: Int
+    let isAudiobook: Bool
+    let units: Int
+    let actionAt: Date?
+}
+
+enum ReadingProgressWriter {
+    enum Failure: LocalizedError {
+        case missingBook
+        case editionChanged(BookProgress)
+        case progressChanged(BookProgress)
+        case invalidUnits
+        case saveFailed
+
+        var errorDescription: String? {
+            switch self {
+            case .missingBook:
+                return NSLocalizedString("This book is no longer in your library. Refresh and try again.", comment: "")
+            case .editionChanged:
+                return NSLocalizedString("The edition or reading status has changed. Reopen the progress editor to continue.", comment: "")
+            case .progressChanged:
+                return NSLocalizedString("Reading progress changed on another device. Review the latest progress before saving.", comment: "")
+            case .invalidUnits:
+                return NSLocalizedString("Progress must be within the edition's length.", comment: "")
+            case .saveFailed:
+                return NSLocalizedString("The change could not be saved. Please try again.", comment: "")
+            }
+        }
+    }
+
+    static func write(_ request: ReadingProgressWriteRequest) async throws -> BookProgress {
+        guard let own = try await LibraryAPI.ownBook(bookID: request.bookID, fresh: true) else {
+            throw Failure.missingBook
+        }
+        return try await writeValidated(request, own: own)
+    }
+
+    static func increment(bookID: Int, amount: Int) async throws -> BookProgress {
+        guard let own = try await LibraryAPI.ownBook(bookID: bookID, fresh: true),
+              let userBookID = own.userBookId, own.statusId == 2 else { throw Failure.missingBook }
+        let increment = max(1, amount)
+        let next = own.totalUnits > 0 ? min(own.totalUnits, own.currentUnits + increment) : own.currentUnits + increment
+        let request = ReadingProgressWriteRequest(bookID: bookID, userBookID: userBookID,
+            editionID: own.editionId, expectedUnits: own.currentUnits, totalUnits: own.totalUnits,
+            isAudiobook: own.isAudiobook, units: next, actionAt: nil)
+        return try await writeValidated(request, own: own)
+    }
+
+    static func validate(_ request: ReadingProgressWriteRequest, against own: BookProgress) throws {
+        guard request.units >= 0, request.totalUnits <= 0 || request.units <= request.totalUnits else {
+            throw Failure.invalidUnits
+        }
+        guard own.userBookId != nil,
+              request.userBookID == nil || own.userBookId == request.userBookID else { throw Failure.missingBook }
+        guard own.statusId == 2, own.editionId == request.editionID,
+              own.isAudiobook == request.isAudiobook, own.totalUnits == request.totalUnits else {
+            throw Failure.editionChanged(own)
+        }
+        if let expected = request.expectedUnits, own.currentUnits != expected {
+            throw Failure.progressChanged(own)
+        }
+    }
+
+    private static func writeValidated(_ request: ReadingProgressWriteRequest, own: BookProgress) async throws -> BookProgress {
+        try validate(request, against: own)
+        guard let userBookID = own.userBookId,
+              await HardcoverService.updateProgress(userBookId: userBookID, editionId: own.editionId,
+                  page: request.units, isAudiobook: own.isAudiobook, actionAt: request.actionAt) else {
+            throw Failure.saveFailed
+        }
+        return own.withProgress(request.units)
     }
 }
 
@@ -414,7 +507,7 @@ class HardcoverService {
       }
   }
   
-  static func insertBookRead(userBookId: Int, page: Int, editionId: Int? = nil, isAudiobook: Bool = false) async -> Bool {
+  static func insertBookRead(userBookId: Int, page: Int, editionId: Int? = nil, isAudiobook: Bool = false, actionAt: Date? = nil) async -> Bool {
       print("📝 Updating book read progress - UserBookId: \(userBookId), \(isAudiobook ? "Seconds" : "Page"): \(page), EditionId: \(editionId ?? -1)")
       guard !HardcoverConfig.apiKey.isEmpty else { 
           print("❌ API key is empty")
@@ -431,7 +524,7 @@ class HardcoverService {
           // the correct "Is X% done with" activity feed entry (fixes #8).
           let startedAtDisplay = latestRead.startedAt ?? "nil"
           print("📝 Updating existing read ID: \(latestRead.id), startedAt: \(startedAtDisplay)")
-          let success = await updateExistingBookRead(readId: latestRead.id, page: page, editionId: editionId, isAudiobook: isAudiobook, startedAt: latestRead.startedAt)
+          let success = await updateExistingBookRead(readId: latestRead.id, page: page, editionId: editionId, isAudiobook: isAudiobook, startedAt: latestRead.startedAt, actionAt: actionAt)
           if success {
               print("✅ Successfully updated existing read")
               // Touch user_book to trigger activity feed entry
@@ -447,7 +540,7 @@ class HardcoverService {
       
       // If update failed or no existing read, create new one
       print("📝 Creating new book read")
-      let success = await createNewBookRead(userBookId: userBookId, page: page, editionId: editionId, isAudiobook: isAudiobook)
+      let success = await createNewBookRead(userBookId: userBookId, page: page, editionId: editionId, isAudiobook: isAudiobook, actionAt: actionAt)
       if success {
           // Touch user_book to trigger activity feed entry
           await touchUserBook(userBookId: userBookId)
@@ -545,7 +638,7 @@ class HardcoverService {
       }
   }
   
-  private static func updateExistingBookRead(readId: Int, page: Int, editionId: Int?, isAudiobook: Bool = false, startedAt: String? = nil) async -> Bool {
+  private static func updateExistingBookRead(readId: Int, page: Int, editionId: Int?, isAudiobook: Bool = false, startedAt: String? = nil, actionAt: Date? = nil) async -> Bool {
       guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return false }
       var request = URLRequest(url: url)
       request.httpMethod = "POST"
@@ -563,6 +656,10 @@ class HardcoverService {
       }
       if let sa = startedAt {
           datesReadDict["started_at"] = sa
+      }
+      if let actionAt {
+          datesReadDict["action_at"] = ISO8601DateFormatter().string(from: actionAt)
+          datesReadDict["action"] = "progress_updated"
       }
       
       let mutation = """
@@ -648,7 +745,7 @@ class HardcoverService {
       }
   }
 
-  private static func createNewBookRead(userBookId: Int, page: Int, editionId: Int?, isAudiobook: Bool = false) async -> Bool {
+  private static func createNewBookRead(userBookId: Int, page: Int, editionId: Int?, isAudiobook: Bool = false, actionAt: Date? = nil) async -> Bool {
       guard !HardcoverConfig.apiKey.isEmpty else { return false }
       guard page >= 0 else { return false }
       
@@ -676,11 +773,13 @@ class HardcoverService {
       let progressVar = isAudiobook ? "$seconds" : "$pages"
       
       let mutation = """
-      mutation InsertUserBookRead($id: Int!, \(isAudiobook ? "$seconds" : "$pages"): Int, $editionId: Int, $startedAt: date) {
+      mutation InsertUserBookRead($id: Int!, \(isAudiobook ? "$seconds" : "$pages"): Int, $editionId: Int, $startedAt: date, $actionAt: timestamptz, $action: String) {
           insert_user_book_read(user_book_id: $id, user_book_read: {
               \(progressField): \(progressVar),
               edition_id: $editionId,
               started_at: $startedAt,
+              action_at: $actionAt,
+              action: $action,
           }) {
               error
               user_book_read { id progress_pages progress_seconds edition_id started_at finished_at }
@@ -693,6 +792,10 @@ class HardcoverService {
           "startedAt": startedAt
       ]
       if let eid = targetEditionId { variables["editionId"] = eid }
+      if let actionAt {
+          variables["actionAt"] = ISO8601DateFormatter().string(from: actionAt)
+          variables["action"] = "progress_updated"
+      }
       
       let bodyDict: [String: Any] = [
           "query": mutation,
@@ -724,10 +827,10 @@ class HardcoverService {
       }
   }
   
-  static func updateProgress(userBookId: Int, editionId: Int?, page: Int, isAudiobook: Bool = false) async -> Bool {
+  static func updateProgress(userBookId: Int, editionId: Int?, page: Int, isAudiobook: Bool = false, actionAt: Date? = nil) async -> Bool {
       // For audiobooks, 'page' is actually minutes, so convert to seconds
       let progressValue = isAudiobook ? (page * 60) : page
-      return await insertBookRead(userBookId: userBookId, page: progressValue, editionId: editionId, isAudiobook: isAudiobook)
+      return await insertBookRead(userBookId: userBookId, page: progressValue, editionId: editionId, isAudiobook: isAudiobook, actionAt: actionAt)
   }
   
   // MARK: - Search API
@@ -1615,54 +1718,60 @@ class HardcoverService {
 
 // MARK: - Finish book helpers
 extension HardcoverService {
-    static func finishBook(userBookId: Int, editionId: Int?, totalPages: Int?, currentPage: Int?, rating: Double?) async -> Bool {
+    static func finishBook(userBookId: Int, editionId: Int?, totalPages: Int?, currentPage: Int?, rating: Double?, actionAt: Date? = nil) async -> Bool {
         guard !HardcoverConfig.apiKey.isEmpty else { return false }
         
         print("📚 finishBook called for userBookId: \(userBookId)")
-        let today = utcDateString()
+        let today = actionAt.map(ReleaseDate.string) ?? utcDateString()
+        let actionAtString = actionAt.map { ISO8601DateFormatter().string(from: $0) }
         
         // Fetch existing user_date to preserve it
         let existingUserDate = await fetchUserBookDate(userBookId: userBookId)
         print("📅 Existing user_date: \(existingUserDate ?? "nil")")
-        
-        var statusOK = true
-        if let value = rating {
-            let clamped = max(0.5, min(5.0, (round(value * 2) / 2)))
-            statusOK = await updateUserBook(userBookId: userBookId, statusId: 3, rating: clamped, userDate: existingUserDate)
+
+        // Finish the read before changing status. Updating status first lets Hardcover
+        // create its own completed read while the old read is still open, resulting in
+        // two history entries for one completion.
+        let ongoingRead = await fetchLatestReadId(userBookId: userBookId)
+        let alreadyFinishedToday: Bool
+        if ongoingRead == nil {
+            alreadyFinishedToday = await fetchReadingDates(userBookId: userBookId)
+                .contains { $0.finishedAt == today }
         } else {
-            statusOK = await updateUserBookStatus(userBookId: userBookId, statusId: 3, userDate: existingUserDate)
+            alreadyFinishedToday = false
         }
-        print("✅ Status updated: \(statusOK)")
-        if !statusOK { return false }
-        
-        // Try to update existing read first
-        if let latestRead = await fetchLatestReadId(userBookId: userBookId) {
-            print("📖 Found existing read ID: \(latestRead.id), updating finished_at")
-            let updated = await updateReadFinishedAt(readId: latestRead.id, finishedAt: today)
-            if updated {
-                print("✅ Successfully updated existing read")
+        let action = FinishBookWorkflow.readAction(
+            ongoingReadId: ongoingRead?.id,
+            alreadyFinishedToday: alreadyFinishedToday,
+            existingStartDate: existingUserDate
+        )
+        let pages = totalPages ?? currentPage
+
+        return await FinishBookWorkflow.run(action: action) { action in
+            switch action {
+            case .none:
                 return true
+            case .update(let readId):
+                print("📖 Finishing existing read ID: \(readId) before changing status")
+                return await updateReadFinishedAt(readId: readId, finishedAt: today, actionAt: actionAtString)
+            case .insert(let startedAt):
+                print("📝 No ongoing read found, creating one completed read before changing status")
+                return await insertFinishedRead(userBookId: userBookId, editionId: editionId,
+                                                pages: pages, startedAt: startedAt, finishedAt: today, actionAt: actionAtString)
             }
-            print("⚠️ Failed to update existing read")
-        } else {
-            print("⚠️ No ongoing read found")
-            
-            // If there's no user_date (start date), we still want to set a finish date
-            // Create a read with finished_at but no started_at
-            if existingUserDate == nil {
-                print("📝 No start date exists, creating read with only finish date")
-                let pages: Int? = totalPages ?? currentPage
-                let created = await insertFinishedRead(userBookId: userBookId, editionId: editionId, pages: pages, finishedAt: today)
-                print("✅ Created read with finish date: \(created)")
-                return created
+        } updateStatus: {
+            let statusOK: Bool
+            if let value = rating {
+                let clamped = max(0.5, min(5.0, (round(value * 2) / 2)))
+                statusOK = await updateUserBook(userBookId: userBookId, statusId: 3,
+                                                rating: clamped, userDate: existingUserDate)
+            } else {
+                statusOK = await updateUserBookStatus(userBookId: userBookId, statusId: 3,
+                                                      userDate: existingUserDate)
             }
-            
-            // If there is a user_date, Hardcover API will handle the read automatically
-            print("✅ Status updated to finished, relying on Hardcover API to manage reads")
-            return true
+            print("✅ Status updated after read was finalized: \(statusOK)")
+            return statusOK
         }
-        
-        return false
     }
     
     // Update user book status with last_read_date (for changing status of already read books)
@@ -1812,7 +1921,7 @@ extension HardcoverService {
         return false
     }
     
-    private static func updateReadFinishedAt(readId: Int, finishedAt: String) async -> Bool {
+    private static func updateReadFinishedAt(readId: Int, finishedAt: String, actionAt: String? = nil) async -> Bool {
         guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return false }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -1859,22 +1968,23 @@ extension HardcoverService {
         if let startedAt = existingStartedAt {
             updateObject["started_at"] = startedAt
         }
+        if let actionAt {
+            updateObject["action_at"] = actionAt
+            updateObject["action"] = "user_book_read_finished"
+        }
         
         print("📝 Updating with object: \(updateObject)")
         
         let mutation = """
-        mutation ($id: Int!, $started: date, $finished: date!) {
-          update_user_book_read(id: $id, object: { started_at: $started, finished_at: $finished }) {
+        mutation ($id: Int!, $object: DatesReadInput!) {
+          update_user_book_read(id: $id, object: $object) {
             error
             user_book_read { id started_at finished_at }
           }
         }
         """
         
-        var variables: [String: Any] = ["id": readId, "finished": finishedAt]
-        if let startedAt = existingStartedAt {
-            variables["started"] = startedAt
-        }
+        let variables: [String: Any] = ["id": readId, "object": updateObject]
         
         let body: [String: Any] = [
             "query": mutation,
@@ -1938,7 +2048,8 @@ extension HardcoverService {
         return false
     }
     
-    private static func insertFinishedRead(userBookId: Int, editionId: Int?, pages: Int?, finishedAt: String) async -> Bool {
+    private static func insertFinishedRead(userBookId: Int, editionId: Int?, pages: Int?,
+                                           startedAt: String? = nil, finishedAt: String, actionAt: String? = nil) async -> Bool {
         guard let url = URL(string: "https://api.hardcover.app/v1/graphql") else { return false }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -1948,13 +2059,18 @@ extension HardcoverService {
         var vars: [String: Any] = ["id": userBookId, "finishedAt": finishedAt]
         if let p = pages { vars["pages"] = max(0, p) }
         if let eid = editionId { vars["editionId"] = eid }
+        if let startedAt { vars["startedAt"] = startedAt }
+        if let actionAt { vars["actionAt"] = actionAt; vars["action"] = "user_book_read_finished" }
         
         let mutation = """
-        mutation InsertFinishedRead($id: Int!, $pages: Int, $editionId: Int, $finishedAt: date) {
+        mutation InsertFinishedRead($id: Int!, $pages: Int, $editionId: Int, $startedAt: date, $finishedAt: date, $actionAt: timestamptz, $action: String) {
           insert_user_book_read(user_book_id: $id, user_book_read: {
             progress_pages: $pages,
             edition_id: $editionId,
+            started_at: $startedAt,
             finished_at: $finishedAt
+            action_at: $actionAt,
+            action: $action
           }) {
             error
             user_book_read { id progress_pages edition_id started_at finished_at }

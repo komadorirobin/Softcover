@@ -147,7 +147,7 @@ struct ListDetailView: View {
     
     @MainActor private func loadBooks() async {
         let request = UUID()
-        let account = HardcoverConfig.authorizationHeaderValue
+        let account = HardcoverConfig.accountIdentifier
         generation = request
         isLoading = true; errorMessage = nil
         defer { if generation == request { isLoading = false } }
@@ -158,10 +158,10 @@ struct ListDetailView: View {
                 await HardcoverService.fetchListBooks(username: username, listSlug: slug)
             }
             try Task.checkCancellation()
-            guard generation == request, account == HardcoverConfig.authorizationHeaderValue else { return }
+            guard generation == request, account == HardcoverConfig.accountIdentifier else { return }
             books = fetched
         } catch {
-            guard !Task.isCancelled, generation == request, account == HardcoverConfig.authorizationHeaderValue else { return }
+            guard !Task.isCancelled, generation == request, account == HardcoverConfig.accountIdentifier else { return }
             errorMessage = error.localizedDescription
         }
     }

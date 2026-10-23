@@ -11,8 +11,8 @@ final class ExploreLoadState<Item>: ObservableObject {
     private var account = ""
 
     func load(key: String, refresh: Bool = false, fetch: () async throws -> [Item]) async {
-        let authorization = HardcoverConfig.authorizationHeaderValue
-        if account != authorization { reset(); account = authorization }
+        let currentAccount = HardcoverConfig.accountIdentifier
+        if account != currentAccount { reset(); account = currentAccount }
         let request = UUID()
         generation = request
         error = nil
@@ -26,11 +26,11 @@ final class ExploreLoadState<Item>: ObservableObject {
             try Task.checkCancellation()
             let result = try await fetch()
             try Task.checkCancellation()
-            guard generation == request, account == HardcoverConfig.authorizationHeaderValue else { return }
+            guard generation == request, account == HardcoverConfig.accountIdentifier else { return }
             snapshots[key] = result
             items = result
         } catch {
-            guard !Task.isCancelled, generation == request, account == HardcoverConfig.authorizationHeaderValue else { return }
+            guard !Task.isCancelled, generation == request, account == HardcoverConfig.accountIdentifier else { return }
             self.error = error.localizedDescription
         }
     }
@@ -62,8 +62,8 @@ final class HistoryListStore: ObservableObject {
     }
 
     func load(refresh: Bool = false) async {
-        let authorization = HardcoverConfig.authorizationHeaderValue
-        if account != authorization { reset(); account = authorization }
+        let currentAccount = HardcoverConfig.accountIdentifier
+        if account != currentAccount { reset(); account = currentAccount }
         guard refresh || !loaded else { return }
         let request = UUID()
         generation = request
@@ -73,7 +73,7 @@ final class HistoryListStore: ObservableObject {
             try Task.checkCancellation()
             let page = try await LibraryHistoryAPI.page(offset: 0, fresh: refresh)
             try Task.checkCancellation()
-            guard request == generation, account == HardcoverConfig.authorizationHeaderValue else { return }
+            guard request == generation, account == HardcoverConfig.accountIdentifier else { return }
             entries = page.entries
             offset = page.nextOffset
             hasMore = page.hasMore
@@ -93,7 +93,7 @@ final class HistoryListStore: ObservableObject {
             try Task.checkCancellation()
             let page = try await LibraryHistoryAPI.page(offset: offset)
             try Task.checkCancellation()
-            guard request == generation, account == HardcoverConfig.authorizationHeaderValue else { return }
+            guard request == generation, account == HardcoverConfig.accountIdentifier else { return }
             var seen = Set(entries.map(\.id))
             entries.append(contentsOf: page.entries.filter { seen.insert($0.id).inserted })
             offset = page.nextOffset

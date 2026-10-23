@@ -4,28 +4,52 @@ A lightweight, native [Hardcover.app](https://hardcover.app) client for iOS writ
 
 ## Features
 
-- Browse and search for books
-- Track your currently reading books
-- Manage your Want to Read and Finished lists
-- View your reading statistics and goals
-- Update reading progress (by page, time, or percentage)
+- Browse trending books, upcoming releases, community lists, and next-in-series suggestions
+- Search by title, author, or ISBN barcode, with local search history
+- Manage Want to Read, Reading, Paused, Read, Did Not Finish, and Owned shelves
+- Choose, reorder, and swipe between visible library shelves
+- Track page, time, or percentage progress, including backdated entries
+- Run persistent focus sessions with a Live Activity and Dynamic Island controls, then review or correct the session history
+- Set reading deadlines and see the daily pace needed to finish on time
+- View goals, streaks, activity statistics, and a genre/author Reading Atlas
+- Record multiple reads, ratings, reviews, quotes, personal tags, and community tags
+- Create public or private custom lists with duplicate-name protection
+- Share customizable book and statistics cards
+- Hide and restore unwanted book or series recommendations
+- Queue progress and library changes while offline and sync them after reconnecting
 - Full audiobook support with hour:minute time tracking
 - Release notifications for upcoming books
-- Home screen widgets showing your reading progress
+- Home screen widgets for progress, goals, releases, quotes, trending books, and a random pick
+- Update reading progress directly from the Currently Reading widget
+- Free themes, palettes, shelf behavior, streak visibility, and date-format preferences
 - Multi-language support (English & Swedish)
+
+All reading, library, statistics, sharing, sync, and widget features are free. The optional
+Supporter Pack and tips fund development; purchases never gate functional features.
 
 ## Requirements
 
 - Xcode 15.0 or later
 - iOS 17.0 or later
-- A [Hardcover.app](https://hardcover.app) account and API key
+- A [Hardcover.app](https://hardcover.app) account
 
-## Getting Your Hardcover API Key
+## Hardcover Sign-In
 
-1. Go to [hardcover.app](https://hardcover.app) and sign in
-2. Navigate to Settings → Developer
-3. Generate a new API key
-4. Copy the key for use in the app
+Softcover uses Hardcover OAuth with Authorization Code + PKCE. Access and
+rotating refresh tokens are stored in a shared iOS Keychain access group so the
+app and widgets can use the same session. Existing personal API keys remain
+supported as a migration/development fallback and are also stored in Keychain.
+
+To configure a source build:
+
+1. Create a Hardcover Developer App of type **Mobile, desktop, or CLI**.
+2. Register `softcover://oauth/callback` as its callback URI and disable the
+   device grant.
+3. Register the scopes listed in
+   `HardcoverOAuthConfiguration.scopes`.
+4. Set `HARDCOVER_OAUTH_CLIENT_ID` for both the Softcover app and widget target.
+
+Native clients do not use or ship a client secret.
 
 ## Building and Running
 
@@ -56,9 +80,9 @@ A lightweight, native [Hardcover.app](https://hardcover.app) client for iOS writ
      - Enable Developer Mode (Settings → Privacy & Security → Developer Mode)
 
 5. **First launch setup**
-   - When you first open the app, you'll be prompted to enter your Hardcover API key
-   - Paste the API key you generated from hardcover.app
-   - The app will save this securely and use it for all API requests
+   - When you first open the app, choose **Connect with Hardcover**
+   - Approve the requested access on Hardcover
+   - Softcover returns to the app and starts syncing your library and widgets
 
 ### Building from Command Line
 

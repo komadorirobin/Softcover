@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct StatsView: View {
     let highlightGoalID: Int?
@@ -9,6 +10,10 @@ struct StatsView: View {
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var generation = UUID()
+    @ObservedObject private var activity = ReadingActivityStore.shared
+    @StateObject private var atlasStore = ReadingAtlasStore()
+    @State private var shareImage: UIImage?
+    @State private var showingShare = false
 
     init(highlightGoalID: Int? = nil) {
         self.highlightGoalID = highlightGoalID
@@ -18,7 +23,7 @@ struct StatsView: View {
         ScrollViewReader { proxy in
         ScrollView {
             VStack(spacing: 24) {
-                if let errorMessage, readingStats != nil || !readingGoals.isEmpty {
+                if let errorMessage, !isLoading {
                     InlineLoadError(message: errorMessage) { Task { await loadData() } }.padding(.horizontal)
                 }
                 if isLoading && readingStats == nil && readingGoals.isEmpty {
@@ -28,24 +33,6 @@ struct StatsView: View {
                         Text("Loading statistics...")
                             .font(.headline)
                             .foregroundColor(.secondary)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 100)
-                } else if let error = errorMessage, readingStats == nil && readingGoals.isEmpty {
-                    VStack(spacing: 20) {
-                        Image(systemName: "exclamationmark.triangle")
-                            .font(.system(size: 50))
-                            .foregroundColor(.orange)
-                        Text("Failed to load statistics")
-                            .font(.headline)
-                        Text(error)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                        Button("Try Again") {
-                            Task { await loadData() }
-                        }
-                        .buttonStyle(.borderedProminent)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.top, 100)
@@ -85,6 +72,61 @@ struct StatsView: View {
                             }
                             .padding(.horizontal)
                         }
+                    }
+
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Image(systemName: "flame.fill").foregroundStyle(.orange)
+                            Text("Reading Activity").font(.title2.weight(.semibold))
+                            Spacer()
+                            Button("Share", systemImage: "square.and.arrow.up") { prepareShareCard() }
+                        }
+                        .padding(.horizontal)
+                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
+                            StatCard(icon: "flame.fill", iconColor: .orange,
+                                     title: "Current Streak", value: "\(activity.metrics.currentStreak) days")
+                            StatCard(icon: "calendar", iconColor: .blue,
+                                     title: "Active Days", value: "\(activity.metrics.activeDays)")
+                            StatCard(icon: "timer", iconColor: .indigo,
+                                     title: "Reading Sessions", value: "\(activity.metrics.sessionCount)")
+                            StatCard(icon: "clock.fill", iconColor: .teal,
+                                     title: "Focused Time", value: focusedTime(activity.metrics.sessionSeconds))
+                        }
+                        .padding(.horizontal)
+                        NavigationLink {
+                            ReadingSessionHistoryView()
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: "clock.arrow.circlepath")
+                                    .font(.title3)
+                                    .foregroundStyle(.indigo)
+                                    .frame(width: 30)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Session History").font(.headline).foregroundStyle(.primary)
+                                    Text("Review and correct your focused reading time")
+                                        .font(.caption).foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
+                            }
+                            .padding()
+                            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.horizontal)
+                        Text("Activity statistics are recorded on this device from this version onward.")
+                            .font(.caption).foregroundStyle(.secondary).padding(.horizontal)
+                    }
+
+                    if atlasStore.isLoading && atlasStore.atlas == nil {
+                        ProgressView("Building your Reading Atlas…").padding()
+                    } else if let atlas = atlasStore.atlas {
+                        ReadingAtlasSection(atlas: atlas)
+                    }
+                    if let atlasError = atlasStore.error, atlasStore.atlas != nil {
+                        InlineLoadError(message: atlasError) { Task { await atlasStore.load(refresh: true) } }
+                            .padding(.horizontal)
                     }
                     
                     // Reading Goals Section
@@ -138,12 +180,22 @@ struct StatsView: View {
         .navigationTitle("Reading Stats")
         .navigationBarTitleDisplayMode(.large)
         .refreshable {
-            await loadData()
+            async let stats: Void = loadData()
+            async let atlas: Void = atlasStore.load(refresh: true)
+            _ = await (stats, atlas)
         }
         .task { if readingGoals.isEmpty && readingStats == nil { await loadData() } }
+        .task { await atlasStore.load() }
+        .sheet(isPresented: $showingShare) {
+            if let shareImage { ReadingActivityShareSheet(items: [shareImage]) }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .hardcoverAccountDidChange)) { _ in
             generation = UUID(); readingStats = nil; readingGoals = []; didRevealGoal = false
-            Task { await loadData() }
+            Task {
+                async let stats: Void = loadData()
+                async let atlas: Void = atlasStore.load(refresh: true)
+                _ = await (stats, atlas)
+            }
         }
         .task(id: readingGoals.map(\.id)) {
             guard !didRevealGoal, let goalID = highlightGoalID,
@@ -157,20 +209,36 @@ struct StatsView: View {
         }
     }
 
+    @MainActor private func prepareShareCard() {
+        let renderer = ImageRenderer(content:
+            ReadingStatsShareCard(stats: readingStats, metrics: activity.metrics, atlas: atlasStore.atlas)
+                .frame(width: 390, height: 520)
+        )
+        renderer.scale = UIScreen.main.scale
+        shareImage = renderer.uiImage
+        showingShare = shareImage != nil
+    }
+
+    private func focusedTime(_ seconds: TimeInterval) -> String {
+        let minutes = Int(max(0, seconds)) / 60
+        if minutes < 60 { return "\(minutes)m" }
+        return String(format: "%dh %02dm", minutes / 60, minutes % 60)
+    }
+
     @MainActor private func loadData() async {
         let request = UUID()
-        let account = HardcoverConfig.authorizationHeaderValue
+        let account = HardcoverConfig.accountIdentifier
         generation = request
         isLoading = true; errorMessage = nil
         defer { if request == generation { isLoading = false } }
         do {
             let goals = try await HardcoverReadScope.checked { await HardcoverService.fetchReadingGoals() }
             try Task.checkCancellation()
-            guard generation == request, account == HardcoverConfig.authorizationHeaderValue else { return }
+            guard generation == request, account == HardcoverConfig.accountIdentifier else { return }
             readingGoals = goals
             let stats = try await HardcoverReadScope.checked { await HardcoverService.fetchReadingStats(year: nil) }
             try Task.checkCancellation()
-            guard generation == request, account == HardcoverConfig.authorizationHeaderValue else { return }
+            guard generation == request, account == HardcoverConfig.accountIdentifier else { return }
             guard let stats else { throw HardcoverNetworkError.invalidResponse }
             readingStats = stats
         } catch {
@@ -178,6 +246,135 @@ struct StatsView: View {
             errorMessage = error.localizedDescription
         }
     }
+}
+
+private struct ReadingStatsShareCard: View {
+    let stats: HardcoverService.ReadingStats?
+    let metrics: ReadingActivityMetrics
+    let atlas: ReadingAtlas?
+
+    var body: some View {
+        ZStack {
+            LinearGradient(colors: [Color.indigo.opacity(0.95), Color.purple, Color.pink.opacity(0.9)],
+                           startPoint: .topLeading, endPoint: .bottomTrailing)
+            VStack(alignment: .leading, spacing: 24) {
+                HStack {
+                    Image(systemName: "books.vertical.fill").font(.title)
+                    Text("My Reading Atlas").font(.title.bold())
+                }
+                Text(atlas?.genres.first.map { "Mostly \($0.name) — and always exploring" }
+                     ?? "A snapshot of my reading life").font(.headline).opacity(0.8)
+                Spacer()
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 18) {
+                    shareMetric("Books read", "\(stats?.booksFinished ?? 0)", "checkmark.circle.fill")
+                    shareMetric("Pages read", "\(stats?.estimatedPages ?? 0)", "doc.text.fill")
+                    shareMetric("Current streak", "\(metrics.currentStreak) days", "flame.fill")
+                    shareMetric("Focused time", focusedTime, "timer")
+                }
+                Spacer()
+                HStack {
+                    Text("SOFTCOVER").font(.caption.bold()).tracking(2)
+                    Spacer()
+                    Text(Date.now, format: .dateTime.year().month(.abbreviated).day())
+                        .font(.caption).opacity(0.8)
+                }
+            }
+            .padding(30).foregroundStyle(.white)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 30))
+    }
+
+    private func shareMetric(_ label: String, _ value: String, _ icon: String) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Image(systemName: icon).font(.title3)
+            Text(value).font(.title2.bold()).minimumScaleFactor(0.7).lineLimit(1)
+            Text(label).font(.caption).opacity(0.8)
+        }
+        .frame(maxWidth: .infinity, minHeight: 105, alignment: .leading)
+        .padding(14).background(.white.opacity(0.14), in: RoundedRectangle(cornerRadius: 18))
+    }
+
+    private var focusedTime: String {
+        let minutes = Int(max(0, metrics.sessionSeconds)) / 60
+        return minutes < 60 ? "\(minutes)m" : String(format: "%dh %02dm", minutes / 60, minutes % 60)
+    }
+}
+
+private struct ReadingAtlasSection: View {
+    let atlas: ReadingAtlas
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Image(systemName: "map.fill").foregroundStyle(.purple)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Reading Atlas").font(.title2.weight(.semibold))
+                    Text("\(atlas.finishedBooks) finished books · \(atlas.distinctAuthors) authors")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            if !atlas.genres.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Genres").font(.headline)
+                    ForEach(atlas.genres.prefix(10)) { genre in
+                        AtlasBar(label: genre.name, value: genre.books,
+                                 maximum: max(1, atlas.genres.first?.books ?? 1), tint: .purple)
+                    }
+                    Text("Based on \(atlas.taggedBooks) books with genre data.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            if !atlas.genders.isEmpty {
+                DemographicGroup(title: "Author gender", values: atlas.genders, tint: .indigo)
+            }
+            if !atlas.bipoc.isEmpty {
+                DemographicGroup(title: "BIPOC authors", values: atlas.bipoc, tint: .orange)
+            }
+            if !atlas.lgbtq.isEmpty {
+                DemographicGroup(title: "LGBTQ+ authors", values: atlas.lgbtq, tint: .pink)
+            }
+        }
+        .padding().background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
+        .padding(.horizontal)
+    }
+}
+
+private struct DemographicGroup: View {
+    let title: String
+    let values: [ReadingAtlas.Demographic]
+    let tint: Color
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title).font(.headline)
+            let maximum = max(1, values.map(\.count).max() ?? 1)
+            ForEach(values) { AtlasBar(label: $0.label, value: $0.count, maximum: maximum, tint: tint) }
+        }
+    }
+}
+
+private struct AtlasBar: View {
+    let label: String
+    let value: Int
+    let maximum: Int
+    let tint: Color
+    var body: some View {
+        VStack(spacing: 4) {
+            HStack { Text(label).font(.subheadline); Spacer(); Text("\(value)").font(.caption).monospacedDigit() }
+            GeometryReader { geometry in
+                Capsule().fill(Color.secondary.opacity(0.16)).overlay(alignment: .leading) {
+                    Capsule().fill(tint).frame(width: geometry.size.width * CGFloat(value) / CGFloat(maximum))
+                }
+            }.frame(height: 7)
+        }
+    }
+}
+
+private struct ReadingActivityShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) { }
 }
 
 struct ReadingGoalCard: View {

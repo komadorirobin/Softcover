@@ -1,11 +1,55 @@
 #if BOOK_UI_FIXTURE
 import SwiftUI
+import Combine
 
 // This target never uses the app group or production transport. Every operation is in memory.
 enum AppGroup { static let defaults = UserDefaults.standard }
 enum HardcoverConfig {
     static var apiKey: String { "book-ui-fixture" }
     static var authorizationHeaderValue: String { "Bearer book-ui-fixture" }
+    static var accountIdentifier: String { authorizationHeaderValue }
+    static var isSignedIn: Bool { true }
+}
+@MainActor
+enum SupporterStore {
+    static func refreshSharedEntitlement() async { }
+}
+struct TipJarView: View {
+    var body: some View { Text("Support Softcover") }
+}
+struct ReadingDeadline { let bookID: Int; let targetDate: Date; let createdAt: Date }
+struct ReadingActivityMetrics { var currentStreak = 0 }
+struct ActiveReadingSession {
+    let id = UUID()
+    let bookID: Int
+    let userBookID: Int?
+    let editionID: Int?
+    let title: String
+    let author: String
+    let isAudiobook: Bool
+    let totalUnits: Int
+    let startingUnits: Int
+}
+@MainActor final class ReadingActivityStore: ObservableObject {
+    static let shared = ReadingActivityStore()
+    @Published var activeSession: ActiveReadingSession?
+    let metrics = ReadingActivityMetrics()
+    func reload() { }
+    func deadline(for bookID: Int?) -> ReadingDeadline? { nil }
+    func recordProgress(book: BookProgress, from oldUnits: Int, to newUnits: Int) { }
+    func recordFinished(book: BookProgress, from oldUnits: Int) { }
+}
+enum ReadingPacePresentation {
+    static func summary(book: BookProgress, deadline: ReadingDeadline?) -> String? { nil }
+}
+struct ReadingDeadlineView: View {
+    let book: BookProgress
+    var body: some View { Text("Reading deadline") }
+}
+struct ReadingSessionView: View {
+    let book: BookProgress
+    var onProgressSaved: ((BookProgress) -> Void)? = nil
+    var body: some View { Text("Reading session") }
 }
 enum HardcoverNetworkError: LocalizedError {
     case invalidResponse, accountChanged

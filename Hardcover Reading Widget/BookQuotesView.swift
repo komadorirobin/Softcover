@@ -171,17 +171,17 @@ struct BookQuotesView: View {
     // MARK: - Data Loading
 
     @MainActor private func loadQuotes() async {
-        let token = UUID(), account = HardcoverConfig.authorizationHeaderValue
+        let token = UUID(), account = HardcoverConfig.accountIdentifier
         loadGeneration = token
         isLoading = true
         errorMessage = nil
         defer { if loadGeneration == token { isLoading = false } }
         do {
             let fetched = try await HardcoverReadScope.checked { await HardcoverService.fetchQuotesForBook(bookId: bookId) }
-            guard token == loadGeneration, account == HardcoverConfig.authorizationHeaderValue else { return }
+            guard token == loadGeneration, account == HardcoverConfig.accountIdentifier else { return }
             quotes = fetched
         } catch is CancellationError { }
-        catch { if token == loadGeneration, account == HardcoverConfig.authorizationHeaderValue { errorMessage = error.localizedDescription } }
+        catch { if token == loadGeneration, account == HardcoverConfig.accountIdentifier { errorMessage = error.localizedDescription } }
     }
 
     private func performDelete(quoteId: Int) async {

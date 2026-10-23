@@ -12,6 +12,7 @@ enum HardcoverConfig {
         set { AppGroup.defaults.set(newValue, forKey: "testAccount") }
     }
     static var authorizationHeaderValue: String { apiKey }
+    static var accountIdentifier: String { authorizationHeaderValue }
 }
 enum HardcoverRequestScheduler {
     static func accountKey(_ string: String) -> String {

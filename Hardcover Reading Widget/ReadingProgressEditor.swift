@@ -28,12 +28,14 @@ struct ReadingProgressEditor: View {
     @State private var error: String?
     @State private var changedBook: BookProgress?
     @State private var baselineUnits: Int
+    @State private var backdate = false
+    @State private var readAt = Date()
     private let authorization: String
 
     init(book: BookProgress, onSaved: @escaping (BookProgress) -> Void) {
         self.book = book
         self.onSaved = onSaved
-        authorization = HardcoverConfig.authorizationHeaderValue
+        authorization = HardcoverConfig.accountIdentifier
         _draft = State(initialValue: ReadingProgressDraft(book: book))
         _baselineUnits = State(initialValue: book.currentUnits)
     }
@@ -82,6 +84,14 @@ struct ReadingProgressEditor: View {
                         Text("Progress must be within the edition's length.").foregroundStyle(.red)
                     }
                 }
+                Section("When did you read this?") {
+                    Toggle("Choose a past date and time", isOn: $backdate)
+                    if backdate {
+                        DatePicker("Read at", selection: $readAt, in: ...Date(), displayedComponents: [.date, .hourAndMinute])
+                    } else {
+                        Text("Just now").foregroundStyle(.secondary)
+                    }
+                }
                 if let error {
                     Section {
                         Text(error).foregroundStyle(.red)
@@ -125,25 +135,21 @@ struct ReadingProgressEditor: View {
         error = nil
         defer { saving = false }
         do {
-            let own = try await BookPersonalActions.requireOwnBook(bookID: book.bookId, authorization: authorization)
-            guard own.editionId == book.editionId, own.isAudiobook == draft.isAudiobook,
-                  own.totalUnits == draft.total, own.statusId == 2 else {
-                changedBook = nil
-                throw BookPersonalActions.Failure.editionChanged
-            }
-            guard own.currentUnits == baselineUnits else {
-                changedBook = own
-                throw BookPersonalActions.Failure.progressChanged
-            }
-            guard let id = own.userBookId,
-                  await HardcoverService.updateProgress(userBookId: id, editionId: own.editionId, page: draft.units, isAudiobook: own.isAudiobook) else {
-                throw BookPersonalActions.Failure.saveFailed
-            }
-            guard authorization == HardcoverConfig.authorizationHeaderValue else { throw HardcoverNetworkError.accountChanged }
-            let updated = own.withProgress(draft.units)
+            guard let bookID = book.bookId else { throw ReadingProgressWriter.Failure.missingBook }
+            let request = ReadingProgressWriteRequest(bookID: bookID, userBookID: book.userBookId,
+                editionID: book.editionId, expectedUnits: baselineUnits, totalUnits: draft.total,
+                isAudiobook: draft.isAudiobook, units: draft.units, actionAt: backdate ? readAt : nil)
+            let updated = try await OfflineWriteQueue.shared.performProgress(request, fallback: book)
+            guard authorization == HardcoverConfig.accountIdentifier else { throw HardcoverNetworkError.accountChanged }
+            ReadingActivityStore.shared.recordProgress(book: updated, from: baselineUnits, to: draft.units,
+                                                        at: backdate ? readAt : Date())
             WidgetSync.progressChanged(book: updated)
             onSaved(updated)
             dismiss()
-        } catch { self.error = error.localizedDescription }
+        } catch {
+            if case ReadingProgressWriter.Failure.progressChanged(let latest) = error { changedBook = latest }
+            else if case ReadingProgressWriter.Failure.editionChanged(_) = error { changedBook = nil }
+            self.error = error.localizedDescription
+        }
     }
 }

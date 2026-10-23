@@ -169,7 +169,7 @@ final class BookSearchStore: ObservableObject {
     func setStatus(bookID: Int, status: Int) { statuses[bookID] = status }
 
     private func matches(_ input: Request, token: UUID) -> Bool {
-        generation == token && request == input && input.account == HardcoverConfig.authorizationHeaderValue
+        generation == token && request == input && input.account == HardcoverConfig.accountIdentifier
     }
     private func loadStatuses(_ books: [BookProgress], input: Request, token: UUID) async {
         guard let result = try? await BookSearchAPI.statuses(for: books), !Task.isCancelled, matches(input, token: token) else { return }

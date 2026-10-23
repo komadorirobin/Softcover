@@ -6,7 +6,9 @@ struct ProfileView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var showingApiSettings = false
+    @State private var showingSupporterPack = false
     @State private var generation = UUID()
+    @AppStorage(SupporterAccess.entitlementKey, store: AppGroup.defaults) private var isSupporter = false
 
     var body: some View {
         NavigationStack {
@@ -15,6 +17,30 @@ struct ProfileView: View {
                     InlineLoadError(message: errorMessage) { Task { await loadProfile() } }
                 }
                 if isLoading && profile == nil { ProgressView().frame(maxWidth: .infinity) }
+                Section {
+                    Button { showingSupporterPack = true } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: isSupporter ? "checkmark.seal.fill" : "sparkles.rectangle.stack.fill")
+                                .font(.title2)
+                                .foregroundStyle(isSupporter ? .green : .purple)
+                                .frame(width: 34)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(isSupporter ? "Softcover Supporter" : "Support Softcover")
+                                    .font(.headline)
+                                    .foregroundStyle(.primary)
+                                Text(isSupporter ? "Your Supporter Collection is unlocked." : "One purchase unlocks app icons, palettes, and quote themes.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                        .padding(.vertical, 4)
+                    }
+                    .buttonStyle(.plain)
+                }
                 if let profile {
                     Section {
                         HStack(alignment: .top, spacing: 16) {
@@ -56,7 +82,7 @@ struct ProfileView: View {
                     Section("Library") {
                         NavigationLink { StatsView() } label: { Label("Reading Stats", systemImage: "chart.bar") }
                         NavigationLink { HistoryView() } label: { Label("Reading History", systemImage: "clock") }
-                        NavigationLink { UserListsView(username: profile.username) } label: { Label("Lists", systemImage: "list.bullet") }
+                        NavigationLink { UserListsView(username: profile.username, canCreate: true) } label: { Label("Lists", systemImage: "list.bullet") }
                         NavigationLink { PromptsView() } label: { Label("Answered Prompts", systemImage: "questionmark.bubble") }
                     }
                     Section("Community") {
@@ -73,6 +99,16 @@ struct ProfileView: View {
                 }
             }
             .sheet(isPresented: $showingApiSettings) { ApiKeySettingsView() }
+            .sheet(isPresented: $showingSupporterPack) {
+                NavigationStack {
+                    TipJarView()
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button("Close") { showingSupporterPack = false }
+                            }
+                        }
+                }
+            }
             .refreshable { await loadProfile() }
             .task { if profile == nil { await loadProfile() } }
             .onReceive(NotificationCenter.default.publisher(for: .hardcoverAccountDidChange)) { _ in
@@ -84,19 +120,19 @@ struct ProfileView: View {
 
     @MainActor private func loadProfile() async {
         let request = UUID()
-        let account = HardcoverConfig.authorizationHeaderValue
+        let account = HardcoverConfig.accountIdentifier
         generation = request
         isLoading = true; errorMessage = nil
         defer { if request == generation { isLoading = false } }
         do {
             let result = try await HardcoverReadScope.checked { await HardcoverService.fetchUserProfile() }
             try Task.checkCancellation()
-            guard request == generation, account == HardcoverConfig.authorizationHeaderValue else { return }
+            guard request == generation, account == HardcoverConfig.accountIdentifier else { return }
             guard let result else { throw HardcoverNetworkError.invalidResponse }
             profile = result
             let loadedGoals = try await HardcoverReadScope.checked { await HardcoverService.fetchReadingGoals() }
             try Task.checkCancellation()
-            guard request == generation, account == HardcoverConfig.authorizationHeaderValue else { return }
+            guard request == generation, account == HardcoverConfig.accountIdentifier else { return }
             goals = loadedGoals
         } catch {
             guard !Task.isCancelled, request == generation else { return }

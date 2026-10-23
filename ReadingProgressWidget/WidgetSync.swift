@@ -10,7 +10,9 @@ enum WidgetSync {
     static let goalKind = "ReadingGoalWidget"
     static let upcomingKind = "ReleaseCountdownWidget"
     static let quoteKind = "QuoteWidget"
-    static let allKinds: Set<String> = [readingKind, goalKind, upcomingKind, quoteKind]
+    static let trendingKind = "TrendingBooksWidget"
+    static let randomKind = "RandomBookWidget"
+    static let allKinds: Set<String> = [readingKind, goalKind, upcomingKind, quoteKind, trendingKind, randomKind]
 
     private static let coordinator = WidgetReloadCoordinator(
         reload: { WidgetCenter.shared.reloadTimelines(ofKind: $0) },
@@ -54,7 +56,7 @@ enum WidgetSync {
 
     static func kindsForLibraryChange(statuses: Set<Int>) -> Set<String> {
         var kinds: Set<String> = []
-        if statuses.contains(1) { kinds.insert(upcomingKind) }
+        if statuses.contains(1) { kinds.insert(upcomingKind); kinds.insert(randomKind) }
         if statuses.contains(2) { kinds.insert(readingKind) }
         if !statuses.isDisjoint(with: [2, 3]) { kinds.insert(goalKind) }
         return kinds
@@ -145,7 +147,7 @@ enum WidgetSnapshotStore {
     static func token(kind: String, variant: String = "") -> Token {
         lock.lock()
         defer { lock.unlock() }
-        let account = HardcoverRequestScheduler.accountKey(HardcoverConfig.authorizationHeaderValue)
+        let account = HardcoverRequestScheduler.accountKey(HardcoverConfig.accountIdentifier)
         let generation = AppGroup.defaults.string(forKey: "\(prefix)\(account).\(kind).generation") ?? "initial"
         return Token(account: account, kind: kind, generation: generation, variant: variant)
     }

@@ -4,6 +4,46 @@
   "version" : 3,
   "products" : [
     {
+      "displayPrice" : "99",
+      "familyShareable" : false,
+      "internalID" : "supporter_lifetime_001",
+      "localizations" : [
+        {
+          "description" : "Unlock icons, palettes, and quote themes.",
+          "displayName" : "Softcover Supporter Pack",
+          "locale" : "en_US"
+        },
+        {
+          "description" : "Lås upp ikoner, paletter och citatteman.",
+          "displayName" : "Softcover Supporterpaket",
+          "locale" : "sv_SE"
+        }
+      ],
+      "productID" : "komadori.softcover.supporter.lifetime",
+      "referenceName" : "Softcover Supporter Pack",
+      "type" : "NonConsumable"
+    },
+    {
+      "displayPrice" : "149",
+      "familyShareable" : false,
+      "internalID" : "supporter_generous_001",
+      "localizations" : [
+        {
+          "description" : "Same cosmetics, with extra support.",
+          "displayName" : "Generous Supporter Pack",
+          "locale" : "en_US"
+        },
+        {
+          "description" : "Samma kosmetik, med extra stöd.",
+          "displayName" : "Generöst supporterpaket",
+          "locale" : "sv_SE"
+        }
+      ],
+      "productID" : "komadori.softcover.supporter.generous",
+      "referenceName" : "Generous Supporter Pack",
+      "type" : "NonConsumable"
+    },
+    {
       "displayPrice" : "9",
       "familyShareable" : false,
       "internalID" : "tip_small_001",
@@ -51,6 +91,6 @@
   ],
   "settings" : {
     "_applicationInternalID" : "softcover_app",
-    "_developerTeamID" : "XXXXXXXXXX"
+    "_developerTeamID" : "7G6FEZ22K2"
   }
 }

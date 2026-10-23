@@ -28,10 +28,10 @@ final class LibraryListStore: ObservableObject {
     }
 
     func load(refresh: Bool = false) async {
-        let authorization = HardcoverConfig.authorizationHeaderValue
-        if account != authorization {
+        let currentAccount = HardcoverConfig.accountIdentifier
+        if account != currentAccount {
             reset()
-            account = authorization
+            account = currentAccount
             if username == nil, let snapshot = LibrarySnapshot.load(status: status) {
                 books = snapshot.books
                 offset = books.count
@@ -48,7 +48,7 @@ final class LibraryListStore: ObservableObject {
         do {
             let page = try await LibraryAPI.page(status: status, username: username, fresh: refresh)
             try Task.checkCancellation()
-            guard generation == request, account == HardcoverConfig.authorizationHeaderValue else { return }
+            guard generation == request, account == HardcoverConfig.accountIdentifier else { return }
             books = unique(page.books)
             offset = page.nextOffset
             hasMore = page.hasMore
@@ -56,7 +56,7 @@ final class LibraryListStore: ObservableObject {
             persist()
         } catch is CancellationError { }
         catch {
-            guard generation == request, account == HardcoverConfig.authorizationHeaderValue else { return }
+            guard generation == request, account == HardcoverConfig.accountIdentifier else { return }
             self.error = error.localizedDescription
         }
     }
@@ -70,14 +70,14 @@ final class LibraryListStore: ObservableObject {
         do {
             let page = try await LibraryAPI.page(status: status, offset: offset, username: username)
             try Task.checkCancellation()
-            guard generation == request, account == HardcoverConfig.authorizationHeaderValue else { return }
+            guard generation == request, account == HardcoverConfig.accountIdentifier else { return }
             books = unique(books + page.books)
             offset = page.nextOffset
             hasMore = page.hasMore
             persist()
         } catch is CancellationError { }
         catch {
-            guard generation == request, account == HardcoverConfig.authorizationHeaderValue else { return }
+            guard generation == request, account == HardcoverConfig.accountIdentifier else { return }
             self.error = error.localizedDescription
         }
     }
@@ -92,14 +92,14 @@ final class LibraryListStore: ObservableObject {
     }
 
     func apply(book: BookProgress) {
-        guard account == HardcoverConfig.authorizationHeaderValue else { return }
+        guard account == HardcoverConfig.accountIdentifier else { return }
         guard book.statusId == nil || book.statusId == status else { remove(id: book.id); return }
         if let index = books.firstIndex(where: { $0.id == book.id }) { books[index] = book }
         if username == nil { LibrarySnapshot.update(book: book) }
     }
 
     func remove(id: String) {
-        guard account == HardcoverConfig.authorizationHeaderValue else { return }
+        guard account == HardcoverConfig.accountIdentifier else { return }
         if let index = books.firstIndex(where: { $0.id == id }) {
             books.remove(at: index)
             offset = max(0, offset - 1)
@@ -114,7 +114,7 @@ final class LibraryListStore: ObservableObject {
     }
 
     private func persist() {
-        guard username == nil, account == HardcoverConfig.authorizationHeaderValue else { return }
+        guard username == nil, account == HardcoverConfig.accountIdentifier else { return }
         LibrarySnapshot.save(books, status: status, complete: !hasMore)
     }
 }

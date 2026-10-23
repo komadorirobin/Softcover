@@ -18,7 +18,7 @@ build/catalog-editing-checks --fixtures > "$app/catalog-fixtures.json"
   -c 'Add :UILaunchScreen dict' "$app/Info.plist"
 sdk=$(xcrun --sdk iphonesimulator --show-sdk-path)
 SDKROOT="$sdk" xcrun swiftc -target arm64-apple-ios18.5-simulator \
-  -sdk "$sdk" -parse-as-library \
+  -sdk "$sdk" -parse-as-library -D SOFTCOVER_CATALOG_TESTS \
   "Hardcover Reading Widget/CatalogModels.swift" \
   "Hardcover Reading Widget/CatalogService.swift" \
   "Hardcover Reading Widget/CatalogEditorView.swift" \

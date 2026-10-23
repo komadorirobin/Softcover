@@ -131,6 +131,9 @@ struct ReadingWidgetsBundle: WidgetBundle {
         ReadingGoalWidget()
         ReleaseCountdownWidget()
         QuoteWidget()
+        TrendingBooksWidget()
+        RandomBookWidget()
+        ReadingProgressWidgetLiveActivity()
     }
 }
 

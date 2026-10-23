@@ -2,7 +2,7 @@
 set -eu
 cd "$(dirname "$0")/.."
 mkdir -p build
-xcrun swiftc -parse-as-library \
+xcrun swiftc -parse-as-library -D SOFTCOVER_CATALOG_TESTS \
   "Hardcover Reading Widget/CatalogModels.swift" \
   "Hardcover Reading Widget/CatalogService.swift" \
   Tests/CatalogEditingChecks.swift \

@@ -5,8 +5,23 @@ enum HardcoverConfig {
     static var authorizationHeaderValue: String {
         "Bearer " + (UserDefaults.standard.string(forKey: "HardcoverAPIKey") ?? "")
     }
+    static var accountIdentifier: String { authorizationHeaderValue }
+    static var isSignedIn: Bool { authorizationHeaderValue != "Bearer " }
 }
 enum AppGroup { static let defaults = UserDefaults.standard }
+actor HardcoverRequestScheduler {
+    static let shared = HardcoverRequestScheduler()
+    func acquire(authorization: String, cost: Int) async throws { }
+    func observe(_ response: HTTPURLResponse, authorization: String) async { }
+}
+actor HardcoverHTTP {
+    static let shared = HardcoverHTTP()
+    func invalidateReads(authorization: String) async { }
+}
+enum WidgetSync {
+    static func libraryChanged(statuses: Set<Int>) { }
+    static func quotesChanged() { }
+}
 
 final class ToolbarFixtureProtocol: URLProtocol {
     static let requestCountKey = "CatalogToolbarFixtureRequests"

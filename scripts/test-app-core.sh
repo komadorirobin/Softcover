@@ -7,6 +7,8 @@ xcrun swiftc -parse-as-library -D SOFTCOVER_CORE_TESTS \
   ReadingProgressWidget/BookProgress.swift \
   ReadingProgressWidget/HardcoverModels.swift \
   ReadingProgressWidget/LibraryAPI.swift \
+  "Hardcover Reading Widget/ReadingActivityModels.swift" \
+  "Hardcover Reading Widget/ReadingAtlasService.swift" \
   "Hardcover Reading Widget/BookSearchStore.swift" \
   "Hardcover Reading Widget/LibraryListStore.swift" \
   "Hardcover Reading Widget/WantToReadPresentation.swift" \

@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -13,5 +15,9 @@
 			</array>
 		</dict>
 	</array>
+	<key>HardcoverOAuthClientID</key>
+	<string>$(HARDCOVER_OAUTH_CLIENT_ID)</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 </dict>
 </plist>

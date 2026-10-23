@@ -1,6 +1,444 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "4 alternate app icons, 8 quote themes, and 4 accent palettes" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "4 alternativa appikoner, 8 citatteman och 4 accentpaletter" } } }
+    },
+    "Accent palette" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Accentpalett" } } }
+    },
+    "All reading, library, statistics, sharing, and widget features remain free." : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Alla funktioner för läsning, bibliotek, statistik, delning och widgetar förblir gratis." } } }
+    },
+    "Alternate app icons" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Alternativa appikoner" } } }
+    },
+    "Alternate app icons aren't available on this device." : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Alternativa appikoner är inte tillgängliga på den här enheten." } } }
+    },
+    "App appearance" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Appens utseende" } } }
+    },
+    "App icon" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Appikon" } } }
+    },
+    "Aurora" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Aurora" } } }
+    },
+    "Aurora, Sunset, and Ink quote widget themes" : {
+      "localizations" : {
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Temana Aurora, Sunset och Ink för citatwidgeten"
+          }
+        }
+      }
+    },
+    "Classic" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Klassisk" } } }
+    },
+    "Classic is included for everyone. The four alternate icons are part of the cosmetic Supporter Collection." : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Den klassiska ikonen ingår för alla. De fyra alternativa ikonerna ingår i det kosmetiska supporterpaketet." } } }
+    },
+    "Aurora, Sunset, and Ink quote widget themes are unlocked." : {
+      "localizations" : {
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Temana Aurora, Sunset och Ink för citatwidgeten är upplåsta."
+          }
+        }
+      }
+    },
+    "Both options unlock exactly the same cosmetic pack. Choose the generous option only if you want to provide extra support." : {
+      "localizations" : {
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Båda alternativen låser upp exakt samma kosmetiska paket. Välj det generösa alternativet bara om du vill ge extra stöd."
+          }
+        }
+      }
+    },
+    "Could not complete purchase" : {
+      "localizations" : {
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Köpet kunde inte slutföras"
+          }
+        }
+      }
+    },
+    "Could not load purchase options. Please try again later." : {
+      "localizations" : {
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kunde inte ladda köpalternativen. Försök igen senare."
+          }
+        }
+      }
+    },
+    "Couldn't change the app icon" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Det gick inte att byta appikon" } } }
+    },
+    "Dim" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Dämpat" } } }
+    },
+    "Eight extra quote widget themes" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Åtta extra teman för citatwidgeten" } } }
+    },
+    "Ember" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Ember" } } }
+    },
+    "Every reading feature stays free, including sessions, deadlines, statistics, widgets, and sharing. Supporter purchases only unlock the cosmetic Supporter Collection." : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Alla läsfunktioner förblir gratis, inklusive sessioner, slutdatum, statistik, widgetar och delning. Supporterköp låser endast upp det kosmetiska supporterpaketet." } } }
+    },
+    "Explore the Supporter Collection" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Utforska supporterpaketet" } } }
+    },
+    "Four extra app accent palettes" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Fyra extra accentpaletter för appen" } } }
+    },
+    "Foxed" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Foxed" } } }
+    },
+    "Future cosmetics added to this collection are included" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Framtida kosmetiska tillägg i paketet ingår" } } }
+    },
+    "Ink" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Ink" } } }
+    },
+    "Lavender" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Lavender" } } }
+    },
+    "Every reading feature stays free, including sessions, deadlines, statistics, widgets, and sharing. Supporter purchases only unlock extra visual themes." : {
+      "localizations" : {
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alla läsfunktioner förblir gratis, inklusive sessioner, slutdatum, statistik, widgetar och delning. Supporterköp låser endast upp extra visuella teman."
+          }
+        }
+      }
+    },
+    "Lifetime unlock" : {
+      "localizations" : {
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lås upp för alltid"
+          }
+        }
+      }
+    },
+    "Loading…" : {
+      "localizations" : {
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Laddar…"
+          }
+        }
+      }
+    },
+    "Moonlight" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Moonlight" } } }
+    },
+    "Moss" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Moss" } } }
+    },
+    "No purchase options are available right now." : {
+      "localizations" : {
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inga köpalternativ är tillgängliga just nu."
+          }
+        }
+      }
+    },
+    "Optional tips" : {
+      "localizations" : {
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frivillig dricks"
+          }
+        }
+      }
+    },
+    "One purchase unlocks app icons, palettes, and quote themes." : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Ett köp låser upp appikoner, paletter och citatteman." } } }
+    },
+    "Parchment" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Parchment" } } }
+    },
+    "Please try again later." : {
+      "localizations" : {
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Försök igen senare."
+          }
+        }
+      }
+    },
+    "Restore Purchase" : {
+      "localizations" : {
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Återställ köp"
+          }
+        }
+      }
+    },
+    "Supporter options are not available right now." : {
+      "localizations" : {
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supporteralternativen är inte tillgängliga just nu."
+          }
+        }
+      }
+    },
+    "Supporter Collection" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Supporterpaketet" } } }
+    },
+    "Supporter purchases are one-time, non-consumable cosmetic purchases that can be restored. Both levels unlock the same Supporter Collection. No reading feature is paywalled. Tips are one-time consumable purchases. Apple processes all payments." : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Supporterköp är kosmetiska engångsköp som inte förbrukas och kan återställas. Båda nivåerna låser upp samma supporterpaket. Inga läsfunktioner ligger bakom en betalvägg. Dricks är engångsköp som förbrukas. Apple hanterar alla betalningar." } } }
+    },
+    "Sunset" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Sunset" } } }
+    },
+    "System" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "System" } } }
+    },
+    "Supporter purchases are one-time, non-consumable cosmetic purchases that can be restored. Both levels unlock the same themes. No reading feature is paywalled. Tips are one-time consumable purchases. Apple processes all payments." : {
+      "localizations" : {
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supporterköp är kosmetiska engångsköp som inte förbrukas och kan återställas. Båda nivåerna låser upp samma teman. Inga läsfunktioner ligger bakom en betalvägg. Dricks är engångsköp som förbrukas. Apple hanterar alla betalningar."
+          }
+        }
+      }
+    },
+    "The purchase could not be verified." : {
+      "localizations" : {
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Köpet kunde inte verifieras."
+          }
+        }
+      }
+    },
+    "The purchase is waiting for approval." : {
+      "localizations" : {
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Köpet väntar på godkännande."
+          }
+        }
+      }
+    },
+    "Themes & App Icon" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Teman och appikon" } } }
+    },
+    "Unlock + extra support for %@" : {
+      "localizations" : {
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lås upp och ge extra stöd för %@"
+          }
+        }
+      }
+    },
+    "Unlock for %@" : {
+      "localizations" : {
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lås upp för %@"
+          }
+        }
+      }
+    },
+    "Vellum" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Vellum" } } }
+    },
+    "Your alternate icons, accent palettes, and quote widget themes are unlocked." : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Dina alternativa ikoner, accentpaletter och teman för citatwidgeten är upplåsta." } } }
+    },
+    "Your Supporter Collection is unlocked." : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Ditt supporterpaket är upplåst." } } }
+    },
+    "You're a Softcover Supporter" : {
+      "localizations" : {
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Du är Softcover-supporter"
+          }
+        }
+      }
+    },
+    "Session History" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Sessionshistorik" } } }
+    },
+    "Review and correct your focused reading time" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Granska och korrigera din fokuserade lästid" } } }
+    },
+    "No Reading Sessions" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Inga lässessioner" } } }
+    },
+    "Completed sessions will appear here after you stop the reading timer." : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Avslutade sessioner visas här när du stoppar lästimern." } } }
+    },
+    "Sessions are stored on this device. Editing or deleting one changes Softcover statistics, not progress already saved to Hardcover." : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Sessioner lagras på den här enheten. Om du redigerar eller tar bort en ändras statistiken i Softcover, inte framsteg som redan har sparats i Hardcover." } } }
+    },
+    "Delete Reading Session?" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Ta bort lässession?" } } }
+    },
+    "This removes the session from Softcover statistics. Progress already saved to Hardcover will not change." : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Detta tar bort sessionen från Softcovers statistik. Framsteg som redan har sparats i Hardcover ändras inte." } } }
+    },
+    "No progress recorded" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Inga framsteg registrerade" } } }
+    },
+    "Opens session editor" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Öppnar redigering av sessionen" } } }
+    },
+    "Session" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Session" } } }
+    },
+    "Started" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Start" } } }
+    },
+    "Ended" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Slut" } } }
+    },
+    "Focused Time" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Fokuserad tid" } } }
+    },
+    "Seconds" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Sekunder" } } }
+    },
+    "Listening Progress" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Lyssningsframsteg" } } }
+    },
+    "Reading Progress" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Läsframsteg" } } }
+    },
+    "Starting minute" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Startminut" } } }
+    },
+    "Starting page" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Startsida" } } }
+    },
+    "Ending minute" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Slutminut" } } }
+    },
+    "Ending page" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Slutsida" } } }
+    },
+    "The end must be after the start." : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Sluttiden måste vara efter starttiden." } } }
+    },
+    "Focused time must be longer than zero." : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Den fokuserade tiden måste vara längre än noll." } } }
+    },
+    "Focused time cannot be longer than the session." : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Den fokuserade tiden kan inte vara längre än sessionen." } } }
+    },
+    "Enter a valid duration." : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Ange en giltig tidslängd." } } }
+    },
+    "The ending minute must not be before the starting minute." : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Slutminuten får inte vara före startminuten." } } }
+    },
+    "The ending page must not be before the starting page." : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Slutsidan får inte vara före startsidan." } } }
+    },
+    "This changes Softcover’s local history and statistics only. Your current Hardcover progress is not changed." : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Detta ändrar endast Softcovers lokala historik och statistik. Ditt aktuella framsteg i Hardcover ändras inte." } } }
+    },
+    "Edit Session" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "Redigera session" } } }
+    },
+    "page" : {
+      "extractionState" : "manual",
+      "localizations" : { "sv" : { "stringUnit" : { "state" : "translated", "value" : "sida" } } }
+    },
     "Nearest release" : {
       "extractionState": "manual",
       "localizations": { "sv": { "stringUnit": { "state": "translated", "value": "Närmaste release" } } }

@@ -200,19 +200,19 @@ struct OtherUserStatsView: View {
     
     @MainActor private func loadStats() async {
         let request = UUID()
-        let account = HardcoverConfig.authorizationHeaderValue
+        let account = HardcoverConfig.accountIdentifier
         generation = request
         isLoading = true; errorMessage = nil
         defer { if request == generation { isLoading = false } }
         do {
             let loadedStats = try await HardcoverReadScope.checked { await HardcoverService.fetchUserStats(username: username) }
             try Task.checkCancellation()
-            guard request == generation, account == HardcoverConfig.authorizationHeaderValue else { return }
+            guard request == generation, account == HardcoverConfig.accountIdentifier else { return }
             guard let loadedStats else { throw HardcoverNetworkError.invalidResponse }
             stats = loadedStats
             let loadedGoals = try await HardcoverReadScope.checked { await HardcoverService.fetchUserReadingGoals(username: username) }
             try Task.checkCancellation()
-            guard request == generation, account == HardcoverConfig.authorizationHeaderValue else { return }
+            guard request == generation, account == HardcoverConfig.accountIdentifier else { return }
             readingGoals = loadedGoals
         } catch {
             guard !Task.isCancelled, request == generation else { return }

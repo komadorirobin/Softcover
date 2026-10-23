@@ -153,7 +153,7 @@ struct FeedView: View {
     
     @MainActor private func reload(refresh: Bool = true) async {
         let filter = selectedFilter
-        let account = HardcoverConfig.authorizationHeaderValue
+        let account = HardcoverConfig.accountIdentifier
         let request = UUID()
         generation = request
         isLoadingMore = false
@@ -171,7 +171,7 @@ struct FeedView: View {
             try Task.checkCancellation()
             let fetched = try await fetch(filter: filter, offset: 0)
             try Task.checkCancellation()
-            guard generation == request, selectedFilter == filter, account == HardcoverConfig.authorizationHeaderValue else { return }
+            guard generation == request, selectedFilter == filter, account == HardcoverConfig.accountIdentifier else { return }
             activities = fetched
             nextOffset = fetched.count
             canLoadMore = fetched.count >= pageSize
@@ -186,13 +186,13 @@ struct FeedView: View {
         guard !Task.isCancelled, !isLoading, !isLoadingMore, canLoadMore else { return }
         let request = generation
         let filter = selectedFilter
-        let account = HardcoverConfig.authorizationHeaderValue
+        let account = HardcoverConfig.accountIdentifier
         isLoadingMore = true
         defer { if generation == request { isLoadingMore = false } }
         do {
             let fetched = try await fetch(filter: filter, offset: nextOffset)
             try Task.checkCancellation()
-            guard generation == request, selectedFilter == filter, account == HardcoverConfig.authorizationHeaderValue else { return }
+            guard generation == request, selectedFilter == filter, account == HardcoverConfig.accountIdentifier else { return }
             var existing = Set(activities.map(\.id))
             activities.append(contentsOf: fetched.filter { existing.insert($0.id).inserted })
             nextOffset += fetched.count

@@ -1,9 +1,11 @@
 import SwiftUI
 import WidgetKit
 import UniformTypeIdentifiers
+import AuthenticationServices
 
 struct ApiKeySettingsView: View {
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var oauth = HardcoverOAuthCoordinator()
     @State private var apiKey: String = ""
     @State private var detectedUsername: String = ""
     @State private var isSaving = false
@@ -12,6 +14,8 @@ struct ApiKeySettingsView: View {
     @State private var showSaved = false
     @State private var showPasteWarning = false
     @State private var showDeveloperProfile = false
+    @State private var showAPIKeyFallback = false
+    @State private var showDisconnectConfirmation = false
     @AppStorage("AppearancePreference", store: AppGroup.defaults) private var appearancePref: String = "system"
     // NEW: Skip edition picker preference
     @AppStorage("SkipEditionPickerOnAdd", store: AppGroup.defaults) private var skipEditionPickerOnAdd: Bool = false
@@ -19,6 +23,9 @@ struct ApiKeySettingsView: View {
     @AppStorage("DefaultProgressInputMode", store: AppGroup.defaults) private var defaultProgressInputMode: String = "page"
     // NEW: Currently Reading widget sort order preference
     @AppStorage("CurrentlyReadingSortOrder", store: AppGroup.defaults) private var currentlyReadingSortOrder: String = "recentlyUpdated"
+    @AppStorage("ShowReadingStreak", store: AppGroup.defaults) private var showReadingStreak = true
+    @AppStorage("LibrarySwipeEnabled", store: AppGroup.defaults) private var librarySwipeEnabled = true
+    @AppStorage("DateFormatPreference", store: AppGroup.defaults) private var dateFormatPreference = "regional"
     
     let onSaved: ((String) -> Void)?
     
@@ -29,8 +36,7 @@ struct ApiKeySettingsView: View {
     var body: some View {
         NavigationView {
             Form {
-                // Welcome message for first-time users
-                if AppGroup.defaults.string(forKey: "HardcoverAPIKey")?.isEmpty ?? true {
+                if !HardcoverConfig.isSignedIn {
                     Section {
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
@@ -42,72 +48,107 @@ struct ApiKeySettingsView: View {
                                     .fontWeight(.bold)
                             }
                             
-                            Text(NSLocalizedString("To get started, you'll need your Hardcover API key. This allows the app to sync your reading progress.", comment: "Onboarding welcome description"))
+                            Text(NSLocalizedString("Connect your Hardcover account to sync your library, reading progress, and widgets.", comment: "Onboarding welcome description"))
                                 .foregroundColor(.secondary)
                         }
                         .padding(.vertical, 8)
                     }
                 }
                 
-                Section(header: Text("Account")) {
-                    LabeledContent("Username", value: detectedUsername.isEmpty ? "-" : "@\(detectedUsername)")
-                    SecureField("Paste your API key", text: $apiKey)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .font(.system(.body, design: .monospaced))
-                        .disabled(isSaving)
-                    
-                    HStack {
-                        PasteButton(payloadType: String.self) { strings in
-                            if let pasted = strings.first?.trimmingCharacters(in: .whitespacesAndNewlines),
-                               !pasted.isEmpty {
-                                apiKey = pasted
-                            } else {
-                                showPasteWarning = true
+                Section("Hardcover Account") {
+                    if HardcoverConfig.isSignedIn {
+                        LabeledContent("Username", value: detectedUsername.isEmpty ? "-" : "@\(detectedUsername)")
+                        Label(HardcoverConfig.usesOAuth ? "Connected securely" : "Connected with API key",
+                              systemImage: HardcoverConfig.usesOAuth ? "checkmark.shield.fill" : "key.fill")
+                            .foregroundStyle(.green)
+                        if !HardcoverConfig.usesOAuth {
+                            Button(action: connectWithHardcover) {
+                                HStack {
+                                    if oauth.isWorking { ProgressView() }
+                                    Label("Switch to Hardcover Sign-In", systemImage: "person.badge.key.fill")
+                                }
+                                .frame(maxWidth: .infinity)
                             }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(isSaving || oauth.isWorking)
                         }
-                        .buttonStyle(.bordered)
-                        
-                        Spacer()
-                        
-                        Button("Clear") {
-                            apiKey = ""
+                        Button("Disconnect", role: .destructive) { showDisconnectConfirmation = true }
+                            .disabled(isSaving || oauth.isWorking)
+                    } else {
+                        Button(action: connectWithHardcover) {
+                            HStack {
+                                if oauth.isWorking { ProgressView() }
+                                Label("Connect with Hardcover", systemImage: "person.badge.key.fill")
+                            }
+                            .frame(maxWidth: .infinity)
                         }
-                        .foregroundColor(.red)
+                        .buttonStyle(.borderedProminent)
+                        .disabled(isSaving || oauth.isWorking)
+                        Text("Softcover opens Hardcover so you can approve access. Your password is never shared with Softcover.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
-                    .disabled(isSaving)
                     if let saveError {
                         Text(saveError).font(.callout).foregroundStyle(.red)
                     }
                 }
-                
-                // Egen liten sektion för att få fullbreddsseparatorer
+
                 Section {
-                    Button(action: save) {
+                    DisclosureGroup("Use an API key instead", isExpanded: $showAPIKeyFallback) {
+                        SecureField("Paste your API key", text: $apiKey)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .font(.system(.body, design: .monospaced))
+                            .disabled(isSaving || oauth.isWorking)
+
                         HStack {
-                            if isSaving { ProgressView() }
-                            Text("Save Settings")
-                        }.frame(maxWidth: .infinity)
+                            PasteButton(payloadType: String.self) { strings in
+                                if let pasted = strings.first?.trimmingCharacters(in: .whitespacesAndNewlines),
+                                   !pasted.isEmpty { apiKey = pasted }
+                                else { showPasteWarning = true }
+                            }
+                            .buttonStyle(.bordered)
+                            Spacer()
+                            Button("Clear") { apiKey = "" }.foregroundColor(.red)
+                        }
+                        .disabled(isSaving || oauth.isWorking)
+
+                        Button(action: save) {
+                            HStack {
+                                if isSaving { ProgressView() }
+                                Text("Save API Key")
+                            }.frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(isSaving || oauth.isWorking || apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                        Text("API keys remain supported for existing users and development builds.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(isSaving || apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
-                
-                Section(header: Text("Where do I find the key?")) {
-                    Text("You can find your personal API key on Hardcover under Account → API. Log in and go to:")
-                    Link("hardcover.app/account/api", destination: URL(string: "https://hardcover.app/account/api")!)
                 }
                 
                 Section(header: Text("Appearance")) {
-                    Picker("Theme", selection: $appearancePref) {
-                        Text("Follow System").tag("system")
-                        Text("Light").tag("light")
-                        Text("Dark").tag("dark")
+                    NavigationLink {
+                        AppearanceSettingsView()
+                    } label: {
+                        Label("Themes & App Icon", systemImage: "paintpalette.fill")
                     }
-                    .pickerStyle(.segmented)
                     Text(hintText)
                         .font(.caption)
                         .foregroundColor(.secondary)
+                }
+
+                Section(header: Text("Library & Reading")) {
+                    Toggle("Show reading streak", isOn: $showReadingStreak)
+                    Toggle("Swipe between library shelves", isOn: $librarySwipeEnabled)
+                    NavigationLink("Choose and reorder shelves") { LibraryShelfSettingsView() }
+                    Picker("Date format", selection: $dateFormatPreference) {
+                        Text("Regional default").tag("regional")
+                        Text("Day / Month / Year").tag("dmy")
+                        Text("Month / Day / Year").tag("mdy")
+                        Text("Year / Month / Day").tag("ymd")
+                    }
                 }
                 
                 // NEW: Add Book behavior
@@ -173,9 +214,9 @@ struct ApiKeySettingsView: View {
                         TipJarView()
                     } label: {
                         HStack {
-                            Image(systemName: "heart.circle.fill")
-                                .foregroundColor(.pink)
-                            Text("Tip Jar")
+                            Image(systemName: SupporterAccess.isUnlocked ? "checkmark.seal.fill" : "sparkles")
+                                .foregroundColor(SupporterAccess.isUnlocked ? .green : .purple)
+                            Text(SupporterAccess.isUnlocked ? "Softcover Supporter" : "Support Softcover")
                             Spacer()
                             Image(systemName: "chevron.right")
                                 .font(.caption)
@@ -200,15 +241,15 @@ struct ApiKeySettingsView: View {
                     }
                 }
             }
-            .navigationTitle("API Settings")
+            .navigationTitle("Settings")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }.disabled(isSaving)
+                    Button("Close") { dismiss() }.disabled(isSaving || oauth.isWorking)
                 }
             }
             .onAppear { loadExistingAndRefreshUsername() }
             .onDisappear { saveTask?.cancel() }
-            .interactiveDismissDisabled(isSaving)
+            .interactiveDismissDisabled(isSaving || oauth.isWorking)
             .alert("Saved", isPresented: $showSaved) {
                 Button("OK") { dismiss() }
             } message: {
@@ -218,6 +259,13 @@ struct ApiKeySettingsView: View {
                 Button("OK") { }
             } message: {
                 Text("Check that clipboard contains text, and allow \"Paste\" if iOS asks.")
+            }
+            .confirmationDialog("Disconnect Hardcover?", isPresented: $showDisconnectConfirmation,
+                                titleVisibility: .visible) {
+                Button("Disconnect", role: .destructive) { disconnect() }
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("Softcover's local account data and widget caches will be cleared.")
             }
             .sheet(isPresented: $showDeveloperProfile) {
                 NavigationView {
@@ -236,15 +284,46 @@ struct ApiKeySettingsView: View {
     }
     
     private func loadExistingAndRefreshUsername() {
-        apiKey = AppGroup.defaults.string(forKey: "HardcoverAPIKey") ?? ""
+        apiKey = HardcoverConfig.usesOAuth ? "" : ((try? HardcoverLegacyAPIKeyStore.load())
+            ?? AppGroup.defaults.string(forKey: "HardcoverAPIKey") ?? "")
         detectedUsername = AppGroup.defaults.string(forKey: "HardcoverUsername") ?? ""
+    }
+
+    @MainActor private func connectWithHardcover() {
+        guard !isSaving, !oauth.isWorking else { return }
+        saveError = nil
+        saveTask = Task {
+            do {
+                let user = try await oauth.signIn()
+                detectedUsername = user.username
+                apiKey = ""
+                onSaved?("")
+                showSaved = true
+            } catch {
+                guard !Task.isCancelled,
+                      (error as? ASWebAuthenticationSessionError)?.code != .canceledLogin else { return }
+                saveError = error.localizedDescription
+            }
+        }
+    }
+
+    @MainActor private func disconnect() {
+        guard !isSaving, !oauth.isWorking else { return }
+        saveError = nil
+        saveTask = Task {
+            do { try await oauth.disconnect() }
+            catch { saveError = error.localizedDescription }
+            detectedUsername = ""
+            apiKey = ""
+            onSaved?("")
+        }
     }
 
     @MainActor private func save() {
         guard !isSaving else { return }
         let normalizedKey = HardcoverConfig.normalize(apiKey)
         guard !normalizedKey.isEmpty else { return }
-        let previousKey = HardcoverConfig.apiKey
+        let previousAccount = HardcoverConfig.accountIdentifier
         isSaving = true
         saveError = nil
         saveTask = Task {
@@ -253,15 +332,20 @@ struct ApiKeySettingsView: View {
                 let user = try await LibraryAPI.identity(
                     authorization: HardcoverConfig.headerValue(for: normalizedKey), fresh: true)
                 try Task.checkCancellation()
-                guard HardcoverConfig.apiKey == previousKey else { throw HardcoverNetworkError.accountChanged }
+                guard HardcoverConfig.accountIdentifier == previousAccount else { throw HardcoverNetworkError.accountChanged }
                 // No account or cached data is replaced until the candidate token is verified.
-                AppGroup.defaults.set(normalizedKey, forKey: "HardcoverAPIKey")
+                let previousOAuth = try? HardcoverOAuthCredentialsStore.load()
+                try HardcoverLegacyAPIKeyStore.save(normalizedKey)
+                try? HardcoverOAuthCredentialsStore.delete()
+                AppGroup.defaults.removeObject(forKey: "HardcoverAPIKey")
                 AppGroup.defaults.set(user.username, forKey: "HardcoverUsername")
+                AppGroup.defaults.set(UUID().uuidString, forKey: "HardcoverAuthRevision")
                 detectedUsername = user.username
                 await HardcoverHTTP.shared.invalidate()
                 LibrarySnapshot.clear()
                 WidgetSync.accountChanged()
                 NotificationCenter.default.post(name: .hardcoverAccountDidChange, object: nil)
+                if let previousOAuth { try? await HardcoverOAuthAPI.revoke(previousOAuth) }
                 onSaved?(normalizedKey)
                 showSaved = true
             } catch {

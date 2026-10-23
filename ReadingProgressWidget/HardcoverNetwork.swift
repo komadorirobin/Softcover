@@ -6,8 +6,8 @@ enum HardcoverNetworkError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .signIn: return NSLocalizedString("Connect a valid Hardcover API key in Settings.", comment: "")
-        case .permission: return NSLocalizedString("Your API key does not have permission for this action.", comment: "")
+        case .signIn: return NSLocalizedString("Connect your Hardcover account in Settings.", comment: "")
+        case .permission: return NSLocalizedString("Your Hardcover account has not granted permission for this action.", comment: "")
         case .invalidResponse: return NSLocalizedString("Hardcover returned an unreadable response. Please try again.", comment: "")
         case .server(let status): return String(format: NSLocalizedString("Hardcover is unavailable (HTTP %d). Please try again.", comment: ""), status)
         case .graphQL(let message): return message
@@ -58,9 +58,12 @@ actor HardcoverRequestScheduler {
             var bucket = buckets[key] ?? Bucket()
             bucket.available = min(bucket.capacity, bucket.available + max(0, now.timeIntervalSince(bucket.updated)) * bucket.rate)
             bucket.updated = now
-            let delay = max(bucket.blockedUntil.timeIntervalSince(now), (Double(cost) - bucket.available) / bucket.rate)
+            // Never wait for more tokens than the bucket can hold. A bad cost estimate must
+            // fail at the server, not freeze the caller in an unsatisfiable local loop.
+            let effectiveCost = min(max(1, Double(cost)), max(1, bucket.capacity))
+            let delay = max(bucket.blockedUntil.timeIntervalSince(now), (effectiveCost - bucket.available) / bucket.rate)
             if delay <= 0 {
-                bucket.available -= Double(cost)
+                bucket.available -= effectiveCost
                 buckets[key] = bucket
                 return
             }
@@ -73,6 +76,19 @@ actor HardcoverRequestScheduler {
     func observe(_ response: HTTPURLResponse, authorization: String) {
         let key = Self.accountKey(authorization)
         var bucket = buckets[key] ?? Bucket()
+        // Hardcover reports its actual burst budget on every response. Keep the
+        // older structured-header parsing below as a compatibility fallback.
+        if let raw = response.value(forHTTPHeaderField: "X-Ratelimit-Limit"),
+           let limit = Double(raw.trimmingCharacters(in: .whitespacesAndNewlines)) {
+            bucket.capacity = max(1, limit)
+            bucket.available = min(bucket.available, bucket.capacity)
+        }
+        if let raw = response.value(forHTTPHeaderField: "X-Ratelimit-Remaining"),
+           let remaining = Double(raw.trimmingCharacters(in: .whitespacesAndNewlines)) {
+            // Responses can arrive out of order. A lower server figure is always
+            // safe to adopt; do not let a stale response hand tokens back.
+            bucket.available = min(bucket.available, max(0, min(bucket.capacity, remaining)))
+        }
         if let policy = response.value(forHTTPHeaderField: "RateLimit-Policy") {
             let first = policy.components(separatedBy: ",").first ?? policy
             let fields = Self.fields(first)
@@ -95,6 +111,13 @@ actor HardcoverRequestScheduler {
         }
         buckets[key] = bucket
     }
+
+    #if SOFTCOVER_CORE_TESTS
+    func testSnapshot(authorization: String) -> (available: Double, capacity: Double, blockedUntil: Date) {
+        let bucket = buckets[Self.accountKey(authorization)] ?? Bucket()
+        return (bucket.available, bucket.capacity, bucket.blockedUntil)
+    }
+    #endif
 
     static func retryDate(_ response: HTTPURLResponse) -> Date {
         let value = response.value(forHTTPHeaderField: "Retry-After") ?? ""
@@ -190,8 +213,17 @@ actor HardcoverHTTP {
         request.timeoutInterval = min(request.timeoutInterval, 35)
         request.setValue("Softcover/iOS", forHTTPHeaderField: "User-Agent")
         let isGraphQL = request.url?.host == "api.hardcover.app"
+        #if !SOFTCOVER_CORE_TESTS
+        let managesOAuth = isGraphQL && HardcoverConfig.usesOAuth
+            && request.value(forHTTPHeaderField: "Authorization") == HardcoverConfig.authorizationHeaderValue
+        if managesOAuth { request = try await HardcoverOAuthSession.shared.authorize(request) }
+        #else
+        let managesOAuth = false
+        #endif
         let authorization = request.value(forHTTPHeaderField: "Authorization") ?? ""
-        let account = HardcoverRequestScheduler.accountKey(authorization)
+        let accountIdentity = authorization == HardcoverConfig.authorizationHeaderValue
+            ? HardcoverConfig.accountIdentifier : authorization
+        let account = HardcoverRequestScheduler.accountKey(accountIdentity)
         let payload = request.httpBody.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
         let query = payload?["query"] as? String ?? ""
         let readOnly = request.httpMethod == "GET" || query.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("query") || query.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("{")
@@ -211,10 +243,23 @@ actor HardcoverHTTP {
             let session = self.session
             let scheduler = self.scheduler
             entry = Pending(id: UUID(), account: account, task: Task {
-                if isGraphQL { try await scheduler.acquire(authorization: authorization, cost: cost) }
-                let (data, response) = try await session.data(for: request)
-                guard let http = response as? HTTPURLResponse else { throw HardcoverNetworkError.invalidResponse }
-                if isGraphQL { await scheduler.observe(http, authorization: authorization) }
+                if isGraphQL { try await scheduler.acquire(authorization: accountIdentity, cost: cost) }
+                var activeRequest = request
+                var (data, response) = try await session.data(for: activeRequest)
+                guard var http = response as? HTTPURLResponse else { throw HardcoverNetworkError.invalidResponse }
+                if isGraphQL { await scheduler.observe(http, authorization: accountIdentity) }
+                #if !SOFTCOVER_CORE_TESTS
+                if managesOAuth, http.statusCode == 401,
+                   let replacement = try await HardcoverOAuthSession.shared.replacementAuthorization(
+                    afterUnauthorized: activeRequest.value(forHTTPHeaderField: "Authorization") ?? "") {
+                    try await scheduler.acquire(authorization: accountIdentity, cost: cost)
+                    activeRequest.setValue(replacement, forHTTPHeaderField: "Authorization")
+                    (data, response) = try await session.data(for: activeRequest)
+                    guard let retryHTTP = response as? HTTPURLResponse else { throw HardcoverNetworkError.invalidResponse }
+                    http = retryHTTP
+                    await scheduler.observe(http, authorization: accountIdentity)
+                }
+                #endif
                 switch http.statusCode {
                 case 200..<300: break
                 case 401: throw HardcoverNetworkError.signIn
@@ -243,7 +288,7 @@ actor HardcoverHTTP {
             }
             if pending[pendingKey]?.id == entry.id { pending[pendingKey] = nil }
             // A confirmed write changes server state even when its observing view has gone away.
-            if !readOnly { invalidateReads(authorization: authorization) }
+            if !readOnly { invalidateReads(authorization: accountIdentity) }
             try Task.checkCancellation()
             guard currentRevision == revision else { throw HardcoverNetworkError.accountChanged }
             if readOnly, readRevision != readRevisions[account, default: 0] { throw CancellationError() }

@@ -67,7 +67,7 @@ struct HistoryView: View {
     }
 
     private func subtitle(for entry: FinishedBookEntry) -> String {
-        let date = entry.finishedAt.formatted(date: .abbreviated, time: .omitted)
+        let date = SoftcoverDateFormatting.string(from: entry.finishedAt)
         guard let rating = entry.rating else { return date }
         return date + " - " + String(format: NSLocalizedString("Rating: %.1f/5", comment: ""), rating)
     }

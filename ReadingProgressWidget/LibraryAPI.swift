@@ -58,21 +58,33 @@ enum LibraryAPI {
     edition { id title pages audio_seconds release_date reading_format { format } image { url } }
     """
     static let pageQuery = """
-    query LibraryPage($userID: Int!, $status: Int!, $offset: Int!, $limit: Int!, $order: [user_books_order_by!]!) {
+    query LibraryPage($status: Int!, $offset: Int!, $limit: Int!, $order: [user_books_order_by!]!) {
+      me {
+        user_books(where: {status_id: {_eq: $status}}, order_by: $order, offset: $offset, limit: $limit) {
+          \(fields)
+        }
+      }
+    }
+    """
+    static let otherUserPageQuery = """
+    query OtherLibraryPage($userID: Int!, $status: Int!, $offset: Int!, $limit: Int!, $order: [user_books_order_by!]!) {
       user_books(where: {user_id: {_eq: $userID}, status_id: {_eq: $status}}, order_by: $order, offset: $offset, limit: $limit) {
         \(fields)
       }
     }
     """
     static let currentBookQuery = """
-    query LibraryBook($userID: Int!, $bookID: Int!) {
-      user_books(where: {user_id: {_eq: $userID}, book_id: {_eq: $bookID}}, order_by: {id: desc}, limit: 1) { \(fields) }
+    query LibraryBook($bookID: Int!) {
+      me {
+        user_books(where: {book_id: {_eq: $bookID}}, order_by: {id: desc}, limit: 1) { \(fields) }
+      }
     }
     """
     static let identityQuery = "query SoftcoverIdentity { me { id username } }"
 
     static func request(_ query: String, variables: [String: Any] = [:], authorization: String? = nil, fresh: Bool = false, cost: Int = 1) async throws -> Data {
         let auth = authorization ?? HardcoverConfig.authorizationHeaderValue
+        let account = authorization == nil ? HardcoverConfig.accountIdentifier : auth
         guard !auth.isEmpty else { throw HardcoverNetworkError.signIn }
         var request = URLRequest(url: URL(string: "https://api.hardcover.app/v1/graphql")!)
         request.httpMethod = "POST"
@@ -81,7 +93,7 @@ enum LibraryAPI {
         request.httpBody = try JSONSerialization.data(withJSONObject: ["query": query, "variables": variables], options: [.sortedKeys])
         let (data, _) = try await HardcoverHTTP.shared.data(for: request, cacheTTL: fresh ? 0 : 60, cost: cost)
         try Task.checkCancellation()
-        if authorization == nil, auth != HardcoverConfig.authorizationHeaderValue { throw HardcoverNetworkError.accountChanged }
+        if authorization == nil, account != HardcoverConfig.accountIdentifier { throw HardcoverNetworkError.accountChanged }
         return data
     }
 
@@ -95,27 +107,42 @@ enum LibraryAPI {
 
     static func page(status: Int, offset: Int = 0, limit: Int = 50, username: String? = nil, fresh: Bool = false) async throws -> LibraryPage {
         guard offset >= 0, (1...100).contains(limit) else { throw HardcoverNetworkError.invalidResponse }
-        let userID: Int
+        let query: String
+        var variables: [String: Any] = ["status": status, "offset": offset, "limit": limit + 1]
         if let username {
             let data = try await request("query LibraryUser($username: String!) { users(where: {username: {_eq: $username}}, limit: 1) { id username } }", variables: ["username": username])
             struct Response: Decodable { struct Value: Decodable { let users: [MeUser] }; let data: Value }
             guard let user = try JSONDecoder().decode(Response.self, from: data).data.users.first else { throw HardcoverNetworkError.invalidResponse }
-            userID = user.id
-        } else { userID = try await identity().id }
+            variables["userID"] = user.id
+            query = otherUserPageQuery
+        } else { query = pageQuery }
         let recentlyAdded = AppGroup.defaults.string(forKey: "CurrentlyReadingSortOrder") == "recentlyAdded"
         let order = status == 2 && !recentlyAdded ? [["updated_at": "desc"], ["id": "desc"]] : [["id": "desc"]]
-        let data = try await request(pageQuery, variables: ["userID": userID, "status": status, "offset": offset, "limit": limit + 1, "order": order], fresh: fresh)
-        guard let rows = try JSONDecoder().decode(GraphQLUserBooksResponse.self, from: data).data?.user_books else {
-            throw HardcoverNetworkError.invalidResponse
-        }
+        variables["order"] = order
+        let data = try await request(query, variables: variables, fresh: fresh)
+        let rows = try decodeUserBooks(data)
         return LibraryPage(books: rows.prefix(limit).compactMap(makeBook), nextOffset: offset + min(limit, rows.count), hasMore: rows.count > limit)
     }
 
     static func ownBook(bookID: Int, fresh: Bool = false) async throws -> BookProgress? {
-        let user = try await identity()
-        let data = try await request(currentBookQuery, variables: ["userID": user.id, "bookID": bookID], fresh: fresh)
-        guard let rows = try JSONDecoder().decode(GraphQLUserBooksResponse.self, from: data).data?.user_books else { throw HardcoverNetworkError.invalidResponse }
+        let data = try await request(currentBookQuery, variables: ["bookID": bookID], fresh: fresh)
+        let rows = try decodeUserBooks(data)
         return rows.first.flatMap(makeBook)
+    }
+
+    private static func decodeUserBooks(_ data: Data) throws -> [UserBook] {
+        struct Response: Decodable {
+            struct Payload: Decodable {
+                struct CurrentUser: Decodable { let user_books: [UserBook]? }
+                let user_books: [UserBook]?
+                let me: [CurrentUser]?
+            }
+            let data: Payload?
+        }
+        let payload = try JSONDecoder().decode(Response.self, from: data).data
+        if let rows = payload?.user_books { return rows }
+        if let rows = payload?.me?.first?.user_books { return rows }
+        throw HardcoverNetworkError.invalidResponse
     }
 
     static func makeBook(_ row: UserBook) -> BookProgress? {
@@ -144,7 +171,7 @@ enum LibraryAPI {
 enum LibrarySnapshot {
     struct Value: Codable { var books: [BookProgress]; let date: Date; let complete: Bool; var stale = false }
     private static func key(status: Int) -> String {
-        "LibrarySnapshot.\(HardcoverRequestScheduler.accountKey(HardcoverConfig.authorizationHeaderValue)).\(status)"
+        "LibrarySnapshot.\(HardcoverRequestScheduler.accountKey(HardcoverConfig.accountIdentifier)).\(status)"
     }
     static func load(status: Int, maxAge: TimeInterval = 86400) -> Value? {
         guard !HardcoverConfig.apiKey.isEmpty,

@@ -80,11 +80,11 @@ struct TrendingBooksView: View {
 
     @MainActor private func add(_ item: HardcoverService.TrendingBook) async {
         guard !adding.contains(item.id), !added.contains(item.id) else { return }
-        let account = HardcoverConfig.authorizationHeaderValue
+        let account = HardcoverConfig.accountIdentifier
         adding.insert(item.id)
         defer { adding.remove(item.id) }
-        let success = await HardcoverService.addBookToWantToRead(bookId: item.id, editionId: nil)
-        guard !Task.isCancelled, account == HardcoverConfig.authorizationHeaderValue else { return }
+        let success = await OfflineWriteQueue.shared.perform(.add(bookID: item.id, editionID: nil, statusID: 1))
+        guard !Task.isCancelled, account == HardcoverConfig.accountIdentifier else { return }
         if success {
             added.insert(item.id)
             onDone(true)
